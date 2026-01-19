@@ -8,31 +8,113 @@ import { View, EmploymentType, AbsenceType, TargetHoursModel } from './types';
 import { INITIAL_CUSTOMERS, INITIAL_ACTIVITIES, INITIAL_USER_ACCOUNT, INITIAL_EMPLOYEES, getHolidays, GermanState } from './constants';
 import { LoginScreen } from './components/LoginScreen';
 import { RegistrationScreen } from './components/RegistrationScreen';
-import { getContractDetailsForDate, calculateAnnualVacationTaken, calculateBalance } from './utils';
+import { LogoutIcon } from './components/icons/LogoutIcon';
+// FIX: Removed unused and unexported 'calculateTargetHours' from import.
+import { getContractDetailsForDate, calculateAnnualVacationTaken, calculateBalance } from './components/utils';
+import { SwitchHorizontalIcon } from './components/icons/SwitchHorizontalIcon';
 import { ActionSheet } from './components/ui/ActionSheet';
 import { AbsenceRequestModal } from './components/AbsenceRequestModal';
+import { CheckCircleIcon } from './components/icons/CheckCircleIcon';
 import { ManualEntryFormModal } from './components/ManualEntryFormModal';
 
+const generateDemoData = () => {
+    const timeEntries: TimeEntry[] = [];
+    const absenceRequests: AbsenceRequest[] = [];
+    let entryIdCounter = 1000;
+
+    // --- Jan Demo 2025 ---
+    const janEmployeeId = 1;
+    const janYear = 2025;
+    const vacationStart = new Date(janYear, 6, 1);
+    const vacationEnd = new Date(janYear, 7, 4);
+    const vacationStartDateStr = vacationStart.toLocaleDateString('sv-SE');
+    const vacationEndDateStr = vacationEnd.toLocaleDateString('sv-SE');
+    absenceRequests.push({
+        id: entryIdCounter++,
+        employeeId: janEmployeeId,
+        type: AbsenceType.Vacation,
+        status: 'approved',
+        startDate: vacationStartDateStr,
+        endDate: vacationEndDateStr,
+    });
+    let currentDateJan = new Date(janYear, 0, 1);
+    while(currentDateJan <= new Date(janYear, 11, 31)) {
+        const dayOfWeek = currentDateJan.getDay();
+        const dateStr = currentDateJan.toLocaleDateString('sv-SE');
+        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !(dateStr >= vacationStartDateStr && dateStr <= vacationEndDateStr)) {
+            const startTime = new Date(currentDateJan);
+            startTime.setHours(8, Math.floor(Math.random() * 21) - 10, 0, 0);
+            const endTime = new Date(currentDateJan);
+            endTime.setHours(17, Math.floor(Math.random() * 41) - 20, 0, 0);
+            timeEntries.push({
+                id: entryIdCounter++, employeeId: janEmployeeId, start: startTime.toISOString(), end: endTime.toISOString(),
+                breakDurationMinutes: 60, customerId: INITIAL_CUSTOMERS[0].id, activityId: INITIAL_ACTIVITIES[0].id,
+                type: 'manual',
+            });
+        }
+        currentDateJan.setDate(currentDateJan.getDate() + 1);
+    }
+    
+    // --- Tina Teilzeit 2026 ---
+    const tinaEmployeeId = 2;
+    const tinaYear = 2026;
+    // Assuming no holidays for simplicity in data generation. The app logic will account for them.
+    let currentDateTina = new Date(tinaYear, 0, 1);
+    while (currentDateTina <= new Date(tinaYear, 11, 31)) {
+        const dayOfWeek = currentDateTina.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed
+        let dailyHours = 0;
+        if (dayOfWeek === 1) dailyHours = 8; // Monday
+        if (dayOfWeek === 2) dailyHours = 8; // Tuesday
+        if (dayOfWeek === 3) dailyHours = 4; // Wednesday
+        
+        if (dailyHours > 0) {
+             const startTime = new Date(currentDateTina);
+             startTime.setHours(8, 30, 0, 0); 
+             const endTime = new Date(startTime.getTime() + (dailyHours * 3600 * 1000));
+             timeEntries.push({
+                 id: entryIdCounter++, employeeId: tinaEmployeeId, start: startTime.toISOString(), end: endTime.toISOString(),
+                 breakDurationMinutes: 0, customerId: 'c4', activityId: 'a4',
+                 type: 'manual',
+             });
+        }
+        currentDateTina.setDate(currentDateTina.getDate() + 1);
+    }
+
+    return { timeEntries, absenceRequests };
+};
+
 const applyAutomaticBreaks = (entryData: Omit<TimeEntry, 'id' | 'employeeId'> | TimeEntry, employee: Employee): Omit<TimeEntry, 'id' | 'employeeId'> | TimeEntry => {
-    if (!employee.automaticBreakDeduction) return entryData;
+    if (!employee.automaticBreakDeduction) {
+        return entryData;
+    }
+
     const durationMs = new Date(entryData.end).getTime() - new Date(entryData.start).getTime();
     const durationHours = durationMs / (1000 * 60 * 60);
+
     let requiredBreak = 0;
-    if (durationHours > 9) requiredBreak = 45;
-    else if (durationHours > 6) requiredBreak = 30;
+    if (durationHours > 9) {
+        requiredBreak = 45;
+    } else if (durationHours > 6) {
+        requiredBreak = 30;
+    }
+
     const newBreakDuration = Math.max(entryData.breakDurationMinutes || 0, requiredBreak);
+    
     return { ...entryData, breakDurationMinutes: newBreakDuration };
 };
 
+
+const DEMO_DATA = generateDemoData();
 const MOCK_CURRENT_YEAR = 2026;
 
 const App: React.FC = () => {
   const [loggedInUser, setLoggedInUser] = useState<Employee | null>(null);
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [adminViewMode, setAdminViewMode] = useState<'admin' | 'employee'>('admin');
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
-  const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>([]);
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(DEMO_DATA.timeEntries);
+  const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>(DEMO_DATA.absenceRequests);
   const [timeBalanceAdjustments, setTimeBalanceAdjustments] = useState<TimeBalanceAdjustment[]>([]);
+  const [userAccount, setUserAccount] = useState<UserAccount>(INITIAL_USER_ACCOUNT);
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
   const [activities, setActivities] = useState<Activity[]>(INITIAL_ACTIVITIES);
@@ -55,11 +137,17 @@ const App: React.FC = () => {
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
   const [isAbsenceRequestModalOpen, setIsAbsenceRequestModalOpen] = useState(false);
   const [isManualEntryModalOpen, setIsManualEntryModalOpen] = useState(false);
+  const [showAbsenceSuccess, setShowAbsenceSuccess] = useState(false);
+  const [showTimeEntrySuccess, setShowTimeEntrySuccess] = useState(false);
+  const [showNfcSuccess, setShowNfcSuccess] = useState(false);
+  const [nfcSuccessMessage, setNfcSuccessMessage] = useState('');
 
-  const [selectedState, setSelectedState] = useState<GermanState>('BW');
+  // Settings state
+  const [selectedState, setSelectedState] = useState<GermanState>('BW'); // Default: Baden-Württemberg
   const [timeTrackingMethod, setTimeTrackingMethod] = useState<'all' | 'manual'>('all');
   const [holidaysByYear, setHolidaysByYear] = useState<HolidaysByYear>({});
 
+  // Stopwatch state (lifted up)
   const [isRunning, setIsRunning] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -70,6 +158,28 @@ const App: React.FC = () => {
   const intervalRef = React.useRef<number | null>(null);
 
   useEffect(() => {
+    if (showAbsenceSuccess) {
+      const timer = setTimeout(() => setShowAbsenceSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showAbsenceSuccess]);
+  
+  useEffect(() => {
+    if (showTimeEntrySuccess) {
+        const timer = setTimeout(() => setShowTimeEntrySuccess(false), 3000);
+        return () => clearTimeout(timer);
+    }
+  }, [showTimeEntrySuccess]);
+  
+  useEffect(() => {
+    if (showNfcSuccess) {
+        const timer = setTimeout(() => setShowNfcSuccess(false), 4000);
+        return () => clearTimeout(timer);
+    }
+  }, [showNfcSuccess]);
+
+  // Stopwatch timer logic
+  useEffect(() => {
     if (isRunning && startTime) {
       intervalRef.current = window.setInterval(() => {
         setElapsedTime(Date.now() - startTime.getTime());
@@ -78,19 +188,148 @@ const App: React.FC = () => {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [isRunning, startTime]);
 
+  // Clear holidays when state changes to force a reload
+  useEffect(() => {
+    setHolidaysByYear({});
+  }, [selectedState]);
+
   const ensureHolidaysForYear = useCallback((year: number) => {
-    if (holidaysByYear.hasOwnProperty(year)) return;
+    if (holidaysByYear.hasOwnProperty(year)) {
+      return;
+    }
     const holidays = getHolidays(year, selectedState);
-    setHolidaysByYear(prev => ({...prev, [year]: holidays}));
+    if (holidays.length > 0) {
+        setHolidaysByYear(prev => ({...prev, [year]: holidays}));
+    } else {
+        console.warn(`Keine Feiertage für ${year} im Bundesland ${selectedState} gefunden.`);
+        setHolidaysByYear(prev => ({...prev, [year]: []}));
+    }
   }, [holidaysByYear, selectedState]);
 
   const isDisplayingAdminView = loggedInUser?.role === 'admin' && adminViewMode === 'admin';
+
+  // NFC Reader Logic
+  useEffect(() => {
+    // @ts-ignore
+    if (!('NDEFReader' in window)) {
+      console.log("Web NFC wird von diesem Browser nicht unterstützt.");
+      return;
+    }
+    if (!loggedInUser || isDisplayingAdminView) {
+      return;
+    }
+
+    const abortController = new AbortController();
+
+    const startScan = async () => {
+      try {
+        // @ts-ignore
+        const reader = new NDEFReader();
+        await reader.scan({ signal: abortController.signal });
+
+        reader.onreading = (event: any) => {
+          const message = event.message;
+          for (const record of message.records) {
+            if (record.recordType === "text") {
+              const textDecoder = new TextDecoder();
+              const text = textDecoder.decode(record.data);
+              
+              try {
+                const data = JSON.parse(text);
+                
+                if (data.customerId && data.activityId) {
+                  if (isRunning) {
+                      setNfcSuccessMessage(`Stempeluhr läuft bereits.`);
+                      setShowNfcSuccess(true);
+                      return;
+                  }
+
+                  const todayStr = new Date().toLocaleDateString('sv-SE');
+                  const todaysAbsence = absenceRequests.find(req => 
+                      req.employeeId === loggedInUser.id &&
+                      req.status !== 'rejected' &&
+                      todayStr >= req.startDate &&
+                      todayStr <= req.endDate
+                  );
+                  if (todaysAbsence) {
+                      setNfcSuccessMessage('Start wegen Abwesenheit nicht möglich.');
+                      setShowNfcSuccess(true);
+                      return;
+                  }
+
+                  setStopwatchCustomerId(data.customerId);
+                  setStopwatchActivityId(data.activityId);
+                  setStartTime(new Date());
+                  setIsRunning(true);
+                  setCurrentView(View.Dashboard);
+
+                  const customerName = customers.find(c => c.id === data.customerId)?.name || data.customerId;
+                  const activityName = activities.find(a => a.id === data.activityId)?.name || data.activityId;
+                  setNfcSuccessMessage(`Zeiterfassung für "${customerName} / ${activityName}" gestartet.`);
+                  setShowNfcSuccess(true);
+                }
+              } catch (e) {
+                console.error("Fehler beim Parsen der NFC-Daten als JSON:", e);
+              }
+            }
+          }
+        };
+      } catch (error) {
+        console.error("Fehler beim Starten des NFC-Scans:", error);
+      }
+    };
+
+    startScan();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [loggedInUser, isDisplayingAdminView, isRunning, absenceRequests, customers, activities]);
+
+
+  useEffect(() => {
+    const loadMissingHolidays = () => {
+      const requiredYears = new Set<number>();
+      requiredYears.add(MOCK_CURRENT_YEAR);
+      requiredYears.add(MOCK_CURRENT_YEAR - 1);
+
+      employees.forEach(emp => {
+        if (emp.firstWorkDay) requiredYears.add(new Date(emp.firstWorkDay).getFullYear());
+        emp.contractHistory.forEach(c => requiredYears.add(new Date(c.validFrom).getFullYear()));
+      });
+      timeEntries.forEach(t => requiredYears.add(new Date(t.start).getFullYear()));
+      absenceRequests.forEach(a => requiredYears.add(new Date(a.startDate).getFullYear()));
+
+      for (const year of Array.from(requiredYears)) {
+        ensureHolidaysForYear(year);
+      }
+    };
+
+    loadMissingHolidays();
+  }, [employees, timeEntries, absenceRequests, ensureHolidaysForYear]);
+  
+  const isUserAdmin = loggedInUser?.role === 'admin';
   const currentUser = isDisplayingAdminView ? null : loggedInUser;
 
+  const handleSetCurrentView = (view: View) => {
+    setCurrentView(view);
+  };
+
+  const handleAddClick = () => {
+    if (timeTrackingMethod === 'manual') {
+      setIsAbsenceRequestModalOpen(true);
+    } else {
+      setIsActionSheetOpen(true);
+    }
+  };
+
   const handleLogin = useCallback((username: string, password: string): string | null => {
+    if (!password) return 'Bitte geben Sie ein Passwort ein.';
     const user = employees.find(e => e.username.toLowerCase() === username.toLowerCase());
     if (!user) return 'Benutzer nicht gefunden.';
     if (user.password !== password) return 'Falsches Passwort.';
@@ -98,16 +337,45 @@ const App: React.FC = () => {
     return null;
   }, [employees]);
 
-  const handleRegister = useCallback((employeeData: any, companyData: any) => {
+  const handleRegister = useCallback((
+      employeeData: Omit<Employee, 'id' | 'lastModified' | 'contractHistory' | 'role' | 'isActive'>,
+      companyData: Omit<CompanySettings, 'adminTimeFormat' | 'employeeTimeFormat'>
+  ) => {
       const newAdmin: Employee = {
           ...employeeData,
-          id: Date.now(), isActive: true, lastModified: new Date().toISOString(), role: 'admin',
-          contractHistory: [{ validFrom: employeeData.firstWorkDay, employmentType: EmploymentType.FullTime, monthlyTargetHours: 160, dailyTargetHours: 8, vacationDays: 30, street: '', houseNumber: '', postalCode: '', city: '' }]
+          id: 0,
+          isActive: true,
+          lastModified: new Date().toISOString(),
+          role: 'admin',
+          contractHistory: [{
+              validFrom: employeeData.firstWorkDay,
+              employmentType: EmploymentType.FullTime,
+              monthlyTargetHours: 160,
+              dailyTargetHours: 8,
+              vacationDays: 30,
+              street: '', houseNumber: '', postalCode: '', city: ''
+          }]
       };
       setEmployees([newAdmin]);
-      setCompanySettings({ ...companyData, adminTimeFormat: 'hoursMinutes', employeeTimeFormat: 'hoursMinutes' });
+      setCompanySettings({
+        ...companyData,
+        adminTimeFormat: 'hoursMinutes',
+        employeeTimeFormat: 'hoursMinutes',
+      });
       setLoggedInUser(newAdmin);
   }, []);
+
+  const handleLogout = () => {
+    if (isRunning) {
+        setIsRunning(false);
+        setElapsedTime(0);
+        setStartTime(null);
+        setStopwatchComment('');
+    }
+    setLoggedInUser(null);
+    setCurrentView(View.Dashboard);
+    setAdminViewMode('admin');
+  };
 
   const addTimeEntry = useCallback((entry: Omit<TimeEntry, 'id' | 'employeeId'>) => {
     if (loggedInUser) {
@@ -116,42 +384,461 @@ const App: React.FC = () => {
     }
   }, [loggedInUser]);
 
+  const adminAddTimeEntry = useCallback((entry: Omit<TimeEntry, 'id' | 'employeeId'>, employeeId: number) => {
+    const employee = employees.find(e => e.id === employeeId);
+    if (employee) {
+        const finalEntry = applyAutomaticBreaks(entry, employee);
+        setTimeEntries(prev => [...prev, { ...finalEntry, id: Date.now(), employeeId: employeeId }]);
+    } else {
+        setTimeEntries(prev => [...prev, { ...entry, id: Date.now(), employeeId: employeeId }]);
+    }
+  }, [employees]);
+
+  const updateTimeEntry = useCallback((updatedEntry: TimeEntry) => {
+    const employee = employees.find(e => e.id === updatedEntry.employeeId);
+    if (employee) {
+        const finalEntry = applyAutomaticBreaks(updatedEntry, employee) as TimeEntry;
+        setTimeEntries(prev => prev.map(entry => entry.id === finalEntry.id ? finalEntry : entry));
+    } else {
+        setTimeEntries(prev => prev.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry));
+    }
+  }, [employees]);
+
+  const deleteTimeEntry = useCallback((id: number) => {
+    setTimeEntries(prev => prev.filter(entry => entry.id !== id));
+  }, []);
+
+  const addAbsenceRequest = useCallback((request: Omit<AbsenceRequest, 'id' | 'status'>, status: AbsenceRequest['status'] = 'pending') => {
+    setAbsenceRequests(prev => [...prev, { ...request, id: Date.now(), status }]);
+    setShowAbsenceSuccess(true);
+  }, []);
+
+  const updateAbsenceRequest = useCallback((updatedRequest: AbsenceRequest) => {
+    setAbsenceRequests(prev => prev.map(req => req.id === updatedRequest.id ? updatedRequest : req));
+  }, []);
+  
+  const retractAbsenceRequest = useCallback((id: number) => {
+    setAbsenceRequests(prev => prev.filter(req => req.id !== id));
+  }, []);
+
+  const updateAbsenceRequestStatus = useCallback((id: number, status: 'approved' | 'rejected', comment?: string) => {
+    setAbsenceRequests(prev => prev.map(req => req.id === id ? { ...req, status, adminComment: comment } : req));
+  }, []);
+
+  const deleteAbsenceRequest = useCallback((id: number) => {
+    setAbsenceRequests(prev => prev.filter(req => req.id !== id));
+  }, []);
+
+  const addTimeBalanceAdjustment = useCallback((adjustment: Omit<TimeBalanceAdjustment, 'id'>) => {
+    setTimeBalanceAdjustments(prev => [...prev, { ...adjustment, id: Date.now() }]);
+  }, []);
+
+  const updateTimeBalanceAdjustment = useCallback((updatedAdjustment: TimeBalanceAdjustment) => {
+    setTimeBalanceAdjustments(prev => prev.map(adj => adj.id === updatedAdjustment.id ? updatedAdjustment : adj));
+  }, []);
+
+  const deleteTimeBalanceAdjustment = useCallback((id: number) => {
+    setTimeBalanceAdjustments(prev => prev.filter(adj => adj.id !== id));
+  }, []);
+
+  const addEmployee = useCallback((employee: Omit<Employee, 'id'>) => {
+    setEmployees(prev => [...prev, { ...employee, id: Date.now() }]);
+  }, []);
+
+  const updateEmployee = useCallback((updatedEmployee: Employee) => {
+    setEmployees(prev => prev.map(emp => emp.id === updatedEmployee.id ? updatedEmployee : emp));
+    if (loggedInUser && loggedInUser.id === updatedEmployee.id) {
+        setLoggedInUser(updatedEmployee);
+    }
+  }, [loggedInUser]);
+
+  const deleteEmployee = useCallback((id: number) => {
+    setEmployees(prev => prev.filter(emp => emp.id !== id));
+  }, []);
+
+  const addCustomer = useCallback((customer: Omit<Customer, 'id'>) => {
+    setCustomers(prev => [...prev, { ...customer, id: `c${Date.now()}` }]);
+  }, []);
+  
+  const updateCustomer = useCallback((updatedCustomer: Customer) => {
+    setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+  }, []);
+
+  const deleteCustomer = useCallback((id: string) => {
+    setCustomers(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  const addActivity = useCallback((activity: Omit<Activity, 'id'>) => {
+    setActivities(prev => [...prev, { ...activity, id: `a${Date.now()}` }]);
+  }, []);
+
+  const updateActivity = useCallback((updatedActivity: Activity) => {
+    setActivities(prev => prev.map(a => a.id === updatedActivity.id ? updatedActivity : a));
+  }, []);
+
+  const deleteActivity = useCallback((id: string) => {
+    setActivities(prev => prev.filter(a => a.id !== id));
+  }, []);
+  
+  useEffect(() => {
+      const calculateAndSetCarryoverForAll = () => {
+          const currentYear = MOCK_CURRENT_YEAR;
+          const previousYear = currentYear - 1;
+          const holidaysForPreviousYear = holidaysByYear[previousYear] || [];
+          if (holidaysForPreviousYear.length === 0) return;
+
+          const updatedEmployeesMap = new Map<number, Employee>();
+
+          for (const employee of employees) {
+              if (employee.vacationCarryover?.[previousYear] !== undefined) continue;
+              const firstWorkYear = new Date(employee.firstWorkDay).getFullYear();
+              if (firstWorkYear > previousYear) continue;
+              
+              const dateInPreviousYear = new Date(previousYear, 11, 31);
+              const contractDetailsForPreviousYear = getContractDetailsForDate(employee, dateInPreviousYear);
+              
+              const vacationTakenPreviousYear = calculateAnnualVacationTaken(employee.id, absenceRequests, previousYear, holidaysForPreviousYear);
+              const remainingVacation = contractDetailsForPreviousYear.vacationDays - vacationTakenPreviousYear;
+
+              if (remainingVacation >= 0) {
+                  updatedEmployeesMap.set(employee.id, {
+                      ...employee,
+                      vacationCarryover: { ...employee.vacationCarryover, [previousYear]: remainingVacation },
+                      lastModified: new Date().toISOString()
+                  });
+              }
+          }
+
+          if (updatedEmployeesMap.size > 0) {
+              setEmployees(prev => prev.map(emp => updatedEmployeesMap.get(emp.id) || emp));
+          }
+      };
+
+      if (employees.length > 0 && holidaysByYear[MOCK_CURRENT_YEAR - 1]) {
+          calculateAndSetCarryoverForAll();
+      }
+  }, [employees, absenceRequests, holidaysByYear]);
+
   const vacationInfo = useMemo(() => {
     if (!currentUser) return { vacationDaysLeft: 0, annualEntitlement: 0, carryover: 0 };
+    
     const currentYear = MOCK_CURRENT_YEAR;
-    const contract = getContractDetailsForDate(currentUser, new Date(currentYear, 6, 1));
-    const vacationTaken = calculateAnnualVacationTaken(currentUser.id, absenceRequests, currentYear, holidaysByYear[currentYear] || []);
-    return { vacationDaysLeft: contract.vacationDays - vacationTaken, annualEntitlement: contract.vacationDays, carryover: 0 };
+    const previousYear = currentYear - 1;
+    const holidaysForCurrentYear = holidaysByYear[currentYear] || [];
+    
+    const dateInCurrentYear = new Date(currentYear, 6, 1); // Mid-year for safety
+    const contract = getContractDetailsForDate(currentUser, dateInCurrentYear);
+    const annualEntitlement = contract.vacationDays;
+    
+    const carryover = currentUser.vacationCarryover?.[previousYear] || 0;
+    
+    const totalAvailableDays = annualEntitlement + carryover;
+    const vacationTakenThisYear = calculateAnnualVacationTaken(currentUser.id, absenceRequests, currentYear, holidaysForCurrentYear);
+
+    const vacationDaysLeft = totalAvailableDays - vacationTakenThisYear;
+
+    return { vacationDaysLeft, annualEntitlement, carryover };
   }, [currentUser, absenceRequests, holidaysByYear]);
 
   const timeBalanceHours = useMemo(() => {
     if (!currentUser) return 0;
+    
     const now = new Date();
     const calculationEndDate = new Date(now.getFullYear(), now.getMonth(), 0);
-    return calculateBalance(currentUser, calculationEndDate, timeEntries, absenceRequests, timeBalanceAdjustments, holidaysByYear);
+    calculationEndDate.setHours(23, 59, 59, 999);
+      
+    return calculateBalance(
+      currentUser, 
+      calculationEndDate,
+      timeEntries, 
+      absenceRequests,
+      timeBalanceAdjustments,
+      holidaysByYear
+    );
   }, [currentUser, timeEntries, absenceRequests, timeBalanceAdjustments, holidaysByYear]);
 
+
+  const currentMonthWorkedHours = useMemo(() => {
+    if (!currentUser) return 0;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const holidaysForCurrentYear = holidaysByYear[currentYear] || [];
+    const startOfMonth = new Date(currentYear, currentMonth, 1);
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
+
+    const holidayDates = new Set(holidaysForCurrentYear.map(h => h.date));
+    
+    const workedHoursByDate: { [key: string]: number } = {};
+    timeEntries
+        .filter(entry => {
+            const entryDate = new Date(entry.start);
+            return entry.employeeId === currentUser.id &&
+                   entryDate.getFullYear() === currentYear &&
+                   entryDate.getMonth() === currentMonth;
+        })
+        .forEach(entry => {
+            const dateKey = new Date(entry.start).toLocaleDateString('sv-SE');
+            const durationSeconds = (new Date(entry.end).getTime() - new Date(entry.start).getTime()) / 1000;
+            const durationHours = (durationSeconds - (entry.breakDurationMinutes * 60)) / 3600;
+            workedHoursByDate[dateKey] = (workedHoursByDate[dateKey] || 0) + durationHours;
+        });
+    
+    const approvedAbsences = absenceRequests.filter(req => 
+      req.employeeId === currentUser.id && req.status === 'approved'
+    );
+    
+    let totalHours = 0;
+    for (let day = new Date(startOfMonth); day <= endOfMonth; day.setDate(day.getDate() + 1)) {
+        const dateKey = day.toLocaleDateString('sv-SE');
+        
+        if (workedHoursByDate[dateKey]) {
+            totalHours += workedHoursByDate[dateKey];
+            continue;
+        }
+
+        const contract = getContractDetailsForDate(currentUser, day);
+        const dayOfWeek = day.getDay();
+        let dailyScheduledHours = 0;
+        if (contract.targetHoursModel === TargetHoursModel.Weekly && contract.weeklySchedule) {
+            const dayKeys: (keyof WeeklySchedule)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            dailyScheduledHours = contract.weeklySchedule[dayKeys[dayOfWeek]] || 0;
+        } else {
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { dailyScheduledHours = contract.dailyTargetHours; }
+        }
+
+        if (dailyScheduledHours === 0) continue;
+        
+        const isHoliday = holidayDates.has(dateKey);
+        const absence = approvedAbsences.find(req => dateKey >= req.startDate && dateKey <= req.endDate);
+
+        if (isHoliday) {
+            totalHours += dailyScheduledHours;
+        } else if (absence && (absence.type === AbsenceType.Vacation || absence.type === AbsenceType.SickLeave)) {
+            totalHours += dailyScheduledHours;
+        }
+    }
+
+    return totalHours;
+  }, [timeEntries, currentUser, absenceRequests, holidaysByYear]);
+
+  const renderEmployeeView = () => {
+    if (!currentUser) return null;
+    const userTimeEntries = timeEntries.filter(entry => entry.employeeId === currentUser.id);
+    const holidaysForCurrentYear = holidaysByYear[MOCK_CURRENT_YEAR] || [];
+    
+    const dashboardProps = {
+        currentUser: currentUser,
+        addTimeEntry: addTimeEntry,
+        timeEntries: timeEntries,
+        customers: customers,
+        activities: activities,
+        userAccount: {
+            ...userAccount,
+            timeBalanceHours: timeBalanceHours,
+            vacationDaysLeft: vacationInfo.vacationDaysLeft,
+            vacationAnnualEntitlement: vacationInfo.annualEntitlement,
+            vacationCarryover: vacationInfo.carryover,
+        },
+        currentMonthWorkedHours: currentMonthWorkedHours,
+        timeTrackingMethod: timeTrackingMethod,
+        dashboardType: currentUser.dashboardType || 'standard',
+        absenceRequests: absenceRequests,
+        holidays: holidaysForCurrentYear,
+        selectedState: selectedState,
+        companySettings: companySettings,
+        mockCurrentYear: MOCK_CURRENT_YEAR,
+        // Stopwatch props
+        isRunning: isRunning,
+        elapsedTime: elapsedTime,
+        stopwatchCustomerId: stopwatchCustomerId,
+        stopwatchActivityId: stopwatchActivityId,
+        stopwatchComment: stopwatchComment,
+        isBreakModalOpen: isBreakModalOpen,
+        setIsBreakModalOpen: setIsBreakModalOpen,
+        setIsRunning: setIsRunning,
+        setStartTime: setStartTime,
+        setElapsedTime: setElapsedTime,
+        setStopwatchCustomerId: setStopwatchCustomerId,
+        setStopwatchActivityId: setStopwatchActivityId,
+        setStopwatchComment: setStopwatchComment,
+    };
+    
+    switch (currentView) {
+      case View.Dashboard:
+        return <Dashboard {...dashboardProps} />;
+      case View.Calendar:
+        return <CalendarView 
+                  currentUser={currentUser}
+                  timeEntries={userTimeEntries} 
+                  absenceRequests={absenceRequests.filter(r => r.employeeId === currentUser.id)}
+                  customers={customers}
+                  activities={activities}
+                  onUpdateTimeEntry={updateTimeEntry}
+                  onDeleteTimeEntry={deleteTimeEntry}
+                  holidaysByYear={holidaysByYear}
+                  companySettings={companySettings}
+                  onEnsureHolidaysForYear={ensureHolidaysForYear}
+                  onRetractAbsenceRequest={retractAbsenceRequest}
+                  onAddAbsenceClick={() => setIsAbsenceRequestModalOpen(true)}
+                />;
+      default:
+        return <Dashboard {...dashboardProps} />;
+    }
+  };
+
+  if (!loggedInUser) {
+    const hasAdmin = employees.some(e => e.role === 'admin');
+    if (authView === 'login' && hasAdmin) {
+      return <LoginScreen onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} employees={employees} />;
+    } else {
+      return <RegistrationScreen onRegister={handleRegister} onSwitchToLogin={() => setAuthView('login')} />;
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white shadow-sm sticky top-0 z-10 p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">TimePro</h1>
-        {loggedInUser && (
-            <button onClick={() => setLoggedInUser(null)} className="text-sm text-gray-500 hover:text-red-600">Logout</button>
-        )}
+    <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col">
+      <header className="bg-white shadow-md sticky top-0 z-10">
+        <div className={`${isDisplayingAdminView ? 'max-w-8xl' : 'max-w-7xl'} mx-auto px-4 py-4 flex justify-between items-center`}>
+          <h1 className="text-2xl font-bold text-gray-900">
+             {isDisplayingAdminView ? 'Admin-Dashboard' : `Hallo, ${loggedInUser.firstName}`}
+          </h1>
+          <div className="flex items-center gap-2 sm:gap-4">
+            {isUserAdmin && (
+              <button
+                onClick={() => setAdminViewMode(prev => prev === 'admin' ? 'employee' : 'admin')}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
+                title={isDisplayingAdminView ? 'Zur Mitarbeiter-Ansicht wechseln' : 'Zur Admin-Ansicht wechseln'}
+              >
+                <SwitchHorizontalIcon className="h-5 w-5" />
+                <span className="hidden sm:inline">{isDisplayingAdminView ? 'Mitarbeiter-Ansicht' : 'Admin-Ansicht'}</span>
+              </button>
+            )}
+            <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-semibold bg-red-100 text-red-700 hover:bg-red-200">
+              <LogoutIcon className="h-5 w-5" />
+              <span className="hidden sm:inline">Abmelden</span>
+            </button>
+          </div>
+        </div>
       </header>
-      <main className="flex-grow p-4">
-        {!loggedInUser ? (
-          authView === 'login' ? <LoginScreen onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} employees={employees} /> : <RegistrationScreen onRegister={handleRegister} onSwitchToLogin={() => setAuthView('login')} />
-        ) : isDisplayingAdminView ? (
-          <AdminView {...{loggedInUser, absenceRequests, timeEntries, employees, customers, activities, selectedState, timeTrackingMethod, holidaysByYear, companySettings, timeBalanceAdjustments}} onEnsureHolidaysForYear={ensureHolidaysForYear} onUpdateTimeEntry={e => setTimeEntries(p => p.map(x => x.id === e.id ? e : x))} onDeleteTimeEntry={id => setTimeEntries(p => p.filter(x => x.id !== id))} onAddEmployee={e => setEmployees(p => [...p, {...e, id: Date.now()}])} onUpdateEmployee={e => setEmployees(p => p.map(x => x.id === e.id ? e : x))} onDeleteEmployee={id => setEmployees(p => p.filter(x => x.id !== id))} onAddCustomer={c => setCustomers(p => [...p, {...c, id: `c${Date.now()}`}])} onUpdateCustomer={c => setCustomers(p => p.map(x => x.id === c.id ? c : x))} onDeleteCustomer={id => setCustomers(p => p.filter(x => x.id !== id))} onAddActivity={a => setActivities(p => [...p, {...a, id: `a${Date.now()}`}])} onUpdateActivity={a => setActivities(p => p.map(x => x.id === a.id ? a : x))} onDeleteActivity={id => setActivities(p => p.filter(x => x.id !== id))} onStateChange={s => setSelectedState(s as GermanState)} onTimeTrackingMethodChange={setTimeTrackingMethod} onUpdateCompanySettings={setCompanySettings} onUpdateRequestStatus={(id, s, c) => setAbsenceRequests(p => p.map(x => x.id === id ? {...x, status: s, adminComment: c} : x))} onUpdateAbsenceRequest={r => setAbsenceRequests(p => p.map(x => x.id === r.id ? r : x))} onDeleteAbsenceRequest={id => setAbsenceRequests(p => p.filter(x => x.id !== id))} addAbsenceRequest={(r, s) => setAbsenceRequests(p => [...p, {...r, id: Date.now(), status: s}])} addTimeBalanceAdjustment={a => setTimeBalanceAdjustments(p => [...p, {...a, id: Date.now()}])} onUpdateTimeBalanceAdjustment={a => setTimeBalanceAdjustments(p => p.map(x => x.id === a.id ? a : x))} onDeleteTimeBalanceAdjustment={id => setTimeBalanceAdjustments(p => p.filter(x => x.id !== id))} onAddTimeEntry={(e, id) => setTimeEntries(p => [...p, {...e, id: Date.now(), employeeId: id}])} />
+      <main className={`flex-grow ${isDisplayingAdminView ? '' : 'max-w-7xl'} w-full mx-auto p-4 ${!isDisplayingAdminView ? 'pb-24' : ''} isolate`}>
+        {isDisplayingAdminView ? (
+          <AdminView 
+            loggedInUser={loggedInUser}
+            absenceRequests={absenceRequests} 
+            onUpdateRequestStatus={updateAbsenceRequestStatus}
+            onUpdateAbsenceRequest={updateAbsenceRequest}
+            onDeleteAbsenceRequest={deleteAbsenceRequest}
+            timeEntries={timeEntries}
+            onAddTimeEntry={adminAddTimeEntry}
+            onUpdateTimeEntry={updateTimeEntry}
+            onDeleteTimeEntry={deleteTimeEntry}
+            employees={employees}
+            onAddEmployee={addEmployee}
+            onUpdateEmployee={updateEmployee}
+            onDeleteEmployee={deleteEmployee}
+            customers={customers}
+            onAddCustomer={addCustomer}
+            onUpdateCustomer={updateCustomer}
+            onDeleteCustomer={deleteCustomer}
+            activities={activities}
+            onAddActivity={addActivity}
+            onUpdateActivity={updateActivity}
+            onDeleteActivity={deleteActivity}
+            selectedState={selectedState}
+            onStateChange={(state) => setSelectedState(state as GermanState)}
+            timeTrackingMethod={timeTrackingMethod}
+            onTimeTrackingMethodChange={(method) => setTimeTrackingMethod(method)}
+            holidaysByYear={holidaysByYear}
+            onEnsureHolidaysForYear={ensureHolidaysForYear}
+            addAbsenceRequest={addAbsenceRequest}
+            companySettings={companySettings}
+            onUpdateCompanySettings={setCompanySettings}
+            timeBalanceAdjustments={timeBalanceAdjustments}
+            addTimeBalanceAdjustment={addTimeBalanceAdjustment}
+            onUpdateTimeBalanceAdjustment={updateTimeBalanceAdjustment}
+            onDeleteTimeBalanceAdjustment={deleteTimeBalanceAdjustment}
+          />
         ) : (
-          <Dashboard {...{currentUser, addTimeEntry, timeEntries, customers, activities, timeTrackingMethod, companySettings, isRunning, elapsedTime, stopwatchCustomerId, stopwatchActivityId, stopwatchComment, isBreakModalOpen}} userAccount={{timeBalanceHours, vacationDaysLeft: vacationInfo.vacationDaysLeft}} currentMonthWorkedHours={0} dashboardType={loggedInUser.dashboardType || 'standard'} absenceRequests={absenceRequests} holidays={holidaysByYear[MOCK_CURRENT_YEAR] || []} selectedState={selectedState} mockCurrentYear={MOCK_CURRENT_YEAR} setIsBreakModalOpen={setIsBreakModalOpen} setIsRunning={setIsRunning} setStartTime={setStartTime} setElapsedTime={setElapsedTime} setStopwatchCustomerId={setStopwatchCustomerId} setStopwatchActivityId={setStopwatchActivityId} setStopwatchComment={setStopwatchComment} />
+          renderEmployeeView()
         )}
       </main>
-      {loggedInUser && !isDisplayingAdminView && <BottomNav currentView={currentView} setCurrentView={setCurrentView} onAddClick={() => setIsActionSheetOpen(true)} timeTrackingMethod={timeTrackingMethod} />}
-      {isActionSheetOpen && <ActionSheet onClose={() => setIsActionSheetOpen(false)} onSelect={a => { if (a === 'manualTime') setIsManualEntryModalOpen(true); else setIsAbsenceRequestModalOpen(true); setIsActionSheetOpen(false); }} />}
-      {isAbsenceRequestModalOpen && <AbsenceRequestModal isOpen={isAbsenceRequestModalOpen} onClose={() => setIsAbsenceRequestModalOpen(false)} currentUser={loggedInUser!} onSubmit={r => {setAbsenceRequests(p => [...p, {...r, id: Date.now(), status: 'pending'}])}} existingAbsences={absenceRequests} timeEntries={timeEntries} companySettings={companySettings} />}
-      {isManualEntryModalOpen && <ManualEntryFormModal isOpen={isManualEntryModalOpen} onClose={() => setIsManualEntryModalOpen(false)} addTimeEntry={addTimeEntry} timeEntries={timeEntries} customers={customers} activities={activities} companySettings={companySettings} absenceRequests={absenceRequests} onSuccess={() => setIsManualEntryModalOpen(false)} />}
+      {!isDisplayingAdminView && loggedInUser && (
+        <BottomNav 
+          currentView={currentView} 
+          setCurrentView={handleSetCurrentView} 
+          onAddClick={handleAddClick}
+          timeTrackingMethod={timeTrackingMethod}
+        />
+      )}
+      {isActionSheetOpen && (
+          <ActionSheet 
+            onClose={() => setIsActionSheetOpen(false)}
+            onSelect={(action) => {
+                setIsActionSheetOpen(false);
+                if (action === 'manualTime') {
+                    if (timeTrackingMethod === 'all') {
+                        setIsManualEntryModalOpen(true);
+                    }
+                } else if (action === 'absence') {
+                    setIsAbsenceRequestModalOpen(true);
+                }
+            }}
+          />
+      )}
+      {isAbsenceRequestModalOpen && currentUser && (
+          <AbsenceRequestModal
+            isOpen={isAbsenceRequestModalOpen}
+            onClose={() => setIsAbsenceRequestModalOpen(false)}
+            onSubmit={addAbsenceRequest}
+            currentUser={currentUser}
+            existingAbsences={absenceRequests.filter(r => r.employeeId === currentUser.id)}
+            timeEntries={timeEntries.filter(entry => entry.employeeId === currentUser.id)}
+            companySettings={companySettings}
+          />
+      )}
+      {isManualEntryModalOpen && currentUser && (
+          <ManualEntryFormModal
+            isOpen={isManualEntryModalOpen}
+            onClose={() => setIsManualEntryModalOpen(false)}
+            addTimeEntry={addTimeEntry}
+            onSuccess={() => setShowTimeEntrySuccess(true)}
+            timeEntries={timeEntries.filter(entry => entry.employeeId === currentUser.id)}
+            customers={customers}
+            activities={activities}
+            companySettings={companySettings}
+            absenceRequests={absenceRequests.filter(r => r.employeeId === currentUser.id)}
+          />
+      )}
+      
+      {showAbsenceSuccess && (
+        <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-green-100 text-green-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
+           <CheckCircleIcon className="h-6 w-6 text-green-500 flex-shrink-0" />
+           <div>
+              <p className="font-semibold">Antrag eingereicht</p>
+              <p className="text-sm">Ihr Antrag wurde erfolgreich zur Prüfung übermittelt.</p>
+           </div>
+        </div>
+      )}
+      {showTimeEntrySuccess && (
+        <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-green-100 text-green-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
+           <CheckCircleIcon className="h-6 w-6 text-green-500 flex-shrink-0" />
+           <div>
+              <p className="font-semibold">Arbeitszeit gespeichert</p>
+              <p className="text-sm">Der Eintrag wurde erfolgreich hinzugefügt.</p>
+           </div>
+        </div>
+      )}
+      {showNfcSuccess && (
+        <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-blue-100 text-blue-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
+           <CheckCircleIcon className="h-6 w-6 text-blue-500 flex-shrink-0" />
+           <div>
+              <p className="font-semibold">NFC-Scan erfolgreich</p>
+              <p className="text-sm">{nfcSuccessMessage}</p>
+           </div>
+        </div>
+      )}
     </div>
   );
 };

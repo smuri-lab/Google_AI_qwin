@@ -3,32 +3,79 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TimePro - Zeiterfassung</title>
+    <title>Zeiterfassungssystem</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      ::-webkit-scrollbar { width: 8px; }
-      ::-webkit-scrollbar-track { background: #f1f1f1; }
-      ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: #555; }
-      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      .animate-fade-in { animation: fadeIn 0.4s ease-in-out; }
-      @keyframes toast-in { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-      .animate-toast-in { animation: toast-in 0.3s ease-out; }
-      @keyframes pulse-dot { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.7; } }
-      .animate-pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
-      @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-      .animate-slide-up { animation: slide-up 0.3s ease-out; }
+      /* Custom scrollbar for a more modern look */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+      /* Animation for general content fade-in */
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.4s ease-in-out;
+      }
+      /* Animation for toast notification */
+      @keyframes toast-in {
+        from {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      .animate-toast-in {
+        animation: toast-in 0.3s ease-out;
+      }
+      /* Animation for pending request indicator */
+      @keyframes pulse-dot {
+        0%, 100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.5);
+          opacity: 0.7;
+        }
+      }
+      .animate-pulse-dot {
+        animation: pulse-dot 1.5s ease-in-out infinite;
+      }
+      /* Animation for action sheet */
+      @keyframes slide-up {
+        from {
+          transform: translateY(100%);
+        }
+        to {
+          transform: translateY(0);
+        }
+      }
+      .animate-slide-up {
+        animation: slide-up 0.3s ease-out;
+      }
     </style>
   <script type="importmap">
 {
   "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react-dom": "https://esm.sh/react-dom@^19.2.3",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "react-dom": "https://esm.sh/react-dom@^19.2.3"
   }
 }
 </script>
