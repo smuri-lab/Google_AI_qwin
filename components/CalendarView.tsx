@@ -60,38 +60,43 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const [isRequestsExpanded, setIsRequestsExpanded] = useState(false);
   const entriesListRef = useRef<HTMLDivElement>(null);
   
-  // Swipe animation state
   const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const isSwiping = useRef(false);
   const [touchDeltaX, setTouchDeltaX] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
-    onEnsureHolidaysForYear(currentDate.getFullYear());
+    const yearsToEnsure = new Set([currentDate.getFullYear()]);
+    if (currentDate.getMonth() === 0) yearsToEnsure.add(currentDate.getFullYear() - 1);
+    if (currentDate.getMonth() === 11) yearsToEnsure.add(currentDate.getFullYear() + 1);
+    yearsToEnsure.forEach(year => onEnsureHolidaysForYear(year));
   }, [currentDate, onEnsureHolidaysForYear]);
 
   const selectedEntry = useMemo(() => {
     return selectedEntryId ? timeEntries.find(e => e.id === selectedEntryId) : null;
   }, [selectedEntryId, timeEntries]);
 
-  const holidaysForCurrentMonth = holidaysByYear[currentDate.getFullYear()] || [];
-  const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const daysInMonth = [];
-  const startDay = (startOfMonth.getDay() + 6) % 7; 
-
-  for (let i = 0; i < startDay; i++) {
-    daysInMonth.push(null);
-  }
-  for (let i = 1; i <= endOfMonth.getDate(); i++) {
-    daysInMonth.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
-  }
+  const generateMonthDays = (date: Date): (Date|null)[] => {
+    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const days = [];
+    const startDay = (startOfMonth.getDay() + 6) % 7;
+    for (let i = 0; i < startDay; i++) {
+        days.push(null);
+    }
+    for (let i = 1; i <= endOfMonth.getDate(); i++) {
+        days.push(new Date(date.getFullYear(), date.getMonth(), i));
+    }
+    return days;
+  };
 
   const changeMonth = (offset: number) => {
     setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
-    setSelectedDate(null); // Deselect day when changing month
+    setSelectedDate(null);
   };
   
   const handleCloseModal = () => setSelectedEntryId(null);
@@ -104,45 +109,165 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isSwiping.current = false;
     setTouchDeltaX(0);
     setIsTransitioning(false);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStartX.current) return;
-    const currentX = e.touches[0].clientX;
-    const delta = currentX - touchStartX.current;
-    setTouchDeltaX(delta);
+    if (!touchStartX.current || !touchStartY.current) return;
+    
+    const deltaX = e.touches[0].clientX - touchStartX.current;
+    
+    if (!isSwiping.current) {
+        const deltaY = e.touches[0].clientY - touchStartY.current;
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+            isSwiping.current = true;
+        }
+    }
+    
+    if (isSwiping.current) {
+        e.preventDefault();
+        setTouchDeltaX(deltaX);
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!touchStartX.current) return;
+    if (!touchStartX.current || !isSwiping.current) {
+        touchStartX.current = null;
+        touchStartY.current = null;
+        return;
+    }
+    
+    const finalDeltaX = e.changedTouches[0].clientX - touchStartX.current;
     
     setIsTransitioning(true);
     const SWIPE_THRESHOLD = 60;
     const calendarWidth = e.currentTarget.offsetWidth;
 
-    if (Math.abs(touchDeltaX) > SWIPE_THRESHOLD) {
-      const direction = touchDeltaX > 0 ? 1 : -1;
-      setTouchDeltaX(direction * calendarWidth); // Animate fully out
-
+    if (finalDeltaX > SWIPE_THRESHOLD) {
+      setTouchDeltaX(calendarWidth); 
       setTimeout(() => {
-        changeMonth(direction === 1 ? -1 : 1);
+        changeMonth(-1);
         setIsTransitioning(false);
         setTouchDeltaX(0);
-      }, 300); // Must match transition duration
+      }, 300);
+    } else if (finalDeltaX < -SWIPE_THRESHOLD) {
+      setTouchDeltaX(-calendarWidth);
+      setTimeout(() => {
+        changeMonth(1);
+        setIsTransitioning(false);
+        setTouchDeltaX(0);
+      }, 300);
     } else {
-      // Snap back
       setTouchDeltaX(0);
     }
+    
     touchStartX.current = null;
+    touchStartY.current = null;
+    isSwiping.current = false;
   };
+  
+  const renderMonthGrid = (dateForMonth: Date, isInteractive: boolean) => {
+    const daysInMonth = generateMonthDays(dateForMonth);
+    const holidaysForMonth = holidaysByYear[dateForMonth.getFullYear()] || [];
+
+    return (
+        <>
+            <DayOfWeekHeader />
+            <div className="grid grid-cols-7">
+              {daysInMonth.map((day, index) => {
+                if (!day) return <div key={`empty-${index}`} className="h-12 bg-gray-50/50"></div>;
+                
+                const dayString = day.toLocaleDateString('sv-SE');
+                const absencesForDay = absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
+                const absenceForDay = absencesForDay.find(a => a.status === 'pending') || absencesForDay[0];
+                const entriesForDay = timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === dayString);
+                const holiday = holidaysForMonth.find(h => h.date === dayString);
+                const isSelected = isInteractive && selectedDate?.toLocaleDateString('sv-SE') === dayString;
+                const isToday = day.toDateString() === today.toDateString();
+                const dayOfWeek = day.getDay();
+                const isSunday = dayOfWeek === 0;
+
+                let containerClasses = 'relative h-12 flex items-center justify-center transition-colors duration-200';
+                if (isInteractive) containerClasses += ' cursor-pointer';
+
+                let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
+
+                if (isSelected) {
+                    containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
+                    numberClasses += ' bg-blue-600 text-white';
+                } else {
+                    if (isInteractive) containerClasses += ' rounded-lg hover:bg-gray-100';
+                    if (isToday) {
+                        if (isInteractive) containerClasses += ' bg-gray-50';
+                        numberClasses += ' text-blue-600 font-bold';
+                    } else if (holiday || isSunday) {
+                        numberClasses += isInteractive ? ' text-red-600 font-semibold' : ' text-red-300';
+                    } else {
+                        numberClasses += isInteractive ? ' text-gray-700' : ' text-gray-400';
+                    }
+                }
+
+                if (absenceForDay) {
+                    if (entriesForDay.length > 0) {
+                        numberClasses += ' bg-white/50 backdrop-blur-sm';
+                    } else if (absenceForDay.status === 'approved') {
+                        numberClasses += ' text-white';
+                    }
+                }
+                
+                return (
+                    <div key={index} onClick={() => isInteractive && setSelectedDate(day)} className={containerClasses}>
+                        {absenceForDay && (() => {
+                            const ui = getAbsenceTypeDetails(absenceForDay.type);
+                            const isStart = absenceForDay.startDate === dayString;
+                            const isEnd = absenceForDay.endDate === dayString;
+                            const isSingle = isStart && isEnd;
+                            const isPending = absenceForDay.status === 'pending';
+                            const isHalfDay = absenceForDay.dayPortion && absenceForDay.dayPortion !== 'full';
+                            
+                            let pillStyle: React.CSSProperties = {};
+                            let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-9 flex items-center justify-center text-xs font-bold z-0 `;
+                            if (!isInteractive) pillClasses += ' opacity-50';
+
+                            if (isPending) {
+                                pillClasses += `${ui.pendingClass} border-dashed ${ui.pendingBorderClass}`;
+                                if (isSingle) { pillClasses += ' border-2 rounded-lg mx-0.5'; } 
+                                else { pillClasses += ' border-y-2'; if (isStart) pillClasses += ' border-l-2 rounded-l-lg justify-start pl-2'; if (isEnd) pillClasses += ' border-r-2 rounded-r-lg'; }
+                            } else {
+                                pillClasses += `${ui.solidClass}`;
+                                if (isSingle) { pillClasses += ' rounded-lg mx-0.5'; } 
+                                else if (isStart) { pillClasses += ' rounded-l-lg justify-start pl-2'; } 
+                                else if (isEnd) { pillClasses += ' rounded-r-lg'; }
+                            }
+                            if (isHalfDay && isSingle) {
+                                if (absenceForDay.dayPortion === 'am') pillStyle.clipPath = 'polygon(0 0, 100% 0, 0 100%)';
+                                else pillStyle.clipPath = 'polygon(100% 0, 100% 100%, 0 100%)';
+                            }
+                            return <div style={pillStyle} className={pillClasses}></div>;
+                        })()}
+                        <span className={numberClasses}>{day.getDate()}</span>
+                        <div className="absolute bottom-1.5 flex items-center justify-center space-x-1 h-1.5">
+                            {entriesForDay.length > 0 && !absenceForDay && <div className={`w-1.5 h-1.5 bg-green-500 rounded-full ${!isInteractive ? 'opacity-50' : ''}`}></div>}
+                        </div>
+                    </div>
+                );
+              })}
+            </div>
+        </>
+    );
+  }
+
+  const prevMonthDate = useMemo(() => new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1), [currentDate]);
+  const nextMonthDate = useMemo(() => new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1), [currentDate]);
 
   const selectedDateString = selectedDate?.toLocaleDateString('sv-SE');
-
+  const holidaysForSelectedDayMonth = holidaysByYear[selectedDate?.getFullYear() || currentDate.getFullYear()] || [];
   const entriesForSelectedDay = useMemo(() => selectedDateString ? timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === selectedDateString).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()) : [], [selectedDateString, timeEntries]);
   const absencesForSelectedDay = useMemo(() => selectedDateString ? absenceRequests.filter(a => selectedDateString >= a.startDate && selectedDateString <= a.endDate && a.status === 'approved') : [], [selectedDateString, absenceRequests]);
-  const holidayForSelectedDay = useMemo(() => selectedDateString ? holidaysForCurrentMonth.find(h => h.date === selectedDateString) : null, [selectedDateString, holidaysForCurrentMonth]);
+  const holidayForSelectedDay = useMemo(() => selectedDateString ? holidaysForSelectedDayMonth.find(h => h.date === selectedDateString) : null, [selectedDateString, holidaysForSelectedDayMonth]);
 
   const groupedRequests = useMemo(() => {
     const groups: { [year: string]: AbsenceRequest[] } = {};
@@ -156,124 +281,30 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   }, [absenceRequests]);
   const sortedYears = Object.keys(groupedRequests).sort((a, b) => Number(b) - Number(a));
 
-
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <div 
-        className="bg-white p-2 sm:p-4 rounded-lg shadow-lg overflow-hidden"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        <div
-            style={{ transform: `translateX(${touchDeltaX}px)` }}
-            className={isTransitioning ? 'transition-transform duration-300 ease-in-out' : ''}
+      <div className="bg-white p-2 sm:p-4 rounded-lg shadow-lg">
+        <div className="flex justify-between items-center mb-2 px-2">
+            <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronLeftIcon className="h-5 w-5 text-gray-600" /></button>
+            <h2 className="text-lg font-bold text-gray-800">{currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h2>
+            <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronRightIcon className="h-5 w-5 text-gray-600" /></button>
+        </div>
+        <div 
+          className="overflow-hidden relative"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-            <div className="flex justify-between items-center mb-2 px-2">
-              <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronLeftIcon className="h-5 w-5 text-gray-600" /></button>
-              <h2 className="text-lg font-bold text-gray-800">{currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h2>
-              <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronRightIcon className="h-5 w-5 text-gray-600" /></button>
-            </div>
-            <DayOfWeekHeader />
-            <div className="grid grid-cols-7">
-              {daysInMonth.map((day, index) => {
-                if (!day) return <div key={`empty-${index}`} className="h-14 bg-gray-50/50"></div>;
-                
-                const dayString = day.toLocaleDateString('sv-SE');
-                const absencesForDay = absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
-                const absenceForDay = absencesForDay.find(a => a.status === 'pending') || absencesForDay[0];
-
-                const entriesForDay = timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === dayString);
-                const holiday = holidaysForCurrentMonth.find(h => h.date === dayString);
-                const isSelected = selectedDate?.toLocaleDateString('sv-SE') === dayString;
-                const isToday = day.toDateString() === today.toDateString();
-                const dayOfWeek = day.getDay();
-                const isSunday = dayOfWeek === 0;
-
-                let containerClasses = 'relative h-14 flex items-center justify-center cursor-pointer transition-colors duration-200';
-                let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
-
-                if (isSelected) {
-                    containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
-                    numberClasses += ' bg-blue-600 text-white';
-                } else {
-                    containerClasses += ' rounded-lg hover:bg-gray-100';
-                    if (isToday) {
-                        containerClasses += ' bg-gray-50';
-                        numberClasses += ' text-blue-600 font-bold';
-                    } else if (holiday || isSunday) {
-                        numberClasses += ' text-red-600 font-semibold';
-                    } else {
-                        numberClasses += ' text-gray-700';
-                    }
-                }
-
-                if (absenceForDay) {
-                    if (entriesForDay.length > 0) {
-                        numberClasses += ' bg-white/50 backdrop-blur-sm';
-                    } else if (absenceForDay.status === 'approved') {
-                        numberClasses += ' text-white';
-                    }
-                }
-
-                return (
-                    <div key={index} onClick={() => setSelectedDate(day)} className={containerClasses}>
-                        {absenceForDay && (() => {
-                            const ui = getAbsenceTypeDetails(absenceForDay.type);
-                            const isStart = absenceForDay.startDate === dayString;
-                            const isEnd = absenceForDay.endDate === dayString;
-                            const isSingle = isStart && isEnd;
-                            const isPending = absenceForDay.status === 'pending';
-                            const isHalfDay = absenceForDay.dayPortion && absenceForDay.dayPortion !== 'full';
-
-                            let pillStyle: React.CSSProperties = {};
-                            let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-10 flex items-center justify-center text-xs font-bold transition-all duration-150 z-0 `;
-
-                            if (isPending) {
-                                pillClasses += `${ui.pendingClass} border-dashed ${ui.pendingBorderClass}`;
-                                if (isSingle) {
-                                    pillClasses += ' border-2 rounded-lg mx-0.5';
-                                } else {
-                                    pillClasses += ' border-y-2';
-                                    if (isStart) {
-                                        pillClasses += ' border-l-2 rounded-l-lg justify-start pl-2';
-                                    }
-                                    if (isEnd) {
-                                        pillClasses += ' border-r-2 rounded-r-lg';
-                                    }
-                                }
-                            } else {
-                                pillClasses += `${ui.solidClass}`;
-                                if (isSingle) {
-                                    pillClasses += ' rounded-lg mx-0.5';
-                                } else if (isStart) {
-                                    pillClasses += ' rounded-l-lg justify-start pl-2';
-                                } else if (isEnd) {
-                                    pillClasses += ' rounded-r-lg';
-                                }
-                            }
-                            
-                            if (isHalfDay && isSingle) {
-                                if (absenceForDay.dayPortion === 'am') {
-                                    pillStyle.clipPath = 'polygon(0 0, 100% 0, 0 100%)';
-                                } else { // pm
-                                    pillStyle.clipPath = 'polygon(100% 0, 100% 100%, 0 100%)';
-                                }
-                            }
-
-                            return (
-                                <div style={pillStyle} className={pillClasses}>
-                                    {/* Label removed for cleaner look */}
-                                </div>
-                            );
-                        })()}
-                        <span className={numberClasses}>{day.getDate()}</span>
-                        <div className="absolute bottom-1.5 flex items-center justify-center space-x-1 h-1.5">
-                            {entriesForDay.length > 0 && !absenceForDay && <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>}
-                        </div>
-                    </div>
-                );
-              })}
+            <div
+                style={{
+                    transform: `translateX(calc(-33.333% + ${touchDeltaX}px))`,
+                    transition: isTransitioning ? 'transform 0.3s ease-in-out' : 'none'
+                }}
+                className="flex w-[300%]"
+            >
+                <div className="w-1/3 shrink-0 px-1">{renderMonthGrid(prevMonthDate, false)}</div>
+                <div className="w-1/3 shrink-0 px-1">{renderMonthGrid(currentDate, true)}</div>
+                <div className="w-1/3 shrink-0 px-1">{renderMonthGrid(nextMonthDate, false)}</div>
             </div>
         </div>
       </div>
