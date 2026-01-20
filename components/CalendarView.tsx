@@ -59,14 +59,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const [requestToRetract, setRequestToRetract] = useState<AbsenceRequest | null>(null);
   const [isRequestsExpanded, setIsRequestsExpanded] = useState(false);
   const entriesListRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (selectedDate && entriesListRef.current) {
-      setTimeout(() => {
-        entriesListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    }
-  }, [selectedDate]);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     onEnsureHolidaysForYear(currentDate.getFullYear());
@@ -105,6 +98,25 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     }
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartX.current) {
+        return;
+    }
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchEndX - touchStartX.current;
+    const SWIPE_THRESHOLD = 50;
+    if (deltaX > SWIPE_THRESHOLD) {
+        changeMonth(-1);
+    } else if (deltaX < -SWIPE_THRESHOLD) {
+        changeMonth(1);
+    }
+    touchStartX.current = null;
+  };
+
   const selectedDateString = selectedDate?.toLocaleDateString('sv-SE');
 
   const entriesForSelectedDay = useMemo(() => selectedDateString ? timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === selectedDateString).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()) : [], [selectedDateString, timeEntries]);
@@ -126,7 +138,11 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <div className="bg-white p-2 sm:p-4 rounded-lg shadow-lg">
+      <div 
+        className="bg-white p-2 sm:p-4 rounded-lg shadow-lg"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="flex justify-between items-center mb-2 px-2">
           <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronLeftIcon className="h-5 w-5 text-gray-600" /></button>
           <h2 className="text-lg font-bold text-gray-800">{currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h2>
@@ -135,7 +151,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         <DayOfWeekHeader />
         <div className="grid grid-cols-7">
           {daysInMonth.map((day, index) => {
-            if (!day) return <div key={`empty-${index}`} className="aspect-square bg-gray-50/50"></div>;
+            if (!day) return <div key={`empty-${index}`} className="h-20 bg-gray-50/50"></div>;
             
             const dayString = day.toLocaleDateString('sv-SE');
             const absencesForDay = absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
@@ -148,7 +164,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             const dayOfWeek = day.getDay();
             const isSunday = dayOfWeek === 0;
 
-            let containerClasses = 'relative aspect-square flex items-center justify-center cursor-pointer transition-colors duration-200';
+            let containerClasses = 'relative h-20 flex items-center justify-center cursor-pointer transition-colors duration-200';
             let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
 
             if (isSelected) {
