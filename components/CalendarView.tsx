@@ -59,7 +59,11 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const [requestToRetract, setRequestToRetract] = useState<AbsenceRequest | null>(null);
   const [isRequestsExpanded, setIsRequestsExpanded] = useState(false);
   const entriesListRef = useRef<HTMLDivElement>(null);
+  
+  // Swipe animation state
   const touchStartX = useRef<number | null>(null);
+  const [touchDeltaX, setTouchDeltaX] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     onEnsureHolidaysForYear(currentDate.getFullYear());
@@ -100,19 +104,36 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    setTouchDeltaX(0);
+    setIsTransitioning(false);
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartX.current) {
-        return;
-    }
-    const touchEndX = e.changedTouches[0].clientX;
-    const deltaX = touchEndX - touchStartX.current;
-    const SWIPE_THRESHOLD = 50;
-    if (deltaX > SWIPE_THRESHOLD) {
-        changeMonth(-1);
-    } else if (deltaX < -SWIPE_THRESHOLD) {
-        changeMonth(1);
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartX.current) return;
+    const currentX = e.touches[0].clientX;
+    const delta = currentX - touchStartX.current;
+    setTouchDeltaX(delta);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!touchStartX.current) return;
+    
+    setIsTransitioning(true);
+    const SWIPE_THRESHOLD = 60;
+    const calendarWidth = e.currentTarget.offsetWidth;
+
+    if (Math.abs(touchDeltaX) > SWIPE_THRESHOLD) {
+      const direction = touchDeltaX > 0 ? 1 : -1;
+      setTouchDeltaX(direction * calendarWidth); // Animate fully out
+
+      setTimeout(() => {
+        changeMonth(direction === 1 ? -1 : 1);
+        setIsTransitioning(false);
+        setTouchDeltaX(0);
+      }, 300); // Must match transition duration
+    } else {
+      // Snap back
+      setTouchDeltaX(0);
     }
     touchStartX.current = null;
   };
@@ -139,115 +160,121 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div 
-        className="bg-white p-2 sm:p-4 rounded-lg shadow-lg"
+        className="bg-white p-2 sm:p-4 rounded-lg shadow-lg overflow-hidden"
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="flex justify-between items-center mb-2 px-2">
-          <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronLeftIcon className="h-5 w-5 text-gray-600" /></button>
-          <h2 className="text-lg font-bold text-gray-800">{currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h2>
-          <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronRightIcon className="h-5 w-5 text-gray-600" /></button>
-        </div>
-        <DayOfWeekHeader />
-        <div className="grid grid-cols-7">
-          {daysInMonth.map((day, index) => {
-            if (!day) return <div key={`empty-${index}`} className="h-20 bg-gray-50/50"></div>;
-            
-            const dayString = day.toLocaleDateString('sv-SE');
-            const absencesForDay = absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
-            const absenceForDay = absencesForDay.find(a => a.status === 'pending') || absencesForDay[0];
+        <div
+            style={{ transform: `translateX(${touchDeltaX}px)` }}
+            className={isTransitioning ? 'transition-transform duration-300 ease-in-out' : ''}
+        >
+            <div className="flex justify-between items-center mb-2 px-2">
+              <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronLeftIcon className="h-5 w-5 text-gray-600" /></button>
+              <h2 className="text-lg font-bold text-gray-800">{currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h2>
+              <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronRightIcon className="h-5 w-5 text-gray-600" /></button>
+            </div>
+            <DayOfWeekHeader />
+            <div className="grid grid-cols-7">
+              {daysInMonth.map((day, index) => {
+                if (!day) return <div key={`empty-${index}`} className="h-14 bg-gray-50/50"></div>;
+                
+                const dayString = day.toLocaleDateString('sv-SE');
+                const absencesForDay = absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
+                const absenceForDay = absencesForDay.find(a => a.status === 'pending') || absencesForDay[0];
 
-            const entriesForDay = timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === dayString);
-            const holiday = holidaysForCurrentMonth.find(h => h.date === dayString);
-            const isSelected = selectedDate?.toLocaleDateString('sv-SE') === dayString;
-            const isToday = day.toDateString() === today.toDateString();
-            const dayOfWeek = day.getDay();
-            const isSunday = dayOfWeek === 0;
+                const entriesForDay = timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === dayString);
+                const holiday = holidaysForCurrentMonth.find(h => h.date === dayString);
+                const isSelected = selectedDate?.toLocaleDateString('sv-SE') === dayString;
+                const isToday = day.toDateString() === today.toDateString();
+                const dayOfWeek = day.getDay();
+                const isSunday = dayOfWeek === 0;
 
-            let containerClasses = 'relative h-20 flex items-center justify-center cursor-pointer transition-colors duration-200';
-            let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
+                let containerClasses = 'relative h-14 flex items-center justify-center cursor-pointer transition-colors duration-200';
+                let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
 
-            if (isSelected) {
-                containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
-                numberClasses += ' bg-blue-600 text-white';
-            } else {
-                containerClasses += ' rounded-lg hover:bg-gray-100';
-                if (isToday) {
-                    containerClasses += ' bg-gray-50';
-                    numberClasses += ' text-blue-600 font-bold';
-                } else if (holiday || isSunday) {
-                    numberClasses += ' text-red-600 font-semibold';
+                if (isSelected) {
+                    containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
+                    numberClasses += ' bg-blue-600 text-white';
                 } else {
-                    numberClasses += ' text-gray-700';
+                    containerClasses += ' rounded-lg hover:bg-gray-100';
+                    if (isToday) {
+                        containerClasses += ' bg-gray-50';
+                        numberClasses += ' text-blue-600 font-bold';
+                    } else if (holiday || isSunday) {
+                        numberClasses += ' text-red-600 font-semibold';
+                    } else {
+                        numberClasses += ' text-gray-700';
+                    }
                 }
-            }
 
-            if (absenceForDay) {
-                if (entriesForDay.length > 0) {
-                    numberClasses += ' bg-white/50 backdrop-blur-sm';
-                } else if (absenceForDay.status === 'approved') {
-                    numberClasses += ' text-white';
+                if (absenceForDay) {
+                    if (entriesForDay.length > 0) {
+                        numberClasses += ' bg-white/50 backdrop-blur-sm';
+                    } else if (absenceForDay.status === 'approved') {
+                        numberClasses += ' text-white';
+                    }
                 }
-            }
 
-            return (
-                <div key={index} onClick={() => setSelectedDate(day)} className={containerClasses}>
-                    {absenceForDay && (() => {
-                        const ui = getAbsenceTypeDetails(absenceForDay.type);
-                        const isStart = absenceForDay.startDate === dayString;
-                        const isEnd = absenceForDay.endDate === dayString;
-                        const isSingle = isStart && isEnd;
-                        const isPending = absenceForDay.status === 'pending';
-                        const isHalfDay = absenceForDay.dayPortion && absenceForDay.dayPortion !== 'full';
+                return (
+                    <div key={index} onClick={() => setSelectedDate(day)} className={containerClasses}>
+                        {absenceForDay && (() => {
+                            const ui = getAbsenceTypeDetails(absenceForDay.type);
+                            const isStart = absenceForDay.startDate === dayString;
+                            const isEnd = absenceForDay.endDate === dayString;
+                            const isSingle = isStart && isEnd;
+                            const isPending = absenceForDay.status === 'pending';
+                            const isHalfDay = absenceForDay.dayPortion && absenceForDay.dayPortion !== 'full';
 
-                        let pillStyle: React.CSSProperties = {};
-                        let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-12 flex items-center justify-center text-xs font-bold transition-all duration-150 z-0 `;
+                            let pillStyle: React.CSSProperties = {};
+                            let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-10 flex items-center justify-center text-xs font-bold transition-all duration-150 z-0 `;
 
-                        if (isPending) {
-                            pillClasses += `${ui.pendingClass} border-dashed ${ui.pendingBorderClass}`;
-                            if (isSingle) {
-                                pillClasses += ' border-2 rounded-lg mx-0.5';
+                            if (isPending) {
+                                pillClasses += `${ui.pendingClass} border-dashed ${ui.pendingBorderClass}`;
+                                if (isSingle) {
+                                    pillClasses += ' border-2 rounded-lg mx-0.5';
+                                } else {
+                                    pillClasses += ' border-y-2';
+                                    if (isStart) {
+                                        pillClasses += ' border-l-2 rounded-l-lg justify-start pl-2';
+                                    }
+                                    if (isEnd) {
+                                        pillClasses += ' border-r-2 rounded-r-lg';
+                                    }
+                                }
                             } else {
-                                pillClasses += ' border-y-2';
-                                if (isStart) {
-                                    pillClasses += ' border-l-2 rounded-l-lg justify-start pl-2';
+                                pillClasses += `${ui.solidClass}`;
+                                if (isSingle) {
+                                    pillClasses += ' rounded-lg mx-0.5';
+                                } else if (isStart) {
+                                    pillClasses += ' rounded-l-lg justify-start pl-2';
+                                } else if (isEnd) {
+                                    pillClasses += ' rounded-r-lg';
                                 }
-                                if (isEnd) {
-                                    pillClasses += ' border-r-2 rounded-r-lg';
+                            }
+                            
+                            if (isHalfDay && isSingle) {
+                                if (absenceForDay.dayPortion === 'am') {
+                                    pillStyle.clipPath = 'polygon(0 0, 100% 0, 0 100%)';
+                                } else { // pm
+                                    pillStyle.clipPath = 'polygon(100% 0, 100% 100%, 0 100%)';
                                 }
                             }
-                        } else {
-                            pillClasses += `${ui.solidClass}`;
-                            if (isSingle) {
-                                pillClasses += ' rounded-lg mx-0.5';
-                            } else if (isStart) {
-                                pillClasses += ' rounded-l-lg justify-start pl-2';
-                            } else if (isEnd) {
-                                pillClasses += ' rounded-r-lg';
-                            }
-                        }
-                        
-                        if (isHalfDay && isSingle) {
-                            if (absenceForDay.dayPortion === 'am') {
-                                pillStyle.clipPath = 'polygon(0 0, 100% 0, 0 100%)';
-                            } else { // pm
-                                pillStyle.clipPath = 'polygon(100% 0, 100% 100%, 0 100%)';
-                            }
-                        }
 
-                        return (
-                            <div style={pillStyle} className={pillClasses}>
-                                {/* Label removed for cleaner look */}
-                            </div>
-                        );
-                    })()}
-                    <span className={numberClasses}>{day.getDate()}</span>
-                    <div className="absolute bottom-1.5 flex items-center justify-center space-x-1 h-1.5">
-                        {entriesForDay.length > 0 && !absenceForDay && <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>}
+                            return (
+                                <div style={pillStyle} className={pillClasses}>
+                                    {/* Label removed for cleaner look */}
+                                </div>
+                            );
+                        })()}
+                        <span className={numberClasses}>{day.getDate()}</span>
+                        <div className="absolute bottom-1.5 flex items-center justify-center space-x-1 h-1.5">
+                            {entriesForDay.length > 0 && !absenceForDay && <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>}
+                        </div>
                     </div>
-                </div>
-            );
-          })}
+                );
+              })}
+            </div>
         </div>
       </div>
 
