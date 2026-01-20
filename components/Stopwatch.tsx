@@ -19,6 +19,7 @@ interface StopwatchProps {
   // Lifted state and handlers
   isRunning: boolean;
   startTime: Date | null;
+  stopTime: Date | null;
   elapsedTime: number;
   customerId: string;
   activityId: string;
@@ -27,6 +28,7 @@ interface StopwatchProps {
   setIsBreakModalOpen: (isOpen: boolean) => void;
   setIsRunning: (isRunning: boolean) => void;
   setStartTime: (date: Date | null) => void;
+  setStopTime: (date: Date | null) => void;
   setElapsedTime: (time: number) => void;
   setCustomerId: (id: string) => void;
   setActivityId: (id: string) => void;
@@ -53,8 +55,8 @@ const isOverlapping = (newStart: Date, newEnd: Date, existingEntries: TimeEntry[
 
 export const Stopwatch: React.FC<StopwatchProps> = ({ 
   addTimeEntry, timeEntries, customers, activities, companySettings, absenceRequests,
-  isRunning, startTime, elapsedTime, customerId, activityId, comment,
-  isBreakModalOpen, setIsBreakModalOpen, setIsRunning, setStartTime, setElapsedTime,
+  isRunning, startTime, stopTime, elapsedTime, customerId, activityId, comment,
+  isBreakModalOpen, setIsBreakModalOpen, setIsRunning, setStartTime, setStopTime, setElapsedTime,
   setCustomerId, setActivityId, setComment, onSuccess
 }) => {
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
@@ -69,10 +71,10 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
   };
 
   const handleSaveEntry = (breakDurationMinutes: number) => {
-    if (!isRunning || !startTime) return;
+    if (!startTime || !stopTime) return;
 
     const entryStartTime = startTime;
-    const endTime = new Date();
+    const endTime = stopTime;
     
     if (isOverlapping(entryStartTime, endTime, timeEntries)) {
       setInfoModal({ isOpen: true, title: 'Überlappender Eintrag', message: 'Dieser Zeiteintrag überschneidet sich mit einem bestehenden Eintrag. Bitte korrigieren Sie die Zeiten.' });
@@ -92,9 +94,9 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
     
     onSuccess?.();
     
-    setIsRunning(false);
     setElapsedTime(0);
     setStartTime(null);
+    setStopTime(null);
     setCustomerId('');
     setActivityId('');
     setComment('');
@@ -103,6 +105,8 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
 
   const handleToggle = () => {
     if (isRunning) {
+      setStopTime(new Date());
+      setIsRunning(false);
       setIsBreakModalOpen(true);
     } else {
       const todayStr = new Date().toLocaleDateString('sv-SE');
@@ -121,7 +125,9 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
         setInfoModal({ isOpen: true, title: 'Auswahl erforderlich', message: `Bitte wählen Sie zuerst ${customerLabel} und ${activityLabel} aus.` });
         return;
       }
+      setElapsedTime(0);
       setStartTime(new Date());
+      setStopTime(null);
       setIsRunning(true);
     }
   };
@@ -140,7 +146,7 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
   return (
     <>
       <div className="flex flex-col items-center space-y-4 p-4">
-        <div className="text-5xl sm:text-6xl font-mono font-bold tracking-wider text-gray-800 bg-gray-100 rounded-lg p-4 w-full text-center">
+        <div className="text-4xl sm:text-6xl font-mono font-bold tracking-wider text-gray-800 bg-gray-100 rounded-lg p-4 w-full text-center">
           {formatTime(elapsedTime)}
         </div>
 

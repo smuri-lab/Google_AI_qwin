@@ -150,6 +150,7 @@ const App: React.FC = () => {
   // Stopwatch state (lifted up)
   const [isRunning, setIsRunning] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
+  const [stopTime, setStopTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [stopwatchCustomerId, setStopwatchCustomerId] = useState('');
   const [stopwatchActivityId, setStopwatchActivityId] = useState('');
@@ -370,6 +371,7 @@ const App: React.FC = () => {
         setIsRunning(false);
         setElapsedTime(0);
         setStartTime(null);
+        setStopTime(null);
         setStopwatchComment('');
     }
     setLoggedInUser(null);
@@ -652,6 +654,7 @@ const App: React.FC = () => {
         // Stopwatch props
         isRunning: isRunning,
         startTime: startTime,
+        stopTime: stopTime,
         elapsedTime: elapsedTime,
         stopwatchCustomerId: stopwatchCustomerId,
         stopwatchActivityId: stopwatchActivityId,
@@ -660,6 +663,7 @@ const App: React.FC = () => {
         setIsBreakModalOpen: setIsBreakModalOpen,
         setIsRunning: setIsRunning,
         setStartTime: setStartTime,
+        setStopTime: setStopTime,
         setElapsedTime: setElapsedTime,
         setStopwatchCustomerId: setStopwatchCustomerId,
         setStopwatchActivityId: setStopwatchActivityId,

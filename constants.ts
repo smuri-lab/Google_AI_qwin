@@ -29,7 +29,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
         username: 'admin',
         password: 'admin123',
         isActive: true,
-        firstWorkDay: '2020-01-01',
+        firstWorkDay: '2026-01-01',
         lastModified: new Date().toISOString(),
         role: 'admin',
         startingTimeBalanceHours: 0,
@@ -37,7 +37,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
         showVacationWarning: true,
         contractHistory: [
             {
-                validFrom: '2020-01-01',
+                validFrom: '2026-01-01',
                 employmentType: EmploymentType.FullTime,
                 monthlyTargetHours: 160,
                 dailyTargetHours: 8,

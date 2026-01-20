@@ -28,6 +28,7 @@ interface DashboardProps {
   // Stopwatch state and handlers
   isRunning: boolean;
   startTime: Date | null;
+  stopTime: Date | null;
   elapsedTime: number;
   stopwatchCustomerId: string;
   stopwatchActivityId: string;
@@ -36,6 +37,7 @@ interface DashboardProps {
   setIsBreakModalOpen: (isOpen: boolean) => void;
   setIsRunning: (isRunning: boolean) => void;
   setStartTime: (date: Date | null) => void;
+  setStopTime: (date: Date | null) => void;
   setElapsedTime: (time: number) => void;
   setStopwatchCustomerId: (id: string) => void;
   setStopwatchActivityId: (id: string) => void;
@@ -48,8 +50,8 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
     currentMonthWorkedHours, timeTrackingMethod, dashboardType, absenceRequests, holidays, 
     selectedState, companySettings, mockCurrentYear,
     // Stopwatch props
-    isRunning, startTime, elapsedTime, stopwatchCustomerId, stopwatchActivityId,
-    stopwatchComment, isBreakModalOpen, setIsBreakModalOpen, setIsRunning, setStartTime, setElapsedTime,
+    isRunning, startTime, stopTime, elapsedTime, stopwatchCustomerId, stopwatchActivityId,
+    stopwatchComment, isBreakModalOpen, setIsBreakModalOpen, setIsRunning, setStartTime, setStopTime, setElapsedTime,
     setStopwatchCustomerId, setStopwatchActivityId, setStopwatchComment
   } = props;
   
@@ -155,6 +157,7 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
             // Pass down lifted state and handlers
             isRunning={isRunning}
             startTime={startTime}
+            stopTime={stopTime}
             elapsedTime={elapsedTime}
             customerId={stopwatchCustomerId}
             activityId={stopwatchActivityId}
@@ -163,6 +166,7 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
             setIsBreakModalOpen={setIsBreakModalOpen}
             setIsRunning={setIsRunning}
             setStartTime={setStartTime}
+            setStopTime={setStopTime}
             setElapsedTime={setElapsedTime}
             setCustomerId={setStopwatchCustomerId}
             setActivityId={setStopwatchActivityId}
