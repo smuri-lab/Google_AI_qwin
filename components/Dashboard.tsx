@@ -112,16 +112,16 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
         {dashboardType === 'standard' && (
           <Card className="text-center !p-2 sm:!p-4">
             <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Stundenkonto</h3>
-            <p className={`text-xl sm:text-2xl font-bold ${timeBalanceColor}`}>{formattedTimeBalance}</p>
+            <p className={`text-xl sm:text-2xl font-bold ${timeBalanceColor} whitespace-nowrap`}>{formattedTimeBalance}</p>
           </Card>
         )}
         <Card className="text-center !p-2 sm:!p-4">
             <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Ist-Stunden</h3>
-            <p className="text-xl sm:text-2xl font-bold text-gray-800">{formattedWorkedHours}</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-800 whitespace-nowrap">{formattedWorkedHours}</p>
         </Card>
         <Card className="text-center !p-2 sm:!p-4">
           <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Urlaub</h3>
-          <p className="text-xl sm:text-2xl font-bold text-green-600">{userAccount.vacationDaysLeft} Tage</p>
+          <p className="text-xl sm:text-2xl font-bold text-green-600 whitespace-nowrap">{userAccount.vacationDaysLeft} Tage</p>
            {carryoverDays > 0 && annualEntitlement > 0 && (
               <p className="text-2xs sm:text-xs text-gray-500 mt-1">
                   ({annualEntitlement} Anspruch + {carryoverDays} Übertrag)
