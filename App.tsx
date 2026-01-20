@@ -651,6 +651,7 @@ const App: React.FC = () => {
         mockCurrentYear: MOCK_CURRENT_YEAR,
         // Stopwatch props
         isRunning: isRunning,
+        startTime: startTime,
         elapsedTime: elapsedTime,
         stopwatchCustomerId: stopwatchCustomerId,
         stopwatchActivityId: stopwatchActivityId,

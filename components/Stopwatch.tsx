@@ -18,6 +18,7 @@ interface StopwatchProps {
   absenceRequests: AbsenceRequest[];
   // Lifted state and handlers
   isRunning: boolean;
+  startTime: Date | null;
   elapsedTime: number;
   customerId: string;
   activityId: string;
@@ -52,7 +53,7 @@ const isOverlapping = (newStart: Date, newEnd: Date, existingEntries: TimeEntry[
 
 export const Stopwatch: React.FC<StopwatchProps> = ({ 
   addTimeEntry, timeEntries, customers, activities, companySettings, absenceRequests,
-  isRunning, elapsedTime, customerId, activityId, comment,
+  isRunning, startTime, elapsedTime, customerId, activityId, comment,
   isBreakModalOpen, setIsBreakModalOpen, setIsRunning, setStartTime, setElapsedTime,
   setCustomerId, setActivityId, setComment, onSuccess
 }) => {
@@ -68,9 +69,9 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
   };
 
   const handleSaveEntry = (breakDurationMinutes: number) => {
-    if (!isRunning) return;
+    if (!isRunning || !startTime) return;
 
-    const entryStartTime = new Date(Date.now() - elapsedTime);
+    const entryStartTime = startTime;
     const endTime = new Date();
     
     if (isOverlapping(entryStartTime, endTime, timeEntries)) {
@@ -139,7 +140,7 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
   return (
     <>
       <div className="flex flex-col items-center space-y-4 p-4">
-        <div className="text-6xl font-mono font-bold tracking-wider text-gray-800 bg-gray-100 rounded-lg p-4 w-full text-center">
+        <div className="text-5xl sm:text-6xl font-mono font-bold tracking-wider text-gray-800 bg-gray-100 rounded-lg p-4 w-full text-center">
           {formatTime(elapsedTime)}
         </div>
 

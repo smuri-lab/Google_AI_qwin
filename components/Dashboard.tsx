@@ -27,6 +27,7 @@ interface DashboardProps {
   mockCurrentYear: number;
   // Stopwatch state and handlers
   isRunning: boolean;
+  startTime: Date | null;
   elapsedTime: number;
   stopwatchCustomerId: string;
   stopwatchActivityId: string;
@@ -47,7 +48,7 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
     currentMonthWorkedHours, timeTrackingMethod, dashboardType, absenceRequests, holidays, 
     selectedState, companySettings, mockCurrentYear,
     // Stopwatch props
-    isRunning, elapsedTime, stopwatchCustomerId, stopwatchActivityId,
+    isRunning, startTime, elapsedTime, stopwatchCustomerId, stopwatchActivityId,
     stopwatchComment, isBreakModalOpen, setIsBreakModalOpen, setIsRunning, setStartTime, setElapsedTime,
     setStopwatchCustomerId, setStopwatchActivityId, setStopwatchComment
   } = props;
@@ -153,6 +154,7 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
             absenceRequests={absenceRequests}
             // Pass down lifted state and handlers
             isRunning={isRunning}
+            startTime={startTime}
             elapsedTime={elapsedTime}
             customerId={stopwatchCustomerId}
             activityId={stopwatchActivityId}
