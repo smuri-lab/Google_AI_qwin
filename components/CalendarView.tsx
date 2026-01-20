@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { TimeEntry, AbsenceRequest, Customer, Activity, Holiday, CompanySettings, HolidaysByYear, Employee } from '../types';
 import { AbsenceType } from '../types';
 import { EntryDetailModal } from './EntryDetailModal';
@@ -81,24 +81,39 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const generateMonthDays = (date: Date): (Date|null)[] => {
-    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    const days = [];
-    const startDay = (startOfMonth.getDay() + 6) % 7;
-    for (let i = 0; i < startDay; i++) {
-        days.push(null);
+  const generateMonthDays = (date: Date): Date[] => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    
+    const startOfMonth = new Date(year, month, 1);
+    const endOfMonth = new Date(year, month + 1, 0);
+    
+    const days: Date[] = [];
+    
+    const startDayOfWeek = (startOfMonth.getDay() + 6) % 7;
+    
+    const prevMonthEndDate = new Date(year, month, 0);
+    for (let i = startDayOfWeek; i > 0; i--) {
+        days.push(new Date(year, month - 1, prevMonthEndDate.getDate() - i + 1));
     }
+
     for (let i = 1; i <= endOfMonth.getDate(); i++) {
-        days.push(new Date(date.getFullYear(), date.getMonth(), i));
+        days.push(new Date(year, month, i));
     }
+
+    const totalCells = 42;
+    let nextDay = 1;
+    while (days.length < totalCells) {
+        days.push(new Date(year, month + 1, nextDay++));
+    }
+    
     return days;
   };
 
-  const changeMonth = (offset: number) => {
+  const changeMonth = useCallback((offset: number) => {
     setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
     setSelectedDate(null);
-  };
+  }, []);
   
   const handleCloseModal = () => setSelectedEntryId(null);
   const handleConfirmRetract = () => {
@@ -122,11 +137,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
 
     const handleTouchMove = (e: TouchEvent) => {
         if (!touchStartX.current || !touchStartY.current) return;
-
-        const currentX = e.touches[0].clientX;
-        const currentY = e.touches[0].clientY;
-        const deltaX = currentX - touchStartX.current;
-        const deltaY = currentY - touchStartY.current;
+        const deltaX = e.touches[0].clientX - touchStartX.current;
+        const deltaY = e.touches[0].clientY - touchStartY.current;
 
         if (!isSwiping.current) {
             if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
@@ -137,79 +149,78 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 return;
             }
         }
-
+        
         if (isSwiping.current) {
             e.preventDefault();
             setTouchDeltaX(deltaX);
         }
     };
-    
+
+    const handleTouchEnd = (e: TouchEvent) => {
+        if (!touchStartX.current || !isSwiping.current) {
+            touchStartX.current = null;
+            touchStartY.current = null;
+            isSwiping.current = false;
+            return;
+        }
+        
+        const finalDeltaX = e.changedTouches[0].clientX - touchStartX.current;
+        setIsTransitioning(true);
+        const SWIPE_THRESHOLD = 60;
+        const calendarWidth = node.offsetWidth;
+
+        if (finalDeltaX > SWIPE_THRESHOLD) {
+          setTouchDeltaX(calendarWidth); 
+          setTimeout(() => { changeMonth(-1); setIsTransitioning(false); setTouchDeltaX(0); }, 300);
+        } else if (finalDeltaX < -SWIPE_THRESHOLD) {
+          setTouchDeltaX(-calendarWidth);
+          setTimeout(() => { changeMonth(1); setIsTransitioning(false); setTouchDeltaX(0); }, 300);
+        } else {
+          setTouchDeltaX(0);
+        }
+        
+        touchStartX.current = null;
+        touchStartY.current = null;
+        isSwiping.current = false;
+    };
+
     node.addEventListener('touchmove', handleTouchMove, { passive: false });
+    node.addEventListener('touchend', handleTouchEnd);
+    node.addEventListener('touchcancel', handleTouchEnd);
 
     return () => {
         node.removeEventListener('touchmove', handleTouchMove);
+        node.removeEventListener('touchend', handleTouchEnd);
+        node.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, []);
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!touchStartX.current || !isSwiping.current) {
-        touchStartX.current = null;
-        touchStartY.current = null;
-        return;
-    }
-    
-    const finalDeltaX = e.changedTouches[0].clientX - touchStartX.current;
-    
-    setIsTransitioning(true);
-    const SWIPE_THRESHOLD = 60;
-    const calendarWidth = e.currentTarget.offsetWidth;
-
-    if (finalDeltaX > SWIPE_THRESHOLD) {
-      setTouchDeltaX(calendarWidth); 
-      setTimeout(() => {
-        changeMonth(-1);
-        setIsTransitioning(false);
-        setTouchDeltaX(0);
-      }, 300);
-    } else if (finalDeltaX < -SWIPE_THRESHOLD) {
-      setTouchDeltaX(-calendarWidth);
-      setTimeout(() => {
-        changeMonth(1);
-        setIsTransitioning(false);
-        setTouchDeltaX(0);
-      }, 300);
-    } else {
-      setTouchDeltaX(0);
-    }
-    
-    touchStartX.current = null;
-    touchStartY.current = null;
-    isSwiping.current = false;
-  };
+  }, [changeMonth]);
   
   const renderMonthGrid = (dateForMonth: Date, isInteractive: boolean) => {
     const daysInMonth = generateMonthDays(dateForMonth);
-    const holidaysForMonth = holidaysByYear[dateForMonth.getFullYear()] || [];
+    const currentDisplayMonth = dateForMonth.getMonth();
 
     return (
         <>
             <DayOfWeekHeader />
             <div className="grid grid-cols-7">
               {daysInMonth.map((day, index) => {
-                if (!day) return <div key={`empty-${index}`} className="h-9 bg-gray-50/50"></div>;
+                const isDifferentMonth = day.getMonth() !== currentDisplayMonth;
                 
                 const dayString = day.toLocaleDateString('sv-SE');
-                const absencesForDay = absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
+                const absencesForDay = isDifferentMonth ? [] : absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
                 const absenceForDay = absencesForDay.find(a => a.status === 'pending') || absencesForDay[0];
-                const entriesForDay = timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === dayString);
-                const holiday = holidaysForMonth.find(h => h.date === dayString);
-                const isSelected = isInteractive && selectedDate?.toLocaleDateString('sv-SE') === dayString;
+                const entriesForDay = isDifferentMonth ? [] : timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === dayString);
+                
+                const holidaysForThisDay = holidaysByYear[day.getFullYear()] || [];
+                const holiday = holidaysForThisDay.find(h => h.date === dayString);
+
+                const isSelected = isInteractive && !isDifferentMonth && selectedDate?.toLocaleDateString('sv-SE') === dayString;
                 const isToday = day.toDateString() === today.toDateString();
                 const dayOfWeek = day.getDay();
                 const isSunday = dayOfWeek === 0;
 
                 let containerClasses = 'relative h-9 flex items-center justify-center transition-colors duration-200';
-                if (isInteractive) containerClasses += ' cursor-pointer';
+                if (isInteractive && !isDifferentMonth) containerClasses += ' cursor-pointer';
 
                 let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
 
@@ -217,8 +228,11 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                     containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
                     numberClasses += ' bg-blue-600 text-white';
                 } else {
-                    if (isInteractive) containerClasses += ' rounded-lg hover:bg-gray-100';
-                    if (isToday) {
+                    if (isInteractive && !isDifferentMonth) containerClasses += ' rounded-lg hover:bg-gray-100';
+                    
+                    if (isDifferentMonth) {
+                        numberClasses += ' text-gray-400';
+                    } else if (isToday) {
                         if (isInteractive) containerClasses += ' bg-gray-50';
                         numberClasses += ' text-blue-600 font-bold';
                     } else if (holiday || isSunday) {
@@ -229,15 +243,12 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 }
 
                 if (absenceForDay) {
-                    if (entriesForDay.length > 0) {
-                        numberClasses += ' bg-white/50 backdrop-blur-sm';
-                    } else if (absenceForDay.status === 'approved') {
-                        numberClasses += ' text-white';
-                    }
+                    if (entriesForDay.length > 0) { numberClasses += ' bg-white/50 backdrop-blur-sm'; } 
+                    else if (absenceForDay.status === 'approved') { numberClasses += ' text-white'; }
                 }
                 
                 return (
-                    <div key={index} onClick={() => isInteractive && setSelectedDate(day)} className={containerClasses}>
+                    <div key={index} onClick={() => isInteractive && !isDifferentMonth && setSelectedDate(day)} className={containerClasses}>
                         {absenceForDay && (() => {
                             const ui = getAbsenceTypeDetails(absenceForDay.type);
                             const isStart = absenceForDay.startDate === dayString;
@@ -311,7 +322,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
           ref={swipeContainerRef}
           className="overflow-hidden relative"
           onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
         >
             <div
                 style={{
