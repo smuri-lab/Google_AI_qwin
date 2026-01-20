@@ -1,4 +1,3 @@
-
 import React, { forwardRef } from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -8,8 +7,8 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, className = '', ...props }, ref) => {
     return (
-      <div>
-        <label htmlFor={props.id || props.name} className="block text-sm font-medium text-gray-700 mb-1">
+      <div className="space-y-1">
+        <label htmlFor={props.id || props.name} className="block text-sm font-medium text-gray-700">
           {label}
         </label>
         <input

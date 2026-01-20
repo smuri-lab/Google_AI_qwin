@@ -219,7 +219,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 const dayOfWeek = day.getDay();
                 const isSunday = dayOfWeek === 0;
 
-                let containerClasses = 'relative h-9 flex items-center justify-center transition-colors duration-200';
+                let containerClasses = 'relative h-10 flex items-center justify-center transition-colors duration-200';
                 if (isInteractive && !isDifferentMonth) containerClasses += ' cursor-pointer';
 
                 let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
