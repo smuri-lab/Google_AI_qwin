@@ -65,6 +65,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const isSwiping = useRef(false);
   const [touchDeltaX, setTouchDeltaX] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const swipeContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const yearsToEnsure = new Set([currentDate.getFullYear()]);
@@ -115,23 +116,40 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     setIsTransitioning(false);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStartX.current || !touchStartY.current) return;
-    
-    const deltaX = e.touches[0].clientX - touchStartX.current;
-    
-    if (!isSwiping.current) {
-        const deltaY = e.touches[0].clientY - touchStartY.current;
-        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-            isSwiping.current = true;
+  useEffect(() => {
+    const node = swipeContainerRef.current;
+    if (!node) return;
+
+    const handleTouchMove = (e: TouchEvent) => {
+        if (!touchStartX.current || !touchStartY.current) return;
+
+        const currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
+        const deltaX = currentX - touchStartX.current;
+        const deltaY = currentY - touchStartY.current;
+
+        if (!isSwiping.current) {
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+                isSwiping.current = true;
+            } else if (Math.abs(deltaY) > Math.abs(deltaX)) {
+                touchStartX.current = null;
+                touchStartY.current = null;
+                return;
+            }
         }
-    }
+
+        if (isSwiping.current) {
+            e.preventDefault();
+            setTouchDeltaX(deltaX);
+        }
+    };
     
-    if (isSwiping.current) {
-        e.preventDefault();
-        setTouchDeltaX(deltaX);
-    }
-  };
+    node.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+        node.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!touchStartX.current || !isSwiping.current) {
@@ -178,7 +196,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             <DayOfWeekHeader />
             <div className="grid grid-cols-7">
               {daysInMonth.map((day, index) => {
-                if (!day) return <div key={`empty-${index}`} className="h-12 bg-gray-50/50"></div>;
+                if (!day) return <div key={`empty-${index}`} className="h-9 bg-gray-50/50"></div>;
                 
                 const dayString = day.toLocaleDateString('sv-SE');
                 const absencesForDay = absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
@@ -190,7 +208,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 const dayOfWeek = day.getDay();
                 const isSunday = dayOfWeek === 0;
 
-                let containerClasses = 'relative h-12 flex items-center justify-center transition-colors duration-200';
+                let containerClasses = 'relative h-9 flex items-center justify-center transition-colors duration-200';
                 if (isInteractive) containerClasses += ' cursor-pointer';
 
                 let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
@@ -229,7 +247,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                             const isHalfDay = absenceForDay.dayPortion && absenceForDay.dayPortion !== 'full';
                             
                             let pillStyle: React.CSSProperties = {};
-                            let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-9 flex items-center justify-center text-xs font-bold z-0 `;
+                            let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-8 flex items-center justify-center text-xs font-bold z-0 `;
                             if (!isInteractive) pillClasses += ' opacity-50';
 
                             if (isPending) {
@@ -290,9 +308,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronRightIcon className="h-5 w-5 text-gray-600" /></button>
         </div>
         <div 
+          ref={swipeContainerRef}
           className="overflow-hidden relative"
           onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
             <div
@@ -313,8 +331,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         <div ref={entriesListRef} className="animate-fade-in"><h3 className="text-lg font-bold mb-3">Einträge für den {selectedDate.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' })}</h3><Card><div className="space-y-3">{holidayForSelectedDay && (<div className="p-3 bg-red-50 rounded-lg border border-red-200 flex items-center"><div className="w-2.5 h-2.5 bg-red-500 rounded-full mr-3"></div><p className="font-semibold text-red-800">{holidayForSelectedDay.name} (Feiertag)</p></div>)}{absencesForSelectedDay.map(absence => { const d = getAbsenceTypeDetails(absence.type); const dayPortionText = absence.dayPortion === 'am' ? ' (Vormittags)' : absence.dayPortion === 'pm' ? ' (Nachmittags)' : ''; return (<div key={absence.id} className={`p-3 rounded-lg border flex items-center ${d.bgClass} ${d.borderClass}`}><div className={`w-2.5 h-2.5 ${d.dotClass} rounded-full mr-3`}></div><p className={`font-semibold ${d.textClass}`}>{d.label}{dayPortionText}</p></div>);})}{entriesForSelectedDay.map(entry => {const d = (new Date(entry.end).getTime() - new Date(entry.start).getTime())/36e5-(entry.breakDurationMinutes/60); return (<button key={entry.id} onClick={()=>setSelectedEntryId(entry.id)} className="w-full p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-left hover:bg-gray-100"><div><p className="font-semibold">{activities.find(a=>a.id===entry.activityId)?.name||'N/A'}</p><p className="text-sm text-gray-600">{customers.find(c=>c.id===entry.customerId)?.name||'N/A'}</p><p className="text-xs text-gray-500 mt-1">{new Date(entry.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} - {new Date(entry.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</p></div><p className="font-bold text-lg text-blue-600">{d.toFixed(2)} h</p></button>);})}{entriesForSelectedDay.length===0 && absencesForSelectedDay.length===0 && !holidayForSelectedDay && <p className="text-center text-gray-500 py-4">Keine Einträge für diesen Tag.</p>}</div></Card></div>
       )}
 
-      <div className="flex justify-center"><Button onClick={onAddAbsenceClick} className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"><PlusIcon className="h-5 w-5"/>Antrag stellen</Button></div>
-      
       <Card>
         <button
           onClick={() => setIsRequestsExpanded(prev => !prev)}
