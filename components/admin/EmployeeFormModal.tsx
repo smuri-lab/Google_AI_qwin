@@ -146,10 +146,8 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
   };
 
   const handleWeeklyScheduleChange = (day: keyof WeeklySchedule, hours: number) => {
-    // FIX: Add explicit type to newSchedule to ensure Object.values returns number[] and fix type inference.
     const newSchedule: WeeklySchedule = { ...(formData.weeklySchedule || defaultWeeklySchedule), [day]: hours };
     
-    // FIX: In `handleWeeklyScheduleChange`, explicitly cast values from `Object.values(newSchedule)` to `Number` before performing arithmetic operations. This resolves TypeScript errors caused by values being inferred as `unknown`.
     const weeklySum = Object.values(newSchedule).reduce((sum, h) => sum + (h || 0), 0);
     const workingDays = Object.values(newSchedule).filter(h => (h || 0) > 0).length;
     const monthlyTarget = (weeklySum * 52) / 12;
