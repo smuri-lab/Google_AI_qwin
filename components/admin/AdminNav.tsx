@@ -5,9 +5,6 @@ import { ChartBarIcon } from '../icons/ChartBarIcon';
 import { SunIcon } from '../icons/SunIcon';
 import { UsersIcon } from '../icons/UsersIcon';
 import { BriefcaseIcon } from '../icons/BriefcaseIcon';
-import { CogIcon } from '../icons/CogIcon';
-import { UserCircleIcon } from '../icons/UserCircleIcon';
-import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import { ChevronDoubleLeftIcon } from '../icons/ChevronDoubleLeftIcon';
 import { ChevronDoubleRightIcon } from '../icons/ChevronDoubleRightIcon';
 
@@ -24,11 +21,6 @@ interface NavItemData {
   icon: React.ElementType;
   badge?: number;
 }
-
-const settingsItems: NavItemData[] = [
-    { label: "Profil", view: AdminViewType.Profile, icon: UserCircleIcon },
-    { label: "Einstellungen", view: AdminViewType.Settings, icon: CogIcon },
-];
 
 const NavItem: React.FC<{
   label: string;
@@ -68,10 +60,8 @@ const NavItem: React.FC<{
 
 
 export const AdminNav: React.FC<AdminNavProps> = ({ activeView, setActiveView, companySettings, absenceRequests }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const navRef = useRef<HTMLElement>(null);
-
+  
   const pendingRequestsCount = absenceRequests.filter(r => r.status === 'pending').length;
 
   const navItems: NavItemData[] = [
@@ -82,63 +72,19 @@ export const AdminNav: React.FC<AdminNavProps> = ({ activeView, setActiveView, c
       { label: "Verwaltung", view: AdminViewType.Customers, icon: BriefcaseIcon },
   ];
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const handleItemClick = (view: AdminViewType) => {
     setActiveView(view);
-    setIsMenuOpen(false);
   };
-  
-  const getActiveLabel = () => {
-    const isVerwaltung = activeView === AdminViewType.Customers || activeView === AdminViewType.Activities;
-    if (isVerwaltung) return 'Verwaltung';
-    
-    const activeItem = [...navItems, ...settingsItems].find(item => item.view === activeView);
-    if (activeItem) {
-        return activeItem.label;
-    }
-    return 'Navigation';
-  };
-
-  const activeLabel = getActiveLabel();
 
   return (
     <aside 
-      ref={navRef} 
       className={`
-        w-full md:flex md:flex-col md:bg-white md:p-4 md:rounded-xl md:shadow-md md:flex-shrink-0 
+        hidden md:flex md:flex-col md:bg-white md:p-4 md:rounded-xl md:shadow-md md:flex-shrink-0 
         md:sticky md:top-24 md:self-start transition-all duration-300 ease-in-out
         ${isCollapsed ? 'md:w-20' : 'md:w-60'}
       `}
     >
-      {/* Mobile Dropdown Trigger */}
-      <div className="md:hidden">
-        <button 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="w-full flex items-center justify-between bg-white p-4 rounded-xl shadow-md text-left text-lg font-semibold"
-        >
-          <span>{activeLabel}</span>
-          <ChevronDownIcon className={`h-5 w-5 text-gray-500 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
-        </button>
-      </div>
-
-      {/* Navigation List */}
-      <nav className={`
-        flex-grow
-        ${isMenuOpen ? 'block' : 'hidden'} 
-        md:block
-        absolute md:relative top-full left-0 right-0 mt-2 md:mt-0
-        bg-white p-4 rounded-xl shadow-md md:shadow-none md:p-0
-        z-20 md:z-auto
-      `}>
+      <nav className="flex-grow">
         <div className="space-y-1">
             {navItems.map((item) => {
               const isVerwaltungItem = item.label === 'Verwaltung';
@@ -160,22 +106,8 @@ export const AdminNav: React.FC<AdminNavProps> = ({ activeView, setActiveView, c
               );
             })}
         </div>
-        <div className="pt-2 mt-2 border-t">
-          {settingsItems.map(item => (
-                 <NavItem 
-                    key={item.view}
-                    label={item.label} 
-                    view={item.view} 
-                    isActive={activeView === item.view}
-                    onItemClick={handleItemClick}
-                    Icon={item.icon}
-                    isCollapsed={isCollapsed}
-                />
-            ))}
-        </div>
       </nav>
       
-      {/* Collapse Toggle Button - Desktop only */}
       <div className="hidden md:block pt-2 mt-auto border-t">
           <button
               onClick={() => setIsCollapsed(!isCollapsed)}

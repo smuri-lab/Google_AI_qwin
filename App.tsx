@@ -4,7 +4,7 @@ import { CalendarView } from './components/CalendarView';
 import { AdminView } from './components/AdminView';
 import { BottomNav } from './components/BottomNav';
 import type { TimeEntry, AbsenceRequest, UserAccount, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear, WeeklySchedule } from './types';
-import { View, EmploymentType, AbsenceType, TargetHoursModel } from './types';
+import { View, EmploymentType, AbsenceType, TargetHoursModel, AdminViewType } from './types';
 import { INITIAL_CUSTOMERS, INITIAL_ACTIVITIES, INITIAL_USER_ACCOUNT, INITIAL_EMPLOYEES, getHolidays, GermanState } from './constants';
 import { LoginScreen } from './components/LoginScreen';
 import { RegistrationScreen } from './components/RegistrationScreen';
@@ -16,6 +16,8 @@ import { ActionSheet } from './components/ui/ActionSheet';
 import { AbsenceRequestModal } from './components/AbsenceRequestModal';
 import { CheckCircleIcon } from './components/icons/CheckCircleIcon';
 import { ManualEntryFormModal } from './components/ManualEntryFormModal';
+import { UserCircleIcon } from './components/icons/UserCircleIcon';
+import { CogIcon } from './components/icons/CogIcon';
 
 const generateDemoData = () => {
     const timeEntries: TimeEntry[] = [];
@@ -111,6 +113,7 @@ const App: React.FC = () => {
   const [loggedInUser, setLoggedInUser] = useState<Employee | null>(null);
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [adminViewMode, setAdminViewMode] = useState<'admin' | 'employee'>('admin');
+  const [adminActiveView, setAdminActiveView] = useState<AdminViewType>(AdminViewType.Planner);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(DEMO_DATA.timeEntries);
   const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>(DEMO_DATA.absenceRequests);
   const [timeBalanceAdjustments, setTimeBalanceAdjustments] = useState<TimeBalanceAdjustment[]>([]);
@@ -704,12 +707,32 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col">
-      <header className="bg-white shadow-md sticky top-0 z-10">
+      <header className="bg-white shadow-md sticky top-0 z-30">
         <div className={`${isDisplayingAdminView ? 'max-w-8xl' : 'max-w-7xl'} mx-auto px-4 py-4 flex justify-between items-center`}>
           <h1 className="text-2xl font-bold text-gray-900">
              {isDisplayingAdminView ? 'Admin-Dashboard' : `Hallo, ${loggedInUser.firstName}`}
           </h1>
           <div className="flex items-center gap-2 sm:gap-4">
+            {isDisplayingAdminView && (
+              <>
+                <button
+                  onClick={() => setAdminActiveView(AdminViewType.Profile)}
+                  className="flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  title="Profil"
+                >
+                  <UserCircleIcon className="h-5 w-5" />
+                  <span className="hidden sm:inline">Profil</span>
+                </button>
+                <button
+                  onClick={() => setAdminActiveView(AdminViewType.Settings)}
+                  className="flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  title="Einstellungen"
+                >
+                  <CogIcon className="h-5 w-5" />
+                   <span className="hidden sm:inline">Einstellungen</span>
+                </button>
+              </>
+            )}
             {isUserAdmin && (
               <button
                 onClick={() => setAdminViewMode(prev => prev === 'admin' ? 'employee' : 'admin')}
@@ -717,7 +740,7 @@ const App: React.FC = () => {
                 title={isDisplayingAdminView ? 'Zur Mitarbeiter-Ansicht wechseln' : 'Zur Admin-Ansicht wechseln'}
               >
                 <SwitchHorizontalIcon className="h-5 w-5" />
-                <span className="hidden sm:inline">{isDisplayingAdminView ? 'Mitarbeiter-Ansicht' : 'Admin-Ansicht'}</span>
+                <span className="hidden sm:inline">{isDisplayingAdminView ? 'Mitarbeiter' : 'Admin'}</span>
               </button>
             )}
             <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-semibold bg-red-100 text-red-700 hover:bg-red-200">
@@ -731,6 +754,8 @@ const App: React.FC = () => {
         {isDisplayingAdminView ? (
           <AdminView 
             loggedInUser={loggedInUser}
+            activeView={adminActiveView}
+            setActiveView={setAdminActiveView}
             absenceRequests={absenceRequests} 
             onUpdateRequestStatus={updateAbsenceRequestStatus}
             onUpdateAbsenceRequest={updateAbsenceRequest}
