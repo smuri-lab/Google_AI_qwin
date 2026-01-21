@@ -41,14 +41,14 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     }
   }, [isOpen, initialTime]);
   
-  // Effect to attach reliable 'scrollend' listeners
+  // Effect to attach scroll listeners for real-time highlighting
   useEffect(() => {
     if (!isOpen) return;
 
     const hourEl = hourListRef.current;
     const minuteEl = minuteListRef.current;
 
-    const handleScrollEnd = (
+    const handleScroll = (
       container: HTMLDivElement,
       setter: React.Dispatch<React.SetStateAction<string>>,
       type: 'hour' | 'minute'
@@ -78,13 +78,14 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
       }
     };
     
-    const hourScrollHandler = () => handleScrollEnd(hourEl!, setSelectedHour, 'hour');
-    const minuteScrollHandler = () => handleScrollEnd(minuteEl!, setSelectedMinute, 'minute');
+    const hourScrollHandler = () => handleScroll(hourEl!, setSelectedHour, 'hour');
+    const minuteScrollHandler = () => handleScroll(minuteEl!, setSelectedMinute, 'minute');
     
-    const eventName = 'scrollend' in window ? 'scrollend' : 'scroll';
+    // Use 'scroll' for real-time updates
+    const eventName = 'scroll';
 
-    if (hourEl) hourEl.addEventListener(eventName, hourScrollHandler);
-    if (minuteEl) minuteEl.addEventListener(eventName, minuteScrollHandler);
+    if (hourEl) hourEl.addEventListener(eventName, hourScrollHandler, { passive: true });
+    if (minuteEl) minuteEl.addEventListener(eventName, minuteScrollHandler, { passive: true });
 
     return () => {
       if (hourEl) hourEl.removeEventListener(eventName, hourScrollHandler);
