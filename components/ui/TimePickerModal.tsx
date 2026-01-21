@@ -33,10 +33,10 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
 
       setTimeout(() => {
         const hourEl = hourListRef.current?.querySelector(`[data-hour="${h}"]`);
-        hourEl?.scrollIntoView({ behavior: 'auto', inline: 'center' });
+        hourEl?.scrollIntoView({ behavior: 'auto', block: 'center' });
 
         const minuteEl = minuteListRef.current?.querySelector(`[data-minute="${m}"]`);
-        minuteEl?.scrollIntoView({ behavior: 'auto', inline: 'center' });
+        minuteEl?.scrollIntoView({ behavior: 'auto', block: 'center' });
       }, 50);
     }
   }, [isOpen, initialTime]);
@@ -53,15 +53,15 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
       setter: React.Dispatch<React.SetStateAction<string>>,
       type: 'hour' | 'minute'
     ) => {
-      const { scrollLeft, clientWidth } = container;
-      const scrollCenter = scrollLeft + clientWidth / 2;
+      const { scrollTop, clientHeight } = container;
+      const scrollCenter = scrollTop + clientHeight / 2;
 
       let closestElement: HTMLElement | null = null;
       let minDistance = Infinity;
 
-      Array.from(container.children[0].children).forEach(child => {
+      Array.from(container.children).forEach(child => {
         const childEl = child as HTMLElement;
-        const childCenter = childEl.offsetLeft + childEl.offsetWidth / 2;
+        const childCenter = childEl.offsetTop + childEl.offsetHeight / 2;
         const distance = Math.abs(scrollCenter - childCenter);
 
         if (distance < minDistance) {
@@ -103,56 +103,51 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     onSelect(`${selectedHour}:${selectedMinute}`);
   };
 
-  const TimeScroller: React.FC<{
+  const TimeColumn: React.FC<{
     values: string[];
     selectedValue: string;
     isDisabled: (value: string) => boolean;
     listRef: React.RefObject<HTMLDivElement>;
     type: 'hour' | 'minute';
-    label: string;
-  }> = ({ values, selectedValue, isDisabled, listRef, type, label }) => {
+  }> = ({ values, selectedValue, isDisabled, listRef, type }) => {
     
     const handleItemClick = (value: string, disabled: boolean) => {
         if (disabled) return;
         const itemEl = listRef.current?.querySelector(`[data-${type}="${value}"]`);
-        itemEl?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        itemEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
     return (
-        <div>
-            <p className="text-center text-sm font-medium text-gray-500 mb-1">{label}</p>
-            <div 
-                ref={listRef} 
-                className="w-full overflow-x-scroll snap-x snap-mandatory bg-gray-50 rounded-lg no-scrollbar"
-                style={{
-                  maskImage: 'linear-gradient(to right, transparent, black 25%, black 75%, transparent)',
-                  WebkitMaskImage: 'linear-gradient(to right, transparent, black 25%, black 75%, transparent)'
-                }}
-              >
-                <div className="flex items-center h-20" style={{ padding: '0 calc(50% - 2.5rem)'}}>
-                    {values.map(value => {
-                      const disabled = isDisabled(value);
-                      const isSelected = selectedValue === value;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          data-hour={type === 'hour' ? value : undefined}
-                          data-minute={type === 'minute' ? value : undefined}
-                          onClick={() => handleItemClick(value, disabled)}
-                          disabled={disabled}
-                          aria-current={isSelected ? 'true' : 'false'}
-                          className={`flex-shrink-0 w-20 h-full flex items-center justify-center snap-center transition-all duration-200
-                            ${isSelected ? 'text-blue-600 text-4xl font-bold' : 'text-gray-400 text-2xl font-semibold hover:text-gray-700'}
-                            ${disabled ? 'text-gray-300 cursor-not-allowed hover:text-gray-300' : ''}
-                          `}
-                        >
-                          {value}
-                        </button>
-                      );
-                    })}
-                </div>
-            </div>
+        <div 
+            ref={listRef} 
+            className="h-64 w-1/2 overflow-y-scroll snap-y snap-mandatory bg-gray-50 rounded-lg no-scrollbar"
+            style={{
+              maskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)',
+              padding: 'calc(50% - 24px) 0',
+            }}
+          >
+            {values.map(value => {
+              const disabled = isDisabled(value);
+              const isSelected = selectedValue === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  data-hour={type === 'hour' ? value : undefined}
+                  data-minute={type === 'minute' ? value : undefined}
+                  onClick={() => handleItemClick(value, disabled)}
+                  disabled={disabled}
+                  aria-current={isSelected ? 'true' : 'false'}
+                  className={`flex-shrink-0 h-12 w-full flex items-center justify-center snap-center transition-all duration-200
+                    ${isSelected ? 'text-blue-600 text-4xl font-bold' : 'text-gray-400 text-2xl font-semibold hover:text-gray-700'}
+                    ${disabled ? 'text-gray-300 cursor-not-allowed hover:text-gray-300' : ''}
+                  `}
+                >
+                  {value}
+                </button>
+              );
+            })}
         </div>
     );
   };
@@ -165,23 +160,21 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XIcon className="h-6 w-6" /></button>
         </div>
 
-        <div className="space-y-6 my-6 relative">
-             <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 h-[calc(100%+2rem)] w-24 border-x border-gray-200 pointer-events-none z-10" aria-hidden="true" />
-             <TimeScroller 
+        <div className="flex justify-center gap-2 my-6 relative">
+             <div className="absolute top-1/2 -translate-y-1/2 h-14 w-full border-y border-gray-200 pointer-events-none z-10" aria-hidden="true" />
+             <TimeColumn 
                 values={hours}
                 selectedValue={selectedHour}
                 isDisabled={(h) => parseInt(h, 10) < minHour}
                 listRef={hourListRef}
                 type="hour"
-                label="Stunde"
              />
-             <TimeScroller 
+             <TimeColumn 
                 values={minutes}
                 selectedValue={selectedMinute}
                 isDisabled={(m) => parseInt(selectedHour, 10) === minHour && parseInt(m, 10) < minMinute}
                 listRef={minuteListRef}
                 type="minute"
-                label="Minute"
              />
         </div>
 
