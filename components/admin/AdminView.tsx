@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import type { AbsenceRequest, TimeEntry, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear } from '../types';
-import { AdminViewType } from '../types';
+import React, { useState, useEffect } from 'react';
+import type { AbsenceRequest, TimeEntry, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear } from '../../types';
+import { AdminViewType } from '../../types';
 import { AdminNav } from './admin/AdminNav';
 import { SettingsView } from './admin/SettingsView';
 import { TimeTrackingManagement } from './admin/TimeTrackingManagement';
@@ -50,6 +50,13 @@ interface AdminViewProps {
 export const AdminView: React.FC<AdminViewProps> = (props) => {
   const [activeView, setActiveView] = useState<AdminViewType>(AdminViewType.Planner);
 
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, [activeView]);
+
   const renderActiveView = () => {
     switch (activeView) {
       case AdminViewType.Planner:
@@ -71,10 +78,6 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                   onAddEmployee={props.onAddEmployee}
                   onUpdateEmployee={props.onUpdateEmployee}
                   onDeleteEmployee={props.onDeleteEmployee}
-                  timeEntries={props.timeEntries}
-                  absenceRequests={props.absenceRequests}
-                  holidaysByYear={props.holidaysByYear}
-                  onEnsureHolidaysForYear={props.onEnsureHolidaysForYear}
                   companySettings={props.companySettings}
                 />;
       case AdminViewType.Customers:
