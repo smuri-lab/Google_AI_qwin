@@ -50,7 +50,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToReg
         <Card className="w-full max-w-sm">
           <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">Willkommen bei TimePro</h1>
           <form onSubmit={handleSubmit} className="space-y-2" noValidate>
-            <div className="min-h-[5.5rem] flex flex-col justify-center">
+            <div className="min-h-[5.5rem] flex flex-col pt-2">
               <Input 
                 label="Benutzername"
                 id="username"
@@ -61,7 +61,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToReg
                 autoFocus
               />
             </div>
-            <div className="min-h-[5.5rem] flex flex-col justify-center">
+            <div className="min-h-[5.5rem] flex flex-col pt-2">
               <Input 
                 label="Passwort"
                 id="password"
