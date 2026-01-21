@@ -24,6 +24,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToReg
         setError("Bitte geben Sie einen Benutznamen ein.");
         return;
     }
+    if (!password) {
+        setError("Bitte geben Sie ein Passwort ein.");
+        return;
+    }
     const errorMsg = onLogin(username, password);
     if (errorMsg) {
       setError(errorMsg);
@@ -66,7 +70,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToReg
             
             <div>
               <p className="text-sm text-red-600 text-center h-10 flex items-center justify-center">
-                {error || ''}
+                {error || '\u00A0'}
               </p>
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
                 Anmelden
