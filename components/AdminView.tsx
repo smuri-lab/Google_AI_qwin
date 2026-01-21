@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import type { AbsenceRequest, TimeEntry, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear } from '../../types';
-import { AdminViewType } from '../../types';
+import type { AbsenceRequest, TimeEntry, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear } from '../types';
+import { AdminViewType } from '../types';
 import { AdminNav } from './admin/AdminNav';
 import { SettingsView } from './admin/SettingsView';
 import { TimeTrackingManagement } from './admin/TimeTrackingManagement';
