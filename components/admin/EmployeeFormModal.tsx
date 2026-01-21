@@ -148,7 +148,8 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
   const handleWeeklyScheduleChange = (day: keyof WeeklySchedule, hours: number) => {
     const newSchedule = { ...formData.weeklySchedule, [day]: hours };
     
-    const weeklySum = Object.values(newSchedule).reduce((sum, h) => sum + Number(h || 0), 0);
+    // FIX: Explicitly type the accumulator in the reduce function to 'number' to avoid type inference issues.
+    const weeklySum = Object.values(newSchedule).reduce((sum: number, h) => sum + Number(h || 0), 0);
     const workingDays = Object.values(newSchedule).filter(h => Number(h || 0) > 0).length;
     const monthlyTarget = (weeklySum * 52) / 12;
     const dailyTarget = workingDays > 0 ? weeklySum / workingDays : 0;

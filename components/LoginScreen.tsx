@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -66,7 +65,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToReg
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+            {/* Wrapper to prevent layout shift when error message appears/disappears */}
+            <div className="h-5 text-center">
+                {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
             <div className="pt-2">
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
                 Anmelden
