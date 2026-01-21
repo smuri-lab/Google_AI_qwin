@@ -45,30 +45,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToReg
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-sm">
           <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">Willkommen bei TimePro</h1>
-          <form onSubmit={handleSubmit} className="space-y-2" noValidate>
-            <div className="min-h-[5rem]">
-              <Input 
-                label="Benutzername"
-                id="username"
-                name="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                autoFocus
-              />
-            </div>
-            <div className="min-h-[5rem]">
-              <Input 
-                label="Passwort"
-                id="password"
-                name="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <Input 
+              label="Benutzername"
+              id="username"
+              name="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoFocus
+            />
+            <Input 
+              label="Passwort"
+              id="password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
             
             <div>
               <p className="text-sm text-red-600 text-center h-10 flex items-center justify-center">
