@@ -150,28 +150,34 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
           {formatTime(elapsedTime)}
         </div>
 
-        <div className="w-full space-y-3">
-           <SelectorButton
-              label={customerLabel}
-              value={selectedCustomerName}
-              placeholder={`${customerLabel} auswählen...`}
-              onClick={() => setIsCustomerModalOpen(true)}
-              disabled={isRunning}
-            />
+        <div className="w-full space-y-2">
+           <div className="min-h-[5.5rem] flex flex-col justify-center">
+             <SelectorButton
+                label={customerLabel}
+                value={selectedCustomerName}
+                placeholder={`${customerLabel} auswählen...`}
+                onClick={() => setIsCustomerModalOpen(true)}
+                disabled={isRunning}
+              />
+           </div>
+           <div className="min-h-[5.5rem] flex flex-col justify-center">
             <SelectorButton
-              label={activityLabel}
-              value={selectedActivityName}
-              placeholder={`${activityLabel} auswählen...`}
-              onClick={() => setIsActivityModalOpen(true)}
-              disabled={isRunning}
+                label={activityLabel}
+                value={selectedActivityName}
+                placeholder={`${activityLabel} auswählen...`}
+                onClick={() => setIsActivityModalOpen(true)}
+                disabled={isRunning}
+              />
+           </div>
+          <div className="min-h-[6.5rem] flex flex-col justify-center">
+            <Textarea
+                label="Kommentar (optional)"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                disabled={isRunning}
+                rows={2}
             />
-          <Textarea
-              label="Kommentar (optional)"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              disabled={isRunning}
-              rows={2}
-          />
+          </div>
         </div>
 
         <Button
