@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Employee, CompanySettings } from '../types';
 import { Card } from './ui/Card';
@@ -8,7 +7,7 @@ import { Input } from './ui/Input';
 interface RegistrationScreenProps {
   onRegister: (
       employeeData: Omit<Employee, 'id' | 'lastModified' | 'contractHistory' | 'role' | 'isActive'>,
-      companyData: CompanySettings
+      companyData: Omit<CompanySettings, 'adminTimeFormat' | 'employeeTimeFormat'>
   ) => void;
   onSwitchToLogin: () => void;
   hasAdminAccount?: boolean;
@@ -63,7 +62,7 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegist
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gray-100 flex items-start sm:items-center justify-center p-4 pt-16 sm:pt-4">
             <Card className="w-full max-w-2xl">
                 <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">Neues Unternehmen registrieren</h1>
                 <form onSubmit={handleSubmit} className="space-y-6">
