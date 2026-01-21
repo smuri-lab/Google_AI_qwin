@@ -28,18 +28,19 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
 }) => {
   const [selectedHour, setSelectedHour] = useState('08');
   const [selectedMinute, setSelectedMinute] = useState('00');
+  const [isClosing, setIsClosing] = useState(false);
   
   const hourRef = useRef<HTMLDivElement>(null);
   const minuteRef = useRef<HTMLDivElement>(null);
   
-  // Initialisierung beim Öffnen
+  // Initialisierung und Reset des Closing-Status
   useEffect(() => {
     if (isOpen) {
+      setIsClosing(false);
       const [h, m] = (initialTime || '08:00').split(':');
       setSelectedHour(h);
       setSelectedMinute(m);
       
-      // Kurze Verzögerung für Rendering, dann scrollen
       setTimeout(() => {
         if (hourRef.current) hourRef.current.scrollTop = parseInt(h, 10) * ITEM_HEIGHT;
         if (minuteRef.current) minuteRef.current.scrollTop = parseInt(m, 10) * ITEM_HEIGHT;
@@ -60,27 +61,44 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
     }
   };
 
+  const handleClose = () => {
+      setIsClosing(true);
+      setTimeout(onClose, 300); // Animation-Dauer abwarten
+  };
+
   const handleConfirm = () => {
-    onSelect(`${selectedHour}:${selectedMinute}`);
+      setIsClosing(true);
+      setTimeout(() => {
+          onSelect(`${selectedHour}:${selectedMinute}`);
+      }, 300);
+  };
+  
+  const handleBack = () => {
+      setIsClosing(true);
+      setTimeout(() => {
+          if (onBack) onBack();
+      }, 300);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <Card className="w-full max-w-xs bg-white rounded-xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div 
+      className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} 
+      onClick={handleClose}
+    >
+      <Card 
+        className={`w-full max-w-xs bg-white rounded-xl shadow-2xl overflow-hidden ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} 
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center p-4 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-800">{title}</h2>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"><XIcon className="h-5 w-5" /></button>
+          <button onClick={handleClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"><XIcon className="h-5 w-5" /></button>
         </div>
 
         {/* Picker Container */}
         <div className="relative h-[240px] flex text-center bg-white select-none">
-            
-            {/* Grauer Balken in der Mitte (Hintergrund) */}
             <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-[48px] bg-gray-100 border-y border-gray-200 pointer-events-none z-0" />
-
-            {/* Stunden */}
             <div 
                 ref={hourRef}
                 onScroll={e => handleScroll(e, 'hour')}
@@ -95,11 +113,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
                 ))}
                 <div style={{ height: `${SPACER_HEIGHT}px` }} />
             </div>
-
-            {/* Trenner */}
             <div className="flex items-center justify-center z-10 font-bold text-xl pb-1 w-4">:</div>
-
-            {/* Minuten */}
             <div 
                 ref={minuteRef}
                 onScroll={e => handleScroll(e, 'minute')}
@@ -117,12 +131,34 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
         </div>
 
         <div className="flex gap-3 p-4 border-t border-gray-100 bg-gray-50">
-          <Button onClick={onClose} className="flex-1 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 py-2">Abbrechen</Button>
-          {showBackButton && <Button onClick={onBack} className="flex-1 bg-gray-500 text-white hover:bg-gray-600 py-2">Zurück</Button>}
+          <Button onClick={handleClose} className="flex-1 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 py-2">Abbrechen</Button>
+          {showBackButton && <Button onClick={handleBack} className="flex-1 bg-gray-500 text-white hover:bg-gray-600 py-2">Zurück</Button>}
           <Button onClick={handleConfirm} className="flex-1 bg-blue-600 text-white hover:bg-blue-700 py-2 font-semibold shadow-sm">OK</Button>
         </div>
       </Card>
-      <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes modal-fade-in {
+            from { background-color: rgba(0,0,0,0); }
+            to { background-color: rgba(0,0,0,0.6); }
+        }
+        @keyframes modal-fade-out {
+            from { background-color: rgba(0,0,0,0.6); }
+            to { background-color: rgba(0,0,0,0); }
+        }
+        @keyframes modal-slide-up {
+            from { transform: translateY(40px) scale(0.95); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes modal-slide-down {
+            from { transform: translateY(0) scale(1); opacity: 1; }
+            to { transform: translateY(40px) scale(0.95); opacity: 0; }
+        }
+        .animate-modal-fade-in { animation: modal-fade-in 0.3s ease-out forwards; }
+        .animate-modal-fade-out { animation: modal-fade-out 0.3s ease-in forwards; }
+        .animate-modal-slide-up { animation: modal-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-modal-slide-down { animation: modal-slide-down 0.3s cubic-bezier(0.7, 0, 0.84, 0) forwards; }
+      `}</style>
     </div>
   );
 };

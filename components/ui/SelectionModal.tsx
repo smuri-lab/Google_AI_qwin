@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Card } from './Card';
 import { Input } from './Input';
@@ -47,7 +46,6 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose,
             placeholder="Suchen..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            autoFocus
           />
         </div>
         <div className="flex-grow overflow-y-auto space-y-2 pr-2">
