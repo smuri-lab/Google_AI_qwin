@@ -151,7 +151,7 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
         </div>
 
         <div className="w-full space-y-2">
-           <div className="min-h-[4.5rem] pt-2">
+           <div className="min-h-[4.5rem]">
              <SelectorButton
                 label={customerLabel}
                 value={selectedCustomerName}
@@ -160,7 +160,7 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
                 disabled={isRunning}
               />
            </div>
-           <div className="min-h-[4.5rem] pt-2">
+           <div className="min-h-[4.5rem]">
             <SelectorButton
                 label={activityLabel}
                 value={selectedActivityName}
@@ -169,7 +169,7 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
                 disabled={isRunning}
               />
            </div>
-          <div className="min-h-[6.5rem] pt-2">
+          <div className="min-h-[6.5rem]">
             <Textarea
                 label="Kommentar (optional)"
                 value={comment}

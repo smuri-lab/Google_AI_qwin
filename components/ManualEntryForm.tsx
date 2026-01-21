@@ -161,7 +161,7 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
       <form onSubmit={handleSubmit} className="space-y-2 p-4">
         <h2 className="text-xl font-bold text-center mb-4">Zeit manuell eintragen</h2>
         
-        <div className="min-h-[4.5rem] pt-2">
+        <div className="min-h-[4.5rem]">
             <DateSelectorButton 
                 label="Datum"
                 value={formatDate(date)}
@@ -171,7 +171,7 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
         </div>
         
         <div className="grid grid-cols-2 gap-4">
-            <div className="min-h-[4.5rem] pt-2">
+            <div className="min-h-[4.5rem]">
                 <TimeSelectorButton
                     label="Startzeit"
                     value={startTime}
@@ -179,7 +179,7 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
                     placeholder="Start"
                 />
             </div>
-            <div className="min-h-[4.5rem] pt-2">
+            <div className="min-h-[4.5rem]">
                 <TimeSelectorButton
                     label="Endzeit"
                     value={endTime}
@@ -190,11 +190,11 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
             </div>
         </div>
 
-        <div className="min-h-[4.5rem] pt-2">
+        <div className="min-h-[4.5rem]">
           <Input label="Pause (Minuten)" type="number" value={breakDurationMinutes} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBreakDurationMinutes(e.target.value)} min="0" placeholder="z.B. 30" />
         </div>
         
-        <div className="min-h-[4.5rem] pt-2">
+        <div className="min-h-[4.5rem]">
             <SelectorButton
                 label={customerLabel}
                 value={selectedCustomerName}
@@ -202,7 +202,7 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
                 onClick={() => setIsCustomerModalOpen(true)}
             />
         </div>
-        <div className="min-h-[4.5rem] pt-2">
+        <div className="min-h-[4.5rem]">
             <SelectorButton
                 label={activityLabel}
                 value={selectedActivityName}
@@ -210,7 +210,7 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
                 onClick={() => setIsActivityModalOpen(true)}
             />
         </div>
-        <div className="min-h-[6.5rem] pt-2">
+        <div className="min-h-[6.5rem]">
             <Textarea
                 label="Kommentar (optional)"
                 value={comment}
