@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Employee } from '../../types';
 import { Card } from '../ui/Card';
@@ -9,6 +8,7 @@ import { ToggleSwitch } from '../ui/ToggleSwitch';
 
 interface TimesheetExportModalProps {
   isOpen: boolean;
+  isClosing?: boolean;
   onClose: () => void;
   onConfirm: (employees: Employee[], year: number, months: number[]) => void;
   employees: Employee[];
@@ -29,26 +29,28 @@ const getYears = () => {
     return years;
 };
 
-export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOpen, onClose, onConfirm, employees, fixedEmployee }) => {
+export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOpen, isClosing, onClose, onConfirm, employees, fixedEmployee }) => {
   const today = new Date();
   const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>(fixedEmployee ? [String(fixedEmployee.id)] : []);
   const [selectedMonths, setSelectedMonths] = useState<number[]>([lastMonth.getMonth()]);
   const [selectedYear, setSelectedYear] = useState(lastMonth.getFullYear());
-
+  
   useEffect(() => {
-    if (fixedEmployee) {
-      setSelectedEmployeeIds([String(fixedEmployee.id)]);
-    } else {
-      setSelectedEmployeeIds([]);
+    if (isOpen) {
+      if (fixedEmployee) {
+        setSelectedEmployeeIds([String(fixedEmployee.id)]);
+      } else {
+        setSelectedEmployeeIds([]);
+      }
+      setSelectedMonths([lastMonth.getMonth()]);
+      setSelectedYear(lastMonth.getFullYear());
     }
-    setSelectedMonths([lastMonth.getMonth()]);
-    setSelectedYear(lastMonth.getFullYear());
   }, [isOpen, fixedEmployee]);
 
   if (!isOpen) return null;
-
+  
   const handleEmployeeToggle = (employeeId: string) => {
     setSelectedEmployeeIds(prev =>
       prev.includes(employeeId)
@@ -95,11 +97,12 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
     }
     
     onConfirm(employeesToExport, selectedYear, selectedMonths);
+    // onClose is now called by the parent component's onConfirm handler
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-30 p-4" onClick={onClose}>
-      <Card className="w-full max-w-lg relative" onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={onClose}>
+      <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
           <XIcon className="h-6 w-6" />
         </button>

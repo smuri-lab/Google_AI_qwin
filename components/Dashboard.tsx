@@ -57,8 +57,10 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
   } = props;
   
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExportModalClosing, setIsExportModalClosing] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isCarryoverInfoOpen, setIsCarryoverInfoOpen] = useState(false);
+  const [isCarryoverClosing, setIsCarryoverClosing] = useState(false);
   
   const timeFormat = companySettings.employeeTimeFormat || 'hoursMinutes';
 
@@ -71,6 +73,14 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
     }
   }, [showSuccessMessage]);
 
+  const handleExportModalClose = () => {
+    setIsExportModalClosing(true);
+    setTimeout(() => {
+      setIsExportModalOpen(false);
+      setIsExportModalClosing(false);
+    }, 300);
+  };
+  
   const handleConfirmExport = (selectedEmployees: Employee[], year: number, selectedMonths: number[]) => {
       if (selectedEmployees.length === 0) return;
       const employee = selectedEmployees[0]; // In dashboard, it's always the current user
@@ -87,10 +97,16 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
               timeFormat: companySettings.employeeTimeFormat,
           });
       });
-
-      setIsExportModalOpen(false);
+      handleExportModalClose();
   };
 
+  const handleCarryoverClose = () => {
+    setIsCarryoverClosing(true);
+    setTimeout(() => {
+      setIsCarryoverInfoOpen(false);
+      setIsCarryoverClosing(false); // Reset for next open
+    }, 300);
+  };
 
   const timeBalanceColor = userAccount.timeBalanceHours > 0
     ? 'text-green-600'
@@ -198,15 +214,15 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
         )}
         
       {isCarryoverInfoOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setIsCarryoverInfoOpen(false)}>
-          <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 ${isCarryoverClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleCarryoverClose}>
+          <Card className={`w-full max-w-sm ${isCarryoverClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center space-y-4">
               <ExclamationTriangleIcon className="h-12 w-12 text-yellow-500" />
               <h2 className="text-xl font-bold">Resturlaub verfällt bald</h2>
               <p className="text-sm text-gray-600">
                 Bitte beachten Sie: Ihr Resturlaub aus dem Vorjahr ({carryoverDays} {carryoverDays === 1 ? 'Tag' : 'Tage'}) muss bis zum 31. März {mockCurrentYear} genommen werden, da er sonst verfällt.
               </p>
-              <Button onClick={() => setIsCarryoverInfoOpen(false)} className="w-full bg-blue-600 hover:bg-blue-700 mt-4">
+              <Button onClick={handleCarryoverClose} className="w-full bg-blue-600 hover:bg-blue-700 mt-4">
                 Verstanden
               </Button>
             </div>
@@ -235,7 +251,8 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
       {isExportModalOpen && (
         <TimesheetExportModal
           isOpen={isExportModalOpen}
-          onClose={() => setIsExportModalOpen(false)}
+          isClosing={isExportModalClosing}
+          onClose={handleExportModalClose}
           onConfirm={handleConfirmExport}
           employees={[currentUser]} 
           fixedEmployee={currentUser} 
