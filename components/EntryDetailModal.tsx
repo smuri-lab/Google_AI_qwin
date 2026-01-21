@@ -44,6 +44,7 @@ const getLocalTimeString = (d: Date) => `${String(d.getHours()).padStart(2, '0')
 export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({ entry, customers, activities, timeEntries, onClose, onUpdate, onDelete, companySettings, isAdminView }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [formData, setFormData] = useState(() => {
     const entryStartDate = new Date(entry.start);
     const entryEndDate = new Date(entry.end);
@@ -100,6 +101,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({ entry, custo
 
   useEffect(() => {
     if (entry) {
+        setIsClosing(false);
         const entryStartDate = new Date(entry.start);
         const entryEndDate = new Date(entry.end);
         setFormData({
@@ -114,6 +116,11 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({ entry, custo
         setIsEditing(false);
     }
   }, [entry]);
+  
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -144,7 +151,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({ entry, custo
       activityId: formData.activityId,
       comment: formData.comment || undefined,
     });
-    onClose(); // Close after a successful update.
+    handleClose();
   };
 
   const handleDelete = () => {
@@ -154,7 +161,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({ entry, custo
   const handleConfirmDelete = () => {
     onDelete(entry.id);
     setShowDeleteConfirm(false);
-    onClose();
+    handleClose();
   };
 
   const customerLabel = companySettings?.customerLabel || 'Kunde';
@@ -165,9 +172,9 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({ entry, custo
   
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30 p-4" onClick={onClose}>
-        <Card className="w-full max-w-lg relative max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+      <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+        <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+          <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
             <XIcon className="h-6 w-6" />
           </button>
 

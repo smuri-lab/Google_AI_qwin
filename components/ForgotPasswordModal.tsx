@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
@@ -14,6 +13,13 @@ interface ForgotPasswordModalProps {
 export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose, onFindPassword }) => {
   const [username, setUsername] = useState('');
   const [result, setResult] = useState<string | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  
+  useEffect(() => {
+    if (isOpen) {
+        setIsClosing(false);
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,16 +32,19 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
   };
   
   const handleClose = () => {
-      setUsername('');
-      setResult(null);
-      onClose();
+      setIsClosing(true);
+      setTimeout(() => {
+          setUsername('');
+          setResult(null);
+          onClose();
+      }, 300);
   }
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-30 p-4" onClick={handleClose}>
-      <Card className="w-full max-w-sm relative" onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+      <Card className={`w-full max-w-sm relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
           <XIcon className="h-6 w-6" />
         </button>

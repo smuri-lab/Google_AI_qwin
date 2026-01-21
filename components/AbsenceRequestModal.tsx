@@ -38,9 +38,11 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
   const [photo, setPhoto] = useState<File | undefined>();
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: '', message: '' });
-
+  const [isClosing, setIsClosing] = useState(false);
+  
   useEffect(() => {
     if (isOpen) {
+        setIsClosing(false);
         setType(AbsenceType.Vacation);
         setStartDate('');
         setEndDate('');
@@ -54,6 +56,11 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
       setEndDate(startDate);
     }
   }, [dayPortion, startDate]);
+  
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   if (!isOpen) return null;
 
@@ -102,7 +109,7 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
     };
 
     onSubmit(requestData);
-    onClose();
+    handleClose();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,9 +133,9 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-30 p-4" onClick={onClose}>
-        <Card className="w-full max-w-lg relative" onClick={(e) => e.stopPropagation()}>
-           <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+      <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+        <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+           <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
              <XIcon className="h-6 w-6" />
            </button>
           <h2 className="text-xl font-bold text-center mb-4">Neuer Antrag</h2>
@@ -164,7 +171,7 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
               <Input id="photo-upload" label="Foto hochladen (z.B. Krankenschein)" type="file" onChange={handleFileChange} />
             )}
             <div className="flex justify-end gap-4 pt-4 border-t">
-              <Button type="button" onClick={onClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+              <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">Antrag einreichen</Button>
             </div>
           </form>

@@ -40,9 +40,11 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
   const [range, setRange] = useState<{ start: Date | null, end: Date | null }>({ start: null, end: null });
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      setIsClosing(false);
       const start = initialStartDate ? new Date(initialStartDate) : null;
       let end = initialEndDate ? new Date(initialEndDate) : null;
       if (selectionMode === 'single' && start) {
@@ -78,6 +80,11 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
   const changeMonth = (offset: number) => {
     setCurrentMonthDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
   };
+  
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   const handleDayClick = (day: Date) => {
     if (selectionMode === 'single') {
@@ -105,15 +112,15 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
       } else if (selectionMode === 'single' && range.start && onSelectDate) {
           onSelectDate(range.start);
       }
-      onClose();
+      handleClose();
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4" onClick={onClose}>
-      <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+      <Card className={`w-full max-w-sm ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center pb-4 border-b">
           <h2 className="text-xl font-bold">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XIcon className="h-6 w-6" /></button>
+          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600"><XIcon className="h-6 w-6" /></button>
         </div>
 
         <div className="mt-4">
@@ -188,7 +195,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
         </div>
 
         <div className="flex justify-end gap-4 pt-6 border-t mt-4">
-          <Button onClick={onClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+          <Button onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
           <Button onClick={handleConfirm} className="bg-blue-600 hover:bg-blue-700" disabled={selectionMode === 'range' ? !(range.start && range.end) : !range.start}>OK</Button>
         </div>
       </Card>

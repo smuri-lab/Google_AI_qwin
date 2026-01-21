@@ -140,7 +140,6 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
       setEndTime('');
     }
     setIsStartTimePickerOpen(false);
-    setTimeout(() => setIsEndTimePickerOpen(true), 100);
   };
 
   const handleEndTimeSelect = (time: string) => {
@@ -148,11 +147,6 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
     setIsEndTimePickerOpen(false);
   };
   
-  const handleBackToStartTime = () => {
-      setIsEndTimePickerOpen(false);
-      setTimeout(() => setIsStartTimePickerOpen(true), 100);
-  };
-
   const selectedCustomerName = customers.find(c => c.id === customerId)?.name || '';
   const selectedActivityName = activities.find(a => a.id === activityId)?.name || '';
 
@@ -206,11 +200,11 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
         />
         <div className={`pt-4 ${onCancel ? 'grid grid-cols-2 gap-4' : 'flex'}`}>
           {onCancel && (
-            <Button type="button" onClick={onCancel} className="w-full bg-gray-500 hover:bg-gray-600">
+            <Button type="button" onClick={onCancel} className="w-full bg-gray-500 hover:bg-gray-600 text-white">
               Abbrechen
             </Button>
           )}
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
             Speichern
           </Button>
         </div>
@@ -245,8 +239,6 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
         title="Endzeit auswählen"
         initialTime={endTime || startTime}
         minTime={startTime}
-        showBackButton={true}
-        onBack={handleBackToStartTime}
       />
       
       <SelectionModal

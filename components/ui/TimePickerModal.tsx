@@ -136,29 +136,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
           <Button onClick={handleConfirm} className="flex-1 bg-blue-600 text-white hover:bg-blue-700 py-2 font-semibold shadow-sm">OK</Button>
         </div>
       </Card>
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes modal-fade-in {
-            from { background-color: rgba(0,0,0,0); }
-            to { background-color: rgba(0,0,0,0.6); }
-        }
-        @keyframes modal-fade-out {
-            from { background-color: rgba(0,0,0,0.6); }
-            to { background-color: rgba(0,0,0,0); }
-        }
-        @keyframes modal-slide-up {
-            from { transform: translateY(40px) scale(0.95); opacity: 0; }
-            to { transform: translateY(0) scale(1); opacity: 1; }
-        }
-        @keyframes modal-slide-down {
-            from { transform: translateY(0) scale(1); opacity: 1; }
-            to { transform: translateY(40px) scale(0.95); opacity: 0; }
-        }
-        .animate-modal-fade-in { animation: modal-fade-in 0.3s ease-out forwards; }
-        .animate-modal-fade-out { animation: modal-fade-out 0.3s ease-in forwards; }
-        .animate-modal-slide-up { animation: modal-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .animate-modal-slide-down { animation: modal-slide-down 0.3s cubic-bezier(0.7, 0, 0.84, 0) forwards; }
-      `}</style>
+      <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
     </div>
   );
 };

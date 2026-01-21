@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from './Card';
 import { Input } from './Input';
 import { XIcon } from '../icons/XIcon';
@@ -20,6 +20,14 @@ interface SelectionModalProps {
 
 export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose, onSelect, items, title, selectedValue }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isClosing, setIsClosing] = useState(false);
+  
+  useEffect(() => {
+    if (isOpen) {
+      setIsClosing(false);
+      setSearchTerm('');
+    }
+  }, [isOpen]);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return items;
@@ -30,12 +38,22 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose,
 
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
+
+  const handleSelect = (item: SelectableItem) => {
+    onSelect(item);
+    handleClose();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4" onClick={onClose}>
-      <Card className="w-full max-w-lg relative max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+      <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center pb-4 border-b">
           <h2 className="text-xl font-bold">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
             <XIcon className="h-6 w-6" />
           </button>
         </div>
@@ -53,7 +71,7 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose,
             filteredItems.map(item => (
               <button
                 key={item.id}
-                onClick={() => { onSelect(item); onClose(); }}
+                onClick={() => handleSelect(item)}
                 className={`w-full text-left p-3 rounded-lg transition-colors flex justify-between items-center ${
                   selectedValue === item.id
                     ? 'bg-blue-50 text-blue-700 font-semibold'
