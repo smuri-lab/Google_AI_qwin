@@ -73,24 +73,24 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     const container = e.currentTarget;
     const timeoutRef = type === 'hour' ? hourScrollTimeout : minuteScrollTimeout;
     const setter = type === 'hour' ? setSelectedHour : setSelectedMinute;
-    const selectedValue = type === 'hour' ? selectedHour : selectedMinute;
     
     if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
     }
 
     timeoutRef.current = window.setTimeout(() => {
-        const containerRect = container.getBoundingClientRect();
-        const containerCenter = containerRect.top + containerRect.height / 2;
+        const { scrollTop, clientHeight } = container;
+        // The scroll position of the center of the visible area
+        const scrollCenter = scrollTop + (clientHeight / 2);
 
         let closestElement: HTMLElement | null = null;
         let minDistance = Infinity;
 
         Array.from(container.children).forEach(child => {
             const childEl = child as HTMLElement;
-            const childRect = childEl.getBoundingClientRect();
-            const childCenter = childRect.top + childRect.height / 2;
-            const distance = Math.abs(containerCenter - childCenter);
+            // The position of the center of the child element within the scrollable content
+            const childCenter = childEl.offsetTop + (childEl.offsetHeight / 2);
+            const distance = Math.abs(scrollCenter - childCenter);
             
             if (distance < minDistance) {
                 minDistance = distance;
@@ -100,6 +100,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
 
         if (closestElement) {
             const value = closestElement.dataset[type];
+            const selectedValue = type === 'hour' ? selectedHour : selectedMinute;
             if (value && !closestElement.hasAttribute('disabled')) {
                 if (value !== selectedValue) {
                     scrollInitiator.current = 'scroll';
