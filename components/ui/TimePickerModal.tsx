@@ -41,14 +41,14 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     }
   }, [isOpen, initialTime]);
   
-  // Effect to attach scroll listeners for real-time highlighting
+  // Effect to attach reliable scroll-end listeners
   useEffect(() => {
     if (!isOpen) return;
 
     const hourEl = hourListRef.current;
     const minuteEl = minuteListRef.current;
 
-    const handleScroll = (
+    const handleScrollEnd = (
       container: HTMLDivElement,
       setter: React.Dispatch<React.SetStateAction<string>>,
       type: 'hour' | 'minute'
@@ -78,18 +78,39 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
       }
     };
     
-    const hourScrollHandler = () => handleScroll(hourEl!, setSelectedHour, 'hour');
-    const minuteScrollHandler = () => handleScroll(minuteEl!, setSelectedMinute, 'minute');
-    
-    // Use 'scroll' for real-time updates
-    const eventName = 'scroll';
+    const hourScrollHandler = () => handleScrollEnd(hourEl!, setSelectedHour, 'hour');
+    const minuteScrollHandler = () => handleScrollEnd(minuteEl!, setSelectedMinute, 'minute');
 
-    if (hourEl) hourEl.addEventListener(eventName, hourScrollHandler, { passive: true });
-    if (minuteEl) minuteEl.addEventListener(eventName, minuteScrollHandler, { passive: true });
+    let hourScrollTimeout: number;
+    const debouncedHourHandler = () => {
+      clearTimeout(hourScrollTimeout);
+      hourScrollTimeout = window.setTimeout(hourScrollHandler, 150);
+    };
+
+    let minuteScrollTimeout: number;
+    const debouncedMinuteHandler = () => {
+      clearTimeout(minuteScrollTimeout);
+      minuteScrollTimeout = window.setTimeout(minuteScrollHandler, 150);
+    };
+
+    if ('scrollend' in window) {
+      hourEl?.addEventListener('scrollend', hourScrollHandler);
+      minuteEl?.addEventListener('scrollend', minuteScrollHandler);
+    } else {
+      hourEl?.addEventListener('scroll', debouncedHourHandler);
+      minuteEl?.addEventListener('scroll', debouncedMinuteHandler);
+    }
 
     return () => {
-      if (hourEl) hourEl.removeEventListener(eventName, hourScrollHandler);
-      if (minuteEl) minuteEl.removeEventListener(eventName, minuteScrollHandler);
+      if ('scrollend' in window) {
+        hourEl?.removeEventListener('scrollend', hourScrollHandler);
+        minuteEl?.removeEventListener('scrollend', minuteScrollHandler);
+      } else {
+        hourEl?.removeEventListener('scroll', debouncedHourHandler);
+        minuteEl?.removeEventListener('scroll', debouncedMinuteHandler);
+        clearTimeout(hourScrollTimeout);
+        clearTimeout(minuteScrollTimeout);
+      }
     };
 
   }, [isOpen]);
