@@ -23,22 +23,27 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
   
   const hourListRef = useRef<HTMLDivElement>(null);
   const minuteListRef = useRef<HTMLDivElement>(null);
-  const isInitialRender = useRef(true);
   const hourScrollTimeout = useRef<number | null>(null);
   const minuteScrollTimeout = useRef<number | null>(null);
+  const scrollInitiator = useRef<'initial' | 'click' | 'scroll'>('initial');
 
   useEffect(() => {
     if (isOpen) {
       const [h, m] = (initialTime || '08:00').split(':');
       setSelectedHour(h);
       setSelectedMinute(m);
-      isInitialRender.current = true;
+      scrollInitiator.current = 'initial';
     }
   }, [isOpen, initialTime]);
   
   useEffect(() => {
     if (isOpen) {
-      const behavior = isInitialRender.current ? 'auto' : 'smooth';
+      if (scrollInitiator.current === 'scroll') {
+        scrollInitiator.current = 'click'; 
+        return; 
+      }
+      
+      const behavior = scrollInitiator.current === 'initial' ? 'auto' : 'smooth';
       
       const timer = setTimeout(() => {
         const hourEl = hourListRef.current?.querySelector(`[data-hour="${selectedHour}"]`);
@@ -46,11 +51,9 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
 
         const minuteEl = minuteListRef.current?.querySelector(`[data-minute="${selectedMinute}"]`);
         minuteEl?.scrollIntoView({ block: 'center', behavior });
-        
-        if (isInitialRender.current) {
-            isInitialRender.current = false;
-        }
       }, 50);
+
+      scrollInitiator.current = 'click';
 
       return () => clearTimeout(timer);
     }
@@ -99,7 +102,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
             const value = closestElement.dataset[type];
             if (value && !closestElement.hasAttribute('disabled')) {
                 if (value !== selectedValue) {
-                    isInitialRender.current = false;
+                    scrollInitiator.current = 'scroll';
                     setter(value);
                 }
             }
@@ -119,7 +122,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     <div 
       ref={listRef} 
       onScroll={onScroll}
-      className="h-64 w-1/2 overflow-y-scroll snap-y snap-mandatory bg-gray-50 rounded-lg py-24 px-2 space-y-1"
+      className="h-56 w-1/2 overflow-y-scroll snap-y snap-mandatory bg-gray-50 rounded-lg py-20 px-2 space-y-1"
       style={{
         maskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)',
         WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)'
@@ -134,10 +137,15 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
             type="button"
             data-hour={type === 'hour' ? value : undefined}
             data-minute={type === 'minute' ? value : undefined}
-            onClick={() => !disabled && onSelect(value)}
+            onClick={() => {
+                if (!disabled) {
+                    scrollInitiator.current = 'click';
+                    onSelect(value);
+                }
+            }}
             disabled={disabled}
-            className={`w-full text-center p-2 rounded-lg snap-center transition-all duration-200
-              ${isSelected ? 'text-blue-600 text-4xl font-bold' : 'text-gray-400 text-3xl font-semibold hover:text-gray-700 hover:bg-gray-200/70'}
+            className={`w-full text-center p-1 rounded-lg snap-center transition-all duration-200
+              ${isSelected ? 'text-blue-600 text-3xl font-bold' : 'text-gray-400 text-2xl font-semibold hover:text-gray-700 hover:bg-gray-200/70'}
               ${disabled ? 'text-gray-300 cursor-not-allowed hover:bg-transparent' : ''}
             `}
           >
@@ -157,7 +165,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
         </div>
 
         <div className="flex justify-center gap-2 my-6 relative">
-             <div className="absolute top-1/2 -translate-y-1/2 h-16 w-full border-y border-gray-200 pointer-events-none z-10" />
+             <div className="absolute top-1/2 -translate-y-1/2 h-12 w-full border-y border-gray-200 pointer-events-none z-10" />
              <TimeColumn 
                 values={hours}
                 selectedValue={selectedHour}
