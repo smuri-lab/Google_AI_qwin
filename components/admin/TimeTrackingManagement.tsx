@@ -418,6 +418,7 @@ const TimeTrackingOverview: React.FC<TimeTrackingManagementProps> = ({
                             <p className="font-bold text-lg text-gray-700">{formatHoursAndMinutes(monthlyStats.currentMonthTargetHours, timeFormat)}</p>
                         </div>
                         <div>
+                            <p className="text-sm text-gray-500">Saldo Monatsende</p>
                             <p className={`font-bold text-lg ${monthlyStats.endOfMonthBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatHoursAndMinutes(monthlyStats.endOfMonthBalance, timeFormat)}</p>
                         </div>
                     </div>
@@ -478,7 +479,7 @@ const TimeTrackingOverview: React.FC<TimeTrackingManagementProps> = ({
                                         )}
                                     </td>
                                     <td className="py-4 px-4 whitespace-nowrap">{new Date(entry.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} - {new Date(entry.end).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</td>
-                                    <td className="py-4 px-4 whitespace-nowrap text-right">{entry.breakDurationMinutes} Min.</td>
+                                    <td className="py-4 px-4 whitespace-nowrap text-right">{entry.breakDurationMinutes} m</td>
                                     <td className="py-4 px-4 whitespace-nowrap text-right font-semibold">{formatHoursAndMinutes(durationHours, timeFormat)}</td>
                                 </tr>
                             );
@@ -586,7 +587,8 @@ const TimeTrackingOverview: React.FC<TimeTrackingManagementProps> = ({
             <ManualEntryFormModal
                 isOpen={true}
                 onClose={() => { setAddModalState('closed'); setDateForNewEntry(null); }}
-                onSubmit={handleAddEntry}
+                addTimeEntry={handleAddEntry}
+                onSuccess={() => {}}
                 initialDate={dateForNewEntry}
                 timeEntries={timeEntries.filter(e => e.employeeId === activeEmployeeId)}
                 customers={customers}
@@ -640,7 +642,7 @@ const TimeTrackingOverview: React.FC<TimeTrackingManagementProps> = ({
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mitarbeiter</th>
-                            <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Stundenkonto (aktuell)</th>
+                            <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Stundenkonto (Ende Vormonat)</th>
                             <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Resturlaub (Jahr)</th>
                             <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Krankheitstage (Jahr)</th>
                         </tr>

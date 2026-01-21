@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from './Card';
 import { Button } from './Button';
@@ -26,17 +25,15 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
   const minuteListRef = useRef<HTMLDivElement>(null);
   const isInitialRender = useRef(true);
 
-  // Effect 1: Set initial time when modal opens or initial data changes
   useEffect(() => {
     if (isOpen) {
       const [h, m] = (initialTime || '08:00').split(':');
       setSelectedHour(h);
       setSelectedMinute(m);
-      isInitialRender.current = true; // Flag this as the first render since opening
+      isInitialRender.current = true;
     }
   }, [isOpen, initialTime]);
   
-  // Effect 2: Scroll to the selected time whenever it changes or the modal opens
   useEffect(() => {
     if (isOpen) {
       const behavior = isInitialRender.current ? 'auto' : 'smooth';
@@ -48,15 +45,15 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
         const minuteEl = minuteListRef.current?.querySelector(`[data-minute="${selectedMinute}"]`);
         minuteEl?.scrollIntoView({ block: 'center', behavior });
         
-        // After the first scroll (on open), subsequent scrolls (on click) should be smooth
         if (isInitialRender.current) {
             isInitialRender.current = false;
         }
-      }, 50); 
+      }, 50);
 
       return () => clearTimeout(timer);
     }
   }, [isOpen, selectedHour, selectedMinute]);
+
 
   const minHour = minTime ? parseInt(minTime.split(':')[0], 10) : -1;
   const minMinute = minTime ? parseInt(minTime.split(':')[1], 10) : -1;
@@ -75,20 +72,26 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     listRef: React.RefObject<HTMLDivElement>;
     type: 'hour' | 'minute';
   }> = ({ values, selectedValue, onSelect, isDisabled, listRef, type }) => (
-    <div ref={listRef} className="h-56 w-1/2 overflow-y-scroll snap-y snap-mandatory border-y bg-gray-50 rounded-lg py-20 px-2 space-y-2">
+    <div 
+      ref={listRef} 
+      className="h-64 w-1/2 overflow-y-scroll snap-y snap-mandatory bg-gray-50 rounded-lg py-24 px-2 space-y-1"
+      style={{
+        maskImage: 'linear-gradient(to bottom, transparent, black 30%, black 70%, transparent)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 30%, black 70%, transparent)'
+      }}
+    >
       {values.map(value => {
         const disabled = isDisabled(value);
         return (
           <button
             key={value}
             type="button"
-            data-testid={`${type}-${value}`}
             data-hour={type === 'hour' ? value : undefined}
             data-minute={type === 'minute' ? value : undefined}
             onClick={() => !disabled && onSelect(value)}
             disabled={disabled}
-            className={`w-full text-center text-2xl font-semibold p-2 rounded-lg snap-center transition-colors
-              ${selectedValue === value ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-200'}
+            className={`w-full text-center text-3xl font-semibold p-3 rounded-lg snap-center transition-colors
+              ${selectedValue === value ? 'text-blue-600' : 'text-gray-700 hover:bg-gray-200/70'}
               ${disabled ? 'text-gray-300 cursor-not-allowed hover:bg-transparent' : ''}
             `}
           >
@@ -108,7 +111,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
         </div>
 
         <div className="flex justify-center gap-2 my-6 relative">
-             <div className="absolute top-1/2 -translate-y-1/2 h-14 w-full bg-blue-100/50 border-y border-blue-200 rounded-lg pointer-events-none" />
+             <div className="absolute top-1/2 -translate-y-1/2 h-16 w-full bg-blue-100/50 border-y-2 border-blue-200 rounded-lg pointer-events-none z-10" />
              <TimeColumn 
                 values={hours}
                 selectedValue={selectedHour}

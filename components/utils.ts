@@ -151,7 +151,7 @@ export const formatHoursAndMinutes = (decimalHours: number, format: 'decimal' | 
         minutes = 0;
     }
 
-    return `${sign}${hours}h ${minutes.toString().padStart(2, '0')}min`;
+    return `${sign}${hours}h ${minutes.toString().padStart(2, '0')}m`;
 };
 
 /**
@@ -462,7 +462,7 @@ export const exportTimesheet = (params: ExportTimesheetParams) => {
             activities.find(a => a.id === entry.activityId)?.name || 'N/A',
             new Date(entry.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit'}),
             new Date(entry.end).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit'}),
-            entry.breakDurationMinutes > 0 ? `${entry.breakDurationMinutes} min` : '0 min',
+            entry.breakDurationMinutes > 0 ? `${entry.breakDurationMinutes} m` : '0 m',
             formatHoursAndMinutes(duration, timeFormat),
         ]);
     });

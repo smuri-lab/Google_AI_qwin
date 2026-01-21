@@ -26,7 +26,7 @@ export const BreakModal: React.FC<BreakModalProps> = ({ onClose, onSave }) => {
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-center">Pause eintragen</h2>
           <Input 
-            label="Pause (Minuten)" 
+            label="Pause (m)" 
             type="number" 
             value={breakMinutes} 
             onChange={(e) => setBreakMinutes(e.target.value)} 

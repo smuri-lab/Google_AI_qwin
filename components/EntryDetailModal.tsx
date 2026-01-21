@@ -182,7 +182,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({ entry, custo
               <div className="space-y-2 text-sm border-t pt-4">
                   <p><strong>Datum:</strong> {new Date(entry.start).toLocaleDateString('de-DE')}</p>
                   <p><strong>Zeit:</strong> {new Date(entry.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} - {new Date(entry.end).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</p>
-                   <p><strong>Pause:</strong> {entry.breakDurationMinutes} Minuten</p>
+                   <p><strong>Pause:</strong> {entry.breakDurationMinutes} m</p>
                   <p><strong>{customerLabel}:</strong> {customerName}</p>
                   <p><strong>{activityLabel}:</strong> {activityName}</p>
                   {entry.comment && (
@@ -203,7 +203,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({ entry, custo
                       <Input name="startTime" label="Startzeit" type="time" value={formData.startTime} onChange={handleInputChange} required />
                       <Input name="endTime" label="Endzeit" type="time" value={formData.endTime} onChange={handleInputChange} required />
                   </div>
-                  <Input name="breakDurationMinutes" label="Pause (Minuten)" type="number" value={String(formData.breakDurationMinutes)} onChange={handleInputChange} min="0" />
+                  <Input name="breakDurationMinutes" label="Pause (m)" type="number" value={String(formData.breakDurationMinutes)} onChange={handleInputChange} min="0" />
                   <Select name="customerId" label={customerLabel} value={formData.customerId} onChange={handleInputChange} required>
                       {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </Select>
