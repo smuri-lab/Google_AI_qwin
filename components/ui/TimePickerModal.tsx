@@ -24,6 +24,8 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
   const hourListRef = useRef<HTMLDivElement>(null);
   const minuteListRef = useRef<HTMLDivElement>(null);
   const isInitialRender = useRef(true);
+  const hourScrollTimeout = useRef<number | null>(null);
+  const minuteScrollTimeout = useRef<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -63,6 +65,47 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
   const handleConfirm = () => {
     onSelect(`${selectedHour}:${selectedMinute}`);
   };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>, type: 'hour' | 'minute') => {
+    const container = e.currentTarget;
+    const timeoutRef = type === 'hour' ? hourScrollTimeout : minuteScrollTimeout;
+    const setter = type === 'hour' ? setSelectedHour : setSelectedMinute;
+    const selectedValue = type === 'hour' ? selectedHour : selectedMinute;
+    
+    if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
+        const containerRect = container.getBoundingClientRect();
+        const containerCenter = containerRect.top + containerRect.height / 2;
+
+        let closestElement: HTMLElement | null = null;
+        let minDistance = Infinity;
+
+        Array.from(container.children).forEach(child => {
+            const childEl = child as HTMLElement;
+            const childRect = childEl.getBoundingClientRect();
+            const childCenter = childRect.top + childRect.height / 2;
+            const distance = Math.abs(containerCenter - childCenter);
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestElement = childEl;
+            }
+        });
+
+        if (closestElement) {
+            const value = closestElement.dataset[type];
+            if (value && !closestElement.hasAttribute('disabled')) {
+                if (value !== selectedValue) {
+                    isInitialRender.current = false;
+                    setter(value);
+                }
+            }
+        }
+    }, 150);
+  };
   
   const TimeColumn: React.FC<{
     values: string[];
@@ -71,17 +114,20 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     isDisabled: (value: string) => boolean;
     listRef: React.RefObject<HTMLDivElement>;
     type: 'hour' | 'minute';
-  }> = ({ values, selectedValue, onSelect, isDisabled, listRef, type }) => (
+    onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
+  }> = ({ values, selectedValue, onSelect, isDisabled, listRef, type, onScroll }) => (
     <div 
       ref={listRef} 
+      onScroll={onScroll}
       className="h-64 w-1/2 overflow-y-scroll snap-y snap-mandatory bg-gray-50 rounded-lg py-24 px-2 space-y-1"
       style={{
-        maskImage: 'linear-gradient(to bottom, transparent, black 30%, black 70%, transparent)',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 30%, black 70%, transparent)'
+        maskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)'
       }}
     >
       {values.map(value => {
         const disabled = isDisabled(value);
+        const isSelected = selectedValue === value;
         return (
           <button
             key={value}
@@ -90,8 +136,8 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
             data-minute={type === 'minute' ? value : undefined}
             onClick={() => !disabled && onSelect(value)}
             disabled={disabled}
-            className={`w-full text-center text-3xl font-semibold p-3 rounded-lg snap-center transition-colors
-              ${selectedValue === value ? 'text-blue-600' : 'text-gray-700 hover:bg-gray-200/70'}
+            className={`w-full text-center p-2 rounded-lg snap-center transition-all duration-200
+              ${isSelected ? 'text-blue-600 text-4xl font-bold' : 'text-gray-400 text-3xl font-semibold hover:text-gray-700 hover:bg-gray-200/70'}
               ${disabled ? 'text-gray-300 cursor-not-allowed hover:bg-transparent' : ''}
             `}
           >
@@ -111,7 +157,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
         </div>
 
         <div className="flex justify-center gap-2 my-6 relative">
-             <div className="absolute top-1/2 -translate-y-1/2 h-16 w-full bg-blue-100/50 border-y-2 border-blue-200 rounded-lg pointer-events-none z-10" />
+             <div className="absolute top-1/2 -translate-y-1/2 h-16 w-full border-y border-gray-200 pointer-events-none z-10" />
              <TimeColumn 
                 values={hours}
                 selectedValue={selectedHour}
@@ -119,6 +165,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
                 isDisabled={(h) => parseInt(h, 10) < minHour}
                 listRef={hourListRef}
                 type="hour"
+                onScroll={(e) => handleScroll(e, 'hour')}
              />
              <TimeColumn 
                 values={minutes}
@@ -127,6 +174,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
                 isDisabled={(m) => parseInt(selectedHour, 10) === minHour && parseInt(m, 10) < minMinute}
                 listRef={minuteListRef}
                 type="minute"
+                onScroll={(e) => handleScroll(e, 'minute')}
              />
         </div>
 
