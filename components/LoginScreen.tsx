@@ -21,7 +21,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToReg
     e.preventDefault();
     setError(null); // Reset error on new submission
     if (!username) {
-        setError("Bitte geben Sie einen Benutzernamen ein.");
+        setError("Bitte geben Sie einen Benutznamen ein.");
         return;
     }
     const errorMsg = onLogin(username, password);
@@ -65,11 +65,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToReg
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            {/* Wrapper to prevent layout shift when error message appears/disappears */}
-            <div className="h-5 text-center">
-                {error && <p className="text-sm text-red-600">{error}</p>}
-            </div>
-            <div className="pt-2">
+            
+            {/* Group error message and button to create a stable layout block */}
+            <div>
+              <p className="text-sm text-red-600 text-center min-h-[1.25rem] mb-2">{error || ''}</p>
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
                 Anmelden
               </Button>
