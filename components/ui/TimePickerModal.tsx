@@ -25,39 +25,24 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
   const minuteListRef = useRef<HTMLDivElement>(null);
   const hourScrollTimeout = useRef<number | null>(null);
   const minuteScrollTimeout = useRef<number | null>(null);
-  const scrollInitiator = useRef<'initial' | 'click' | 'scroll'>('initial');
 
+  // Effect for setting initial time and position when the modal opens
   useEffect(() => {
     if (isOpen) {
       const [h, m] = (initialTime || '08:00').split(':');
       setSelectedHour(h);
       setSelectedMinute(m);
-      scrollInitiator.current = 'initial';
+
+      // Use a timeout to ensure the DOM is ready for scrolling
+      setTimeout(() => {
+        const hourEl = hourListRef.current?.querySelector(`[data-hour="${h}"]`);
+        hourEl?.scrollIntoView({ block: 'center', behavior: 'auto' });
+
+        const minuteEl = minuteListRef.current?.querySelector(`[data-minute="${m}"]`);
+        minuteEl?.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }, 50);
     }
   }, [isOpen, initialTime]);
-  
-  useEffect(() => {
-    if (isOpen) {
-      if (scrollInitiator.current === 'scroll') {
-        scrollInitiator.current = 'click'; 
-        return; 
-      }
-      
-      const behavior = scrollInitiator.current === 'initial' ? 'auto' : 'smooth';
-      
-      const timer = setTimeout(() => {
-        const hourEl = hourListRef.current?.querySelector(`[data-hour="${selectedHour}"]`);
-        hourEl?.scrollIntoView({ block: 'center', behavior });
-
-        const minuteEl = minuteListRef.current?.querySelector(`[data-minute="${selectedMinute}"]`);
-        minuteEl?.scrollIntoView({ block: 'center', behavior });
-      }, 50);
-
-      scrollInitiator.current = 'click';
-
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, selectedHour, selectedMinute]);
 
 
   const minHour = minTime ? parseInt(minTime.split(':')[0], 10) : -1;
@@ -69,6 +54,8 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     onSelect(`${selectedHour}:${selectedMinute}`);
   };
 
+  // This function READS the final scroll position and updates state.
+  // It does not trigger any scrolling itself.
   const handleScroll = (e: React.UIEvent<HTMLDivElement>, type: 'hour' | 'minute') => {
     const container = e.currentTarget;
     const timeoutRef = type === 'hour' ? hourScrollTimeout : minuteScrollTimeout;
@@ -80,7 +67,6 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
 
     timeoutRef.current = window.setTimeout(() => {
         const { scrollTop, clientHeight } = container;
-        // The scroll position of the center of the visible area
         const scrollCenter = scrollTop + (clientHeight / 2);
 
         let closestElement: HTMLElement | null = null;
@@ -88,7 +74,6 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
 
         Array.from(container.children).forEach(child => {
             const childEl = child as HTMLElement;
-            // The position of the center of the child element within the scrollable content
             const childCenter = childEl.offsetTop + (childEl.offsetHeight / 2);
             const distance = Math.abs(scrollCenter - childCenter);
             
@@ -100,12 +85,8 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
 
         if (closestElement) {
             const value = closestElement.dataset[type];
-            const selectedValue = type === 'hour' ? selectedHour : selectedMinute;
             if (value && !closestElement.hasAttribute('disabled')) {
-                if (value !== selectedValue) {
-                    scrollInitiator.current = 'scroll';
-                    setter(value);
-                }
+                setter(value);
             }
         }
     }, 150);
@@ -118,44 +99,52 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     isDisabled: (value: string) => boolean;
     listRef: React.RefObject<HTMLDivElement>;
     type: 'hour' | 'minute';
-    onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
-  }> = ({ values, selectedValue, onSelect, isDisabled, listRef, type, onScroll }) => (
-    <div 
-      ref={listRef} 
-      onScroll={onScroll}
-      className="h-56 w-1/2 overflow-y-scroll snap-y snap-mandatory bg-gray-50 rounded-lg py-20 px-2 space-y-1"
-      style={{
-        maskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)'
-      }}
-    >
-      {values.map(value => {
-        const disabled = isDisabled(value);
-        const isSelected = selectedValue === value;
-        return (
-          <button
-            key={value}
-            type="button"
-            data-hour={type === 'hour' ? value : undefined}
-            data-minute={type === 'minute' ? value : undefined}
-            onClick={() => {
-                if (!disabled) {
-                    scrollInitiator.current = 'click';
-                    onSelect(value);
-                }
-            }}
-            disabled={disabled}
-            className={`w-full text-center p-1 rounded-lg snap-center transition-all duration-200
-              ${isSelected ? 'text-blue-600 text-3xl font-bold' : 'text-gray-400 text-2xl font-semibold hover:text-gray-700 hover:bg-gray-200/70'}
-              ${disabled ? 'text-gray-300 cursor-not-allowed hover:bg-transparent' : ''}
-            `}
-          >
-            {value}
-          </button>
-        );
-      })}
-    </div>
-  );
+  }> = ({ values, selectedValue, onSelect, isDisabled, listRef, type }) => {
+    
+    const handleItemClick = (value: string, disabled: boolean) => {
+        if (disabled) return;
+        
+        onSelect(value);
+        
+        const itemEl = listRef.current?.querySelector(`[data-${type}="${value}"]`);
+        itemEl?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+
+    return (
+      <div 
+        ref={listRef} 
+        onScroll={(e) => handleScroll(e, type)}
+        className="h-56 w-1/2 overflow-y-scroll snap-y snap-mandatory bg-gray-50 rounded-lg py-20 px-2 space-y-1"
+        style={{
+          maskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)'
+        }}
+      >
+        {values.map(value => {
+          const disabled = isDisabled(value);
+          const isSelected = selectedValue === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              data-hour={type === 'hour' ? value : undefined}
+              data-minute={type === 'minute' ? value : undefined}
+              onClick={() => handleItemClick(value, disabled)}
+              disabled={disabled}
+              // Set aria-current for accessibility on the selected item
+              aria-current={isSelected ? 'true' : 'false'}
+              className={`w-full text-center p-1 rounded-lg snap-center transition-all duration-200
+                ${isSelected ? 'text-blue-600 text-3xl font-bold' : 'text-gray-400 text-2xl font-semibold hover:text-gray-700 hover:bg-gray-200/70'}
+                ${disabled ? 'text-gray-300 cursor-not-allowed hover:bg-transparent' : ''}
+              `}
+            >
+              {value}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4" onClick={onClose}>
@@ -166,7 +155,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
         </div>
 
         <div className="flex justify-center gap-2 my-6 relative">
-             <div className="absolute top-1/2 -translate-y-1/2 h-12 w-full border-y border-gray-200 pointer-events-none z-10" />
+             <div className="absolute top-1/2 -translate-y-1/2 h-12 w-full border-y border-gray-200 pointer-events-none z-10" aria-hidden="true" />
              <TimeColumn 
                 values={hours}
                 selectedValue={selectedHour}
@@ -174,7 +163,6 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
                 isDisabled={(h) => parseInt(h, 10) < minHour}
                 listRef={hourListRef}
                 type="hour"
-                onScroll={(e) => handleScroll(e, 'hour')}
              />
              <TimeColumn 
                 values={minutes}
@@ -183,7 +171,6 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
                 isDisabled={(m) => parseInt(selectedHour, 10) === minHour && parseInt(m, 10) < minMinute}
                 listRef={minuteListRef}
                 type="minute"
-                onScroll={(e) => handleScroll(e, 'minute')}
              />
         </div>
 
