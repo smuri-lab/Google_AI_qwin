@@ -59,7 +59,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [localTimeTrackingMethod, setLocalTimeTrackingMethod] = useState(timeTrackingMethod);
     const [localSettings, setLocalSettings] = useState(companySettings);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'general' | 'timeTracking' | 'employeeOptions'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'timeTracking' | 'employeeSettings'>('general');
 
     useEffect(() => {
         setLocalSelectedState(selectedState);
@@ -104,7 +104,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const tabs = [
         { id: 'general', label: 'Allgemein' },
         { id: 'timeTracking', label: 'Zeiterfassung' },
-        { id: 'employeeOptions', label: 'Mitarbeiter-Optionen' },
+        { id: 'employeeSettings', label: 'Mitarbeiter' },
     ];
 
     return (
@@ -220,11 +220,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                 )}
                 
-                {activeTab === 'employeeOptions' && (
+                {activeTab === 'employeeSettings' && (
                     <div className="space-y-8 animate-fade-in">
                         <div>
                             <h3 className="text-lg font-semibold text-gray-800 mb-1">Urlaubsanträge</h3>
-                            <p className="text-sm text-gray-500 mb-4">Erlauben Sie Mitarbeitern, halbtägigen Urlaub zu beantragen.</p>
+                            <p className="text-sm text-gray-500 mb-4">Aktiviert die Beantragung von halbtägigem Urlaub.</p>
                             <div className="flex items-center justify-between p-3 border rounded-md">
                                 <label className="text-sm font-medium text-gray-700">Halbtägigen Urlaub erlauben</label>
                                 <ToggleSwitch
@@ -236,7 +236,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                         <div className="pt-8 border-t">
                             <h3 className="text-lg font-semibold text-gray-800 mb-1">Stundenzettel-Export</h3>
-                            <p className="text-sm text-gray-500 mb-4">Erlauben Sie Mitarbeitern, ihre eigenen Stundenzettel als Excel-Datei herunterzuladen.</p>
+                            <p className="text-sm text-gray-500 mb-4">Ermöglicht Mitarbeitern den Export eigener Stundenzettel.</p>
                             <div className="flex items-center justify-between p-3 border rounded-md">
                                 <label className="text-sm font-medium text-gray-700">Export-Funktion für Mitarbeiter aktivieren</label>
                                 <ToggleSwitch
