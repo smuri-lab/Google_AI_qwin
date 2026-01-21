@@ -82,6 +82,34 @@ const generateDemoData = () => {
         currentDateTina.setDate(currentDateTina.getDate() + 1);
     }
 
+    // --- Admin User Demo 2025 ---
+    const adminEmployeeId = 0;
+    const adminYear = 2025;
+    const adminStartDate = new Date(adminYear, 6, 1); // July 1st
+    const adminEndDate = new Date(adminYear, 11, 31); // End of 2025
+
+    let currentDateAdmin = new Date(adminStartDate);
+    while (currentDateAdmin <= adminEndDate) {
+        const dayOfWeek = currentDateAdmin.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Mon-Fri
+            const startTime = new Date(currentDateAdmin);
+            startTime.setHours(9, Math.floor(Math.random() * 15) - 5, 0, 0); // around 9 AM
+            const endTime = new Date(currentDateAdmin);
+            endTime.setHours(17, 30 + Math.floor(Math.random() * 31) - 15, 0, 0); // around 5:30 PM
+            timeEntries.push({
+                id: entryIdCounter++,
+                employeeId: adminEmployeeId,
+                start: startTime.toISOString(),
+                end: endTime.toISOString(),
+                breakDurationMinutes: 45,
+                customerId: INITIAL_CUSTOMERS[3].id, // Interne Verwaltung
+                activityId: INITIAL_ACTIVITIES[3].id, // Büroarbeit
+                type: 'manual',
+            });
+        }
+        currentDateAdmin.setDate(currentDateAdmin.getDate() + 1);
+    }
+
     return { timeEntries, absenceRequests };
 };
 

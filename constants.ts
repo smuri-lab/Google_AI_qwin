@@ -29,13 +29,24 @@ export const INITIAL_EMPLOYEES: Employee[] = [
         username: 'admin',
         password: 'admin123',
         isActive: true,
-        firstWorkDay: '2026-01-01',
+        firstWorkDay: '2025-07-01',
         lastModified: new Date().toISOString(),
         role: 'admin',
         startingTimeBalanceHours: 0,
         automaticBreakDeduction: false,
         showVacationWarning: true,
         contractHistory: [
+            {
+                validFrom: '2025-07-01',
+                employmentType: EmploymentType.FullTime,
+                monthlyTargetHours: 160,
+                dailyTargetHours: 8,
+                vacationDays: 15,
+                street: 'Hauptstraße',
+                houseNumber: '1',
+                postalCode: '10115',
+                city: 'Berlin'
+            },
             {
                 validFrom: '2026-01-01',
                 employmentType: EmploymentType.FullTime,

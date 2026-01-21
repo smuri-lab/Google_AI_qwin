@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Employee, ContractDetails, WeeklySchedule, CompanySettings } from '../../types';
 import { EmploymentType, TargetHoursModel } from '../../types';
 import { Card } from '../ui/Card';
@@ -74,11 +74,31 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
     ...defaultContractState,
     validFrom: defaultState.firstWorkDay,
   }));
+  const [birthDay, setBirthDay] = useState('');
+  const [birthMonth, setBirthMonth] = useState('');
+  const [birthYear, setBirthYear] = useState('');
   const [entryYearVacationDays, setEntryYearVacationDays] = useState('');
   const [followingYearVacationDays, setFollowingYearVacationDays] = useState('');
   const [futureVacationDays, setFutureVacationDays] = useState<{year: number; days: string}[]>([]);
-  const [openDatePicker, setOpenDatePicker] = useState<'firstWorkDay' | 'dateOfBirth' | 'changesValidFrom' | null>(null);
+  const [openDatePicker, setOpenDatePicker] = useState<'firstWorkDay' | 'changesValidFrom' | null>(null);
   const timeFormat = companySettings.adminTimeFormat || 'hoursMinutes';
+
+  const birthYears = useMemo(() => Array.from({ length: 80 }, (_, i) => new Date().getFullYear() - 18 - i), []);
+  const birthMonths = useMemo(() => [
+      { value: '01', label: 'Januar' }, { value: '02', label: 'Februar' },
+      { value: '03', label: 'März' }, { value: '04', label: 'April' },
+      { value: '05', label: 'Mai' }, { value: '06', label: 'Juni' },
+      { value: '07', label: 'Juli' }, { value: '08', label: 'August' },
+      { value: '09', label: 'September' }, { value: '10', label: 'Oktober' },
+      { value: '11', label: 'November' }, { value: '12', label: 'Dezember' },
+  ], []);
+  const daysInMonth = useMemo(() => {
+      if (birthYear && birthMonth) {
+          return new Date(parseInt(birthYear), parseInt(birthMonth), 0).getDate();
+      }
+      return 31;
+  }, [birthYear, birthMonth]);
+  const birthDays = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString()), [daysInMonth]);
 
   useEffect(() => {
     if (initialData) {
@@ -91,6 +111,14 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
         password: '', // Clear password field on edit
         changesValidFrom: changesDate.toLocaleDateString('sv-SE'),
       });
+        if (initialData.dateOfBirth) {
+            const [year, month, day] = initialData.dateOfBirth.split('-');
+            setBirthYear(year);
+            setBirthMonth(month);
+            setBirthDay(parseInt(day, 10).toString());
+        } else {
+            setBirthYear(''); setBirthMonth(''); setBirthDay('');
+        }
 
       const entryYear = new Date(initialData.firstWorkDay).getFullYear();
       const entryContract = getContractDetailsForDate(initialData, new Date(initialData.firstWorkDay));
@@ -119,11 +147,32 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
         validFrom: newFirstWorkDay,
         weeklySchedule: defaultWeeklySchedule,
       });
+      setBirthYear(''); setBirthMonth(''); setBirthDay('');
       setEntryYearVacationDays('');
       setFollowingYearVacationDays('');
       setFutureVacationDays([]);
     }
   }, [initialData, isOpen]);
+
+    useEffect(() => {
+        // Adjust day if it's invalid for the selected month/year
+        if (birthYear && birthMonth && birthDay) {
+            const maxDays = new Date(parseInt(birthYear), parseInt(birthMonth), 0).getDate();
+            if (parseInt(birthDay) > maxDays) {
+                setBirthDay(maxDays.toString());
+            }
+        }
+    }, [birthYear, birthMonth]);
+
+    useEffect(() => {
+        // Construct the full date string for formData
+        if (birthYear && birthMonth && birthDay) {
+            const fullDate = `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`;
+            setFormData(prev => ({ ...prev, dateOfBirth: fullDate }));
+        } else {
+            setFormData(prev => ({ ...prev, dateOfBirth: '' }));
+        }
+    }, [birthDay, birthMonth, birthYear]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -198,6 +247,11 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.dateOfBirth) {
+        alert("Bitte geben Sie ein vollständiges Geburtsdatum an.");
+        return;
+    }
     
     const {
         firstName, lastName, dateOfBirth, username, password, isActive, firstWorkDay,
@@ -330,6 +384,23 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
                       <Input name="firstName" label="Vorname" value={formData.firstName || ''} onChange={handleChange} required />
                       <Input name="lastName" label="Nachname" value={formData.lastName || ''} onChange={handleChange} required />
                   </div>
+                  <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Geburtsdatum</label>
+                      <div className="grid grid-cols-[1fr,2fr,1.2fr] gap-2">
+                          <Select name="birthDay" value={birthDay} onChange={(e) => setBirthDay(e.target.value)} disabled={!birthMonth || !birthYear} required>
+                              <option value="">Tag</option>
+                              {birthDays.map(d => <option key={d} value={d}>{d}</option>)}
+                          </Select>
+                          <Select name="birthMonth" value={birthMonth} onChange={(e) => setBirthMonth(e.target.value)} required>
+                              <option value="">Monat</option>
+                              {birthMonths.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                          </Select>
+                          <Select name="birthYear" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} required>
+                              <option value="">Jahr</option>
+                              {birthYears.map(y => <option key={y} value={y}>{y}</option>)}
+                          </Select>
+                      </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr] gap-4">
                       <Input name="street" label="Straße" value={formData.street || ''} onChange={handleChange} required />
                       <Input name="houseNumber" label="Nr." value={formData.houseNumber || ''} onChange={handleChange} required />
@@ -338,22 +409,16 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
                       <Input name="postalCode" label="PLZ" value={formData.postalCode || ''} onChange={handleChange} required />
                       <Input name="city" label="Stadt" value={formData.city || ''} onChange={handleChange} required />
                   </div>
-                  <DateSelectorButton
-                      label="Geburtsdatum"
-                      value={formatDate(formData.dateOfBirth)}
-                      onClick={() => setOpenDatePicker('dateOfBirth')}
-                      placeholder="Datum auswählen..."
-                  />
+              </fieldset>
+              
+              <fieldset className="space-y-4 p-4 border rounded-lg">
+                  <legend className="text-lg font-semibold px-2">Vertragsdetails</legend>
                   <DateSelectorButton
                       label="1. Arbeitstag"
                       value={formatDate(formData.firstWorkDay)}
                       onClick={() => setOpenDatePicker('firstWorkDay')}
                       placeholder="Datum auswählen..."
                   />
-              </fieldset>
-              
-              <fieldset className="space-y-4 p-4 border rounded-lg">
-                  <legend className="text-lg font-semibold px-2">Vertragsdetails</legend>
                   {initialData && (
                     <DateSelectorButton
                         label="Änderungen gültig ab"
@@ -552,7 +617,6 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
             onSelectDate={handleDateSelect}
             title={
                 openDatePicker === 'firstWorkDay' ? '1. Arbeitstag auswählen' :
-                openDatePicker === 'dateOfBirth' ? 'Geburtsdatum auswählen' :
                 'Gültigkeitsdatum auswählen'
             }
             initialStartDate={openDatePicker ? formData[openDatePicker] : undefined}

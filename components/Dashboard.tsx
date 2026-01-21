@@ -8,6 +8,7 @@ import { TimesheetExportModal } from './admin/TimesheetExportModal';
 import { formatHoursAndMinutes, exportTimesheet } from './utils';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
+import { Button } from './ui/Button';
 
 
 interface DashboardProps {
@@ -57,6 +58,7 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
   
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [isCarryoverInfoOpen, setIsCarryoverInfoOpen] = useState(false);
   
   const timeFormat = companySettings.employeeTimeFormat || 'hoursMinutes';
 
@@ -100,7 +102,6 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
   const formattedWorkedHours = formatHoursAndMinutes(currentMonthWorkedHours, timeFormat);
   
   const carryoverDays = userAccount.vacationCarryover || 0;
-  const annualEntitlement = userAccount.vacationAnnualEntitlement || 0;
 
   // Logic for carryover warning
   const MOCK_TODAY = new Date(mockCurrentYear, 1, 15); // Simulate being in February to show the warning
@@ -112,21 +113,28 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
         {dashboardType === 'standard' && (
           <Card className="text-center !p-2 sm:!p-4">
             <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Stundenkonto</h3>
-            <p className={`text-lg sm:text-xl font-bold ${timeBalanceColor} whitespace-nowrap`}>{formattedTimeBalance}</p>
+            <p className={`text-xl sm:text-2xl font-bold ${timeBalanceColor} whitespace-nowrap`}>{formattedTimeBalance}</p>
           </Card>
         )}
         <Card className="text-center !p-2 sm:!p-4">
             <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Ist-Stunden</h3>
-            <p className="text-lg sm:text-xl font-bold text-gray-800 whitespace-nowrap">{formattedWorkedHours}</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-800 whitespace-nowrap">{formattedWorkedHours}</p>
         </Card>
         <Card className="text-center !p-2 sm:!p-4">
           <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Urlaub</h3>
-          <p className="text-lg sm:text-xl font-bold text-green-600 whitespace-nowrap">{userAccount.vacationDaysLeft} Tage</p>
-           {carryoverDays > 0 && annualEntitlement > 0 && (
-              <p className="text-2xs sm:text-xs text-gray-500 mt-1">
-                  ({annualEntitlement} Anspruch + {carryoverDays} Übertrag)
-              </p>
-          )}
+           <div className="flex items-center justify-center gap-1.5">
+            <p className="text-xl sm:text-2xl font-bold text-green-600 whitespace-nowrap">{userAccount.vacationDaysLeft} Tage</p>
+            {showCarryoverWarning && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setIsCarryoverInfoOpen(true); }}
+                className="focus:outline-none"
+                aria-label="Resturlaub-Warnung anzeigen"
+              >
+                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
+              </button>
+            )}
+          </div>
         </Card>
       </div>
   );
@@ -189,20 +197,25 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
           </div>
         )}
         
+      {isCarryoverInfoOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setIsCarryoverInfoOpen(false)}>
+          <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center space-y-4">
+              <ExclamationTriangleIcon className="h-12 w-12 text-yellow-500" />
+              <h2 className="text-xl font-bold">Resturlaub verfällt bald</h2>
+              <p className="text-sm text-gray-600">
+                Bitte beachten Sie: Ihr Resturlaub aus dem Vorjahr ({carryoverDays} {carryoverDays === 1 ? 'Tag' : 'Tage'}) muss bis zum 31. März {mockCurrentYear} genommen werden, da er sonst verfällt.
+              </p>
+              <Button onClick={() => setIsCarryoverInfoOpen(false)} className="w-full bg-blue-600 hover:bg-blue-700 mt-4">
+                Verstanden
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <div className="space-y-6 max-w-2xl mx-auto">
         {statsCards}
-
-        {showCarryoverWarning && (
-            <div className="p-4 bg-yellow-50 text-yellow-800 border-l-4 border-yellow-400 rounded-r-lg flex items-start gap-3 shadow-sm">
-                <ExclamationTriangleIcon className="h-6 w-6 text-yellow-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-bold">Resturlaub verfällt bald</h4>
-                  <p className="text-sm">
-                    Bitte beachten Sie: Ihr Resturlaub aus dem Vorjahr ({carryoverDays} {carryoverDays === 1 ? 'Tag' : 'Tage'}) muss bis zum 31. März {mockCurrentYear} genommen werden, da er sonst verfällt.
-                  </p>
-                </div>
-            </div>
-        )}
         
         {companySettings.employeeCanExport && (
           <Card onClick={() => setIsExportModalOpen(true)} className="cursor-pointer hover:bg-gray-50 transition-colors">
