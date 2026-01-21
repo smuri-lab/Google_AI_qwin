@@ -158,66 +158,52 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-2 p-4">
+      <form onSubmit={handleSubmit} className="space-y-4 p-4">
         <h2 className="text-xl font-bold text-center mb-4">Zeit manuell eintragen</h2>
         
-        <div className="min-h-[4.5rem]">
-            <DateSelectorButton 
-                label="Datum"
-                value={formatDate(date)}
-                onClick={() => setIsDatePickerOpen(true)}
-                placeholder="Datum auswählen..."
-            />
-        </div>
+        <DateSelectorButton 
+            label="Datum"
+            value={formatDate(date)}
+            onClick={() => setIsDatePickerOpen(true)}
+            placeholder="Datum auswählen..."
+        />
         
         <div className="grid grid-cols-2 gap-4">
-            <div className="min-h-[4.5rem]">
-                <TimeSelectorButton
-                    label="Startzeit"
-                    value={startTime}
-                    onClick={() => setIsStartTimePickerOpen(true)}
-                    placeholder="Start"
-                />
-            </div>
-            <div className="min-h-[4.5rem]">
-                <TimeSelectorButton
-                    label="Endzeit"
-                    value={endTime}
-                    onClick={() => setIsEndTimePickerOpen(true)}
-                    placeholder="Ende"
-                    disabled={!startTime}
-                />
-            </div>
+            <TimeSelectorButton
+                label="Startzeit"
+                value={startTime}
+                onClick={() => setIsStartTimePickerOpen(true)}
+                placeholder="Start"
+            />
+            <TimeSelectorButton
+                label="Endzeit"
+                value={endTime}
+                onClick={() => setIsEndTimePickerOpen(true)}
+                placeholder="Ende"
+                disabled={!startTime}
+            />
         </div>
 
-        <div className="min-h-[4.5rem]">
-          <Input label="Pause (Minuten)" type="number" value={breakDurationMinutes} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBreakDurationMinutes(e.target.value)} min="0" placeholder="z.B. 30" />
-        </div>
+        <Input label="Pause (Minuten)" type="number" value={breakDurationMinutes} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBreakDurationMinutes(e.target.value)} min="0" placeholder="z.B. 30" />
         
-        <div className="min-h-[4.5rem]">
-            <SelectorButton
-                label={customerLabel}
-                value={selectedCustomerName}
-                placeholder={`${customerLabel} auswählen...`}
-                onClick={() => setIsCustomerModalOpen(true)}
-            />
-        </div>
-        <div className="min-h-[4.5rem]">
-            <SelectorButton
-                label={activityLabel}
-                value={selectedActivityName}
-                placeholder={`${activityLabel} auswählen...`}
-                onClick={() => setIsActivityModalOpen(true)}
-            />
-        </div>
-        <div className="min-h-[6.5rem]">
-            <Textarea
-                label="Kommentar (optional)"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                rows={2}
-            />
-        </div>
+        <SelectorButton
+            label={customerLabel}
+            value={selectedCustomerName}
+            placeholder={`${customerLabel} auswählen...`}
+            onClick={() => setIsCustomerModalOpen(true)}
+        />
+        <SelectorButton
+            label={activityLabel}
+            value={selectedActivityName}
+            placeholder={`${activityLabel} auswählen...`}
+            onClick={() => setIsActivityModalOpen(true)}
+        />
+        <Textarea
+            label="Kommentar (optional)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={2}
+        />
         <div className={`pt-4 ${onCancel ? 'grid grid-cols-2 gap-4' : 'flex'}`}>
           {onCancel && (
             <Button type="button" onClick={onCancel} className="w-full bg-gray-500 hover:bg-gray-600">

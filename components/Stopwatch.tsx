@@ -150,34 +150,28 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
           {formatTime(elapsedTime)}
         </div>
 
-        <div className="w-full space-y-2">
-           <div className="min-h-[4.5rem]">
-             <SelectorButton
-                label={customerLabel}
-                value={selectedCustomerName}
-                placeholder={`${customerLabel} auswählen...`}
-                onClick={() => setIsCustomerModalOpen(true)}
-                disabled={isRunning}
-              />
-           </div>
-           <div className="min-h-[4.5rem]">
-            <SelectorButton
-                label={activityLabel}
-                value={selectedActivityName}
-                placeholder={`${activityLabel} auswählen...`}
-                onClick={() => setIsActivityModalOpen(true)}
-                disabled={isRunning}
-              />
-           </div>
-          <div className="min-h-[6.5rem]">
-            <Textarea
-                label="Kommentar (optional)"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                disabled={isRunning}
-                rows={2}
+        <div className="w-full space-y-4">
+           <SelectorButton
+              label={customerLabel}
+              value={selectedCustomerName}
+              placeholder={`${customerLabel} auswählen...`}
+              onClick={() => setIsCustomerModalOpen(true)}
+              disabled={isRunning}
             />
-          </div>
+          <SelectorButton
+              label={activityLabel}
+              value={selectedActivityName}
+              placeholder={`${activityLabel} auswählen...`}
+              onClick={() => setIsActivityModalOpen(true)}
+              disabled={isRunning}
+            />
+          <Textarea
+              label="Kommentar (optional)"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              disabled={isRunning}
+              rows={2}
+          />
         </div>
 
         <Button
