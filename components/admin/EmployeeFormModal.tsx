@@ -146,12 +146,12 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
   };
 
   const handleWeeklyScheduleChange = (day: keyof WeeklySchedule, hours: number) => {
-    const newSchedule = { ...formData.weeklySchedule, [day]: hours };
+    // FIX: Ensure `formData.weeklySchedule` is not undefined when spreading. This guarantees `newSchedule` is well-typed.
+    const newSchedule = { ...(formData.weeklySchedule || defaultWeeklySchedule), [day]: hours };
     
-    // FIX: The type of `sum` was not inferred as a number, causing `weeklySum` to be of type `any`.
-    // Explicitly typing `sum` and casting `h` to a number resolves the arithmetic operation errors.
-    const weeklySum = Object.values(newSchedule).reduce((sum: number, h) => sum + Number(h || 0), 0);
-    const workingDays = Object.values(newSchedule).filter(h => Number(h || 0) > 0).length;
+    // With `newSchedule` correctly typed, `weeklySum` will be correctly inferred as a number.
+    const weeklySum = Object.values(newSchedule).reduce((sum, h) => sum + (h || 0), 0);
+    const workingDays = Object.values(newSchedule).filter(h => (h || 0) > 0).length;
     const monthlyTarget = (weeklySum * 52) / 12;
     const dailyTarget = workingDays > 0 ? weeklySum / workingDays : 0;
     
