@@ -66,12 +66,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToReg
               required
             />
             
-            {/* Group error message and button to create a stable layout block */}
             <div>
-              {/* This container has a fixed height to prevent layout shift when the error message appears or wraps on small screens. */}
-              <div className="h-10 flex items-center justify-center">
-                <p className="text-sm text-red-600 text-center">{error || ''}</p>
-              </div>
+              <p className="text-sm text-red-600 text-center h-10 flex items-center justify-center">
+                {error || ''}
+              </p>
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
                 Anmelden
               </Button>
