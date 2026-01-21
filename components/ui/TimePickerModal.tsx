@@ -54,11 +54,13 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
       type: 'hour' | 'minute'
     ) => {
       const { scrollTop, clientHeight } = container;
+      // The scrollport's center from the top of the scrolled content
       const scrollCenter = scrollTop + clientHeight / 2;
 
       let closestElement: HTMLElement | null = null;
       let minDistance = Infinity;
 
+      // Find the child element whose center is closest to the scrollport's center
       Array.from(container.children).forEach(child => {
         const childEl = child as HTMLElement;
         const childCenter = childEl.offsetTop + childEl.offsetHeight / 2;
@@ -81,6 +83,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     const hourScrollHandler = () => handleScrollEnd(hourEl!, setSelectedHour, 'hour');
     const minuteScrollHandler = () => handleScrollEnd(minuteEl!, setSelectedMinute, 'minute');
 
+    // Use a timeout as a fallback for browsers that don't support 'scrollend'
     let hourScrollTimeout: number;
     const debouncedHourHandler = () => {
       clearTimeout(hourScrollTimeout);
@@ -93,7 +96,8 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
       minuteScrollTimeout = window.setTimeout(minuteScrollHandler, 150);
     };
 
-    if ('scrollend' in window) {
+    // Use the modern 'scrollend' event if available, otherwise use the debounced 'scroll' event
+    if ('onscrollend' in window) {
       hourEl?.addEventListener('scrollend', hourScrollHandler);
       minuteEl?.addEventListener('scrollend', minuteScrollHandler);
     } else {
@@ -102,7 +106,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     }
 
     return () => {
-      if ('scrollend' in window) {
+      if ('onscrollend' in window) {
         hourEl?.removeEventListener('scrollend', hourScrollHandler);
         minuteEl?.removeEventListener('scrollend', minuteScrollHandler);
       } else {
