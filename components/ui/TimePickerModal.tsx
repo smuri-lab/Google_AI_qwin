@@ -14,45 +14,50 @@ interface TimePickerModalProps {
   onBack?: () => void;
 }
 
-const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
-// Feste Höhe für exakte Berechnungen
-const ITEM_HEIGHT = 48; 
-const VISIBLE_COUNT = 5; 
-const CONTAINER_HEIGHT = ITEM_HEIGHT * VISIBLE_COUNT; // 240px
+// Feste Konstanten für die Berechnung - NICHT ÄNDERN
+const ITEM_HEIGHT = 48; // Höhe einer Zeile in Pixeln
+const VISIBLE_ITEMS = 5; // Sichtbare Zeilen
+const CONTAINER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS; // 240px
 
-export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClose, onSelect, title, initialTime, minTime, showBackButton, onBack }) => {
+export const TimePickerModal: React.FC<TimePickerModalProps> = ({ 
+  isOpen, onClose, onSelect, title, initialTime, minTime, showBackButton, onBack 
+}) => {
+  // State für die aktuell ausgewählten Werte
   const [selectedHour, setSelectedHour] = useState('08');
   const [selectedMinute, setSelectedMinute] = useState('00');
   
-  // Refs für die Scroll-Container
-  const hourRef = useRef<HTMLDivElement>(null);
-  const minuteRef = useRef<HTMLDivElement>(null);
-  const isInitialMount = useRef(true);
+  const hourListRef = useRef<HTMLUListElement>(null);
+  const minuteListRef = useRef<HTMLUListElement>(null);
+  
+  // Timeout Refs verhindern Memory Leaks
+  const initTimeoutRef = useRef<number | null>(null);
 
   // Initialisierung: Setze Scroll-Position beim Öffnen
   useEffect(() => {
     if (isOpen) {
       const [h, m] = (initialTime || '08:00').split(':');
-      // Setze State sofort
       setSelectedHour(h);
       setSelectedMinute(m);
-      isInitialMount.current = true;
 
-      // Warte kurz, bis das Modal gerendert ist, dann scrolle zur Position
-      setTimeout(() => {
-        if (hourRef.current) {
-            const hIndex = parseInt(h, 10);
-            hourRef.current.scrollTop = hIndex * ITEM_HEIGHT;
+      // Kurze Verzögerung, damit das DOM bereit ist
+      if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
+      
+      initTimeoutRef.current = window.setTimeout(() => {
+        if (hourListRef.current) {
+            hourListRef.current.scrollTop = parseInt(h, 10) * ITEM_HEIGHT;
         }
-        if (minuteRef.current) {
-            const mIndex = parseInt(m, 10);
-            minuteRef.current.scrollTop = mIndex * ITEM_HEIGHT;
+        if (minuteListRef.current) {
+            minuteListRef.current.scrollTop = parseInt(m, 10) * ITEM_HEIGHT;
         }
-        isInitialMount.current = false;
-      }, 50); // Kleiner Timeout für Mobile Rendering
+      }, 100);
     }
+    
+    return () => {
+        if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
+    };
   }, [isOpen, initialTime]);
 
   const minHour = minTime ? parseInt(minTime.split(':')[0], 10) : -1;
@@ -64,129 +69,123 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({ isOpen, onClos
     onSelect(`${selectedHour}:${selectedMinute}`);
   };
 
-  // Allgemeine Scroll-Funktion
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>, type: 'hour' | 'minute', values: string[]) => {
-    // Wenn wir initial scrollen, ignorieren wir Events, um Flackern zu vermeiden
-    if (isInitialMount.current) return;
-
-    const container = e.currentTarget;
-    const scrollTop = container.scrollTop;
+  /**
+   * Kern-Logik: Berechnet den Index basierend auf der Scroll-Position.
+   * Da ITEM_HEIGHT fix ist, ist die Mathe simple Division.
+   */
+  const handleScroll = (e: React.UIEvent<HTMLUListElement>, type: 'hour' | 'minute', items: string[]) => {
+    const scrollTop = e.currentTarget.scrollTop;
     
-    // Berechne den Index basierend auf der Scroll-Position
-    // Math.round sorgt dafür, dass wir das Item nehmen, das am nächsten zur Mitte ist
+    // Einfache Rundung um das nächste Item zu finden
     let index = Math.round(scrollTop / ITEM_HEIGHT);
     
-    // Begrenzung sicherstellen
+    // Sicherstellen, dass der Index im Array-Bereich liegt
     if (index < 0) index = 0;
-    if (index >= values.length) index = values.length - 1;
+    if (index >= items.length) index = items.length - 1;
 
-    const newValue = values[index];
+    const value = items[index];
 
     if (type === 'hour') {
-      if (newValue !== selectedHour) setSelectedHour(newValue);
+      setSelectedHour(value);
     } else {
-      if (newValue !== selectedMinute) setSelectedMinute(newValue);
+      setSelectedMinute(value);
     }
   };
 
-  const TimeColumn = ({ 
-    values, 
+  const PickerColumn = ({ 
+    items, 
     value, 
     type, 
-    containerRef, 
-    isDisabled 
+    listRef,
+    isDisabled
   }: { 
-    values: string[], 
+    items: string[], 
     value: string, 
     type: 'hour' | 'minute', 
-    containerRef: React.RefObject<HTMLDivElement>,
+    listRef: React.RefObject<HTMLUListElement>,
     isDisabled: (val: string) => boolean
   }) => {
     return (
-      <div className="relative w-1/2 h-full">
-        <div 
-            ref={containerRef}
-            onScroll={(e) => handleScroll(e, type, values)}
-            className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar"
-            style={{ 
-                height: `${CONTAINER_HEIGHT}px`,
-                scrollBehavior: 'smooth' // Weiches Scrollen bei Klick
-            }}
+      <div className="flex-1 relative h-full group">
+        <ul
+          ref={listRef}
+          onScroll={(e) => handleScroll(e, type, items)}
+          className="h-full overflow-y-auto snap-y snap-mandatory no-scrollbar py-[96px]" // 96px = 2 * ITEM_HEIGHT padding
+          style={{ height: `${CONTAINER_HEIGHT}px` }}
         >
-            {/* Padding oben, damit das erste Element in die Mitte rutschen kann */}
-            <div style={{ height: `${(CONTAINER_HEIGHT - ITEM_HEIGHT) / 2}px` }} />
-            
-            {values.map((item) => {
-                const disabled = isDisabled(item);
-                const isSelected = item === value;
-                return (
-                    <div 
-                        key={item} 
-                        className={`h-[48px] flex items-center justify-center snap-center transition-all duration-200 cursor-pointer select-none`}
-                        onClick={() => {
-                            if (!disabled && containerRef.current) {
-                                const idx = values.indexOf(item);
-                                containerRef.current.scrollTo({ top: idx * ITEM_HEIGHT, behavior: 'smooth' });
-                            }
-                        }}
-                    >
-                        <span className={`
-                            ${isSelected ? 'text-3xl font-bold text-blue-600 scale-110' : 'text-xl text-gray-400'}
-                            ${disabled ? 'opacity-30' : ''}
-                            transition-transform
-                        `}>
-                            {item}
-                        </span>
-                    </div>
-                );
-            })}
-
-            {/* Padding unten, damit das letzte Element in die Mitte rutschen kann */}
-            <div style={{ height: `${(CONTAINER_HEIGHT - ITEM_HEIGHT) / 2}px` }} />
-        </div>
+          {items.map((item) => {
+            const disabled = isDisabled(item);
+            const isSelected = item === value;
+            return (
+              <li
+                key={item}
+                className={`
+                  h-[48px] flex items-center justify-center snap-center 
+                  transition-all duration-200 select-none
+                  ${isSelected ? 'text-gray-900 font-bold text-2xl' : 'text-gray-400 text-lg'}
+                  ${disabled ? 'opacity-30' : ''}
+                `}
+              >
+                {item}
+              </li>
+            );
+          })}
+        </ul>
       </div>
     );
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <Card className="w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center pb-4 border-b">
-          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2"><XIcon className="h-6 w-6" /></button>
+      <Card className="w-full max-w-xs bg-white rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-800">{title}</h2>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100">
+            <XIcon className="h-5 w-5" />
+          </button>
         </div>
 
-        <div className="relative my-6 select-none">
-             {/* Blaue Auswahl-Balken in der Mitte (Hintergrund) */}
-             <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-[48px] bg-blue-50 border-y border-blue-200 pointer-events-none z-0" />
-             
-             {/* Gradient Maske für 3D Effekt (Optional, sieht aber gut aus) */}
-             <div className="absolute inset-0 pointer-events-none z-10 bg-gradient-to-b from-white via-transparent to-white opacity-80" />
+        {/* Picker Area */}
+        <div className="relative h-[240px] w-full bg-white">
+          
+          {/* Highlight Bar (Fest in der Mitte) */}
+          <div className="absolute top-[96px] left-0 right-0 h-[48px] bg-blue-50 border-y border-blue-200 pointer-events-none z-0" />
+          
+          {/* Columns */}
+          <div className="flex h-full relative z-10">
+            <PickerColumn 
+                items={HOURS} 
+                value={selectedHour} 
+                type="hour" 
+                listRef={hourListRef}
+                isDisabled={(h) => parseInt(h, 10) < minHour}
+            />
+            <div className="flex items-center justify-center text-2xl font-bold text-gray-400 pb-2 z-10">:</div>
+            <PickerColumn 
+                items={MINUTES} 
+                value={selectedMinute} 
+                type="minute" 
+                listRef={minuteListRef}
+                isDisabled={(m) => parseInt(selectedHour, 10) === minHour && parseInt(m, 10) < minMinute}
+            />
+          </div>
 
-             <div className="flex justify-center relative z-20 h-[240px]">
-                <TimeColumn 
-                    values={hours}
-                    value={selectedHour}
-                    type="hour"
-                    containerRef={hourRef}
-                    isDisabled={(h) => parseInt(h, 10) < minHour}
-                />
-                <TimeColumn 
-                    values={minutes}
-                    value={selectedMinute}
-                    type="minute"
-                    containerRef={minuteRef}
-                    isDisabled={(m) => parseInt(selectedHour, 10) === minHour && parseInt(m, 10) < minMinute}
-                />
-             </div>
+          {/* Gradients für "Endlos"-Effekt */}
+          <div className="absolute top-0 left-0 right-0 h-[80px] bg-gradient-to-b from-white to-transparent pointer-events-none z-20" />
+          <div className="absolute bottom-0 left-0 right-0 h-[80px] bg-gradient-to-t from-white to-transparent pointer-events-none z-20" />
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button onClick={onClose} className="bg-gray-200 text-gray-800 hover:bg-gray-300">Abbrechen</Button>
-          {showBackButton && <Button onClick={onBack} className="bg-gray-500 hover:bg-gray-600 text-white">Zurück</Button>}
-          <Button onClick={handleConfirm} className="bg-blue-600 hover:bg-blue-700 text-white">OK</Button>
+        {/* Footer */}
+        <div className="flex gap-3 p-4 border-t border-gray-100 bg-gray-50">
+          <Button onClick={onClose} className="flex-1 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 py-2">Abbrechen</Button>
+          {showBackButton && (
+             <Button onClick={onBack} className="flex-1 bg-gray-500 text-white hover:bg-gray-600 py-2">Zurück</Button>
+          )}
+          <Button onClick={handleConfirm} className="flex-1 bg-blue-600 text-white hover:bg-blue-700 py-2 font-semibold shadow-sm">OK</Button>
         </div>
       </Card>
+      
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
