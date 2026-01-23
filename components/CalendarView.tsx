@@ -26,7 +26,9 @@ interface CalendarViewProps {
   onAddAbsenceClick: () => void;
 }
 
-const DayOfWeekHeader: React.FC = () => {
+// --- Helper Components & Functions (Moved outside for stability) ---
+
+const DayOfWeekHeader: React.FC = React.memo(() => {
     const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     return (
         <div className="grid grid-cols-7 text-center font-semibold text-gray-500 text-xs">
@@ -35,8 +37,7 @@ const DayOfWeekHeader: React.FC = () => {
             ))}
         </div>
     );
-};
-
+});
 
 const getStatusChip = (status: AbsenceRequest['status']) => {
     switch (status) {
@@ -45,6 +46,178 @@ const getStatusChip = (status: AbsenceRequest['status']) => {
       case 'rejected': return <span className="px-2 py-1 text-xs font-semibold text-red-800 bg-red-200 rounded-full">Abgelehnt</span>;
     }
 };
+
+// -- Optimized Day Component --
+interface CalendarDayProps {
+    day: Date;
+    isCurrentMonth: boolean;
+    isSelected: boolean;
+    isToday: boolean;
+    entries: TimeEntry[];
+    absence: AbsenceRequest | undefined;
+    holiday: Holiday | undefined;
+    onSelect: (day: Date) => void;
+}
+
+const CalendarDay: React.FC<CalendarDayProps> = React.memo(({ day, isCurrentMonth, isSelected, isToday, entries, absence, holiday, onSelect }) => {
+    const dayOfWeek = day.getDay();
+    const isSunday = dayOfWeek === 0;
+
+    let containerClasses = 'relative h-12 flex items-center justify-center transition-colors duration-200';
+    if (isCurrentMonth) containerClasses += ' cursor-pointer';
+
+    let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
+
+    if (isSelected) {
+        containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
+        numberClasses += ' bg-blue-600 text-white';
+    } else {
+        if (isCurrentMonth) containerClasses += ' rounded-lg hover:bg-gray-100';
+        if (!isCurrentMonth) {
+            numberClasses += ' text-gray-400';
+        } else if (isToday) {
+            if (isCurrentMonth) containerClasses += ' bg-gray-50';
+            numberClasses += ' text-blue-600 font-bold';
+        } else if (holiday || isSunday) {
+            numberClasses += ' text-red-600 font-semibold';
+        } else {
+            numberClasses += ' text-gray-700';
+        }
+    }
+
+    if (absence) {
+        if (entries.length > 0) { numberClasses += ' bg-white/50 backdrop-blur-sm'; } 
+        else if (absence.status === 'approved') { numberClasses += ' text-white'; }
+    }
+
+    const handleDayClick = () => {
+        if (isCurrentMonth) {
+            onSelect(day);
+        }
+    };
+
+    return (
+        <div onClick={handleDayClick} className={containerClasses}>
+            {absence && (() => {
+                const ui = getAbsenceTypeDetails(absence.type);
+                const dayString = day.toLocaleDateString('sv-SE');
+                const isStart = absence.startDate === dayString;
+                const isEnd = absence.endDate === dayString;
+                const isSingle = isStart && isEnd;
+                const isPending = absence.status === 'pending';
+                const isHalfDay = absence.dayPortion && absence.dayPortion !== 'full';
+                
+                let pillStyle: React.CSSProperties = {};
+                let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-8 flex items-center justify-center text-xs font-bold z-0 `;
+                
+                if (isPending) {
+                    pillClasses += `${ui.pendingClass} border-dashed ${ui.pendingBorderClass}`;
+                    if (isSingle) { pillClasses += ' border-2 rounded-lg mx-0.5'; } 
+                    else { pillClasses += ' border-y-2'; if (isStart) pillClasses += ' border-l-2 rounded-l-lg justify-start pl-2'; if (isEnd) pillClasses += ' border-r-2 rounded-r-lg'; }
+                } else {
+                    pillClasses += `${ui.solidClass}`;
+                    if (isSingle) { pillClasses += ' rounded-lg mx-0.5'; } 
+                    else if (isStart) { pillClasses += ' rounded-l-lg justify-start pl-2'; } 
+                    else if (isEnd) { pillClasses += ' rounded-r-lg'; }
+                }
+                if (isHalfDay && isSingle) {
+                    if (absence.dayPortion === 'am') pillStyle.clipPath = 'polygon(0 0, 100% 0, 0 100%)';
+                    else pillStyle.clipPath = 'polygon(100% 0, 100% 100%, 0 100%)';
+                }
+                return <div style={pillStyle} className={pillClasses}></div>;
+            })()}
+            <span className={numberClasses}>{day.getDate()}</span>
+            <div className="absolute bottom-1 flex items-center justify-center space-x-1 h-1.5">
+                {entries.length > 0 && !absence && <div className={`w-1.5 h-1.5 bg-green-500 rounded-full`}></div>}
+            </div>
+        </div>
+    );
+}, (prev, next) => {
+    // Custom comparison for performance
+    return prev.day.getTime() === next.day.getTime() &&
+           prev.isCurrentMonth === next.isCurrentMonth &&
+           prev.isSelected === next.isSelected &&
+           prev.isToday === next.isToday &&
+           prev.entries === next.entries && // Reference check is enough because we use a Map in parent
+           prev.absence === next.absence &&
+           prev.holiday === next.holiday;
+});
+
+// -- Optimized Month Grid Component --
+interface CalendarMonthGridProps {
+    dateForMonth: Date;
+    selectedDate: Date | null;
+    entriesMap: Map<string, TimeEntry[]>;
+    absencesMap: Map<string, AbsenceRequest>;
+    holidaysMap: Map<string, Holiday>;
+    onSelectDate: (date: Date) => void;
+}
+
+const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = React.memo(({ dateForMonth, selectedDate, entriesMap, absencesMap, holidaysMap, onSelectDate }) => {
+    const today = useMemo(() => new Date(), []);
+    today.setHours(0,0,0,0);
+
+    const daysInMonth = useMemo(() => {
+        const year = dateForMonth.getFullYear();
+        const month = dateForMonth.getMonth();
+        const startOfMonth = new Date(year, month, 1);
+        const endOfMonth = new Date(year, month + 1, 0);
+        const days: Date[] = [];
+        const startDayOfWeek = (startOfMonth.getDay() + 6) % 7;
+        const prevMonthEndDate = new Date(year, month, 0);
+        
+        for (let i = startDayOfWeek; i > 0; i--) {
+            days.push(new Date(year, month - 1, prevMonthEndDate.getDate() - i + 1));
+        }
+        for (let i = 1; i <= endOfMonth.getDate(); i++) {
+            days.push(new Date(year, month, i));
+        }
+        const totalCells = 42;
+        let nextDay = 1;
+        while (days.length < totalCells) {
+            days.push(new Date(year, month + 1, nextDay++));
+        }
+        return days;
+    }, [dateForMonth.getFullYear(), dateForMonth.getMonth()]);
+
+    const currentDisplayMonth = dateForMonth.getMonth();
+    const selectedDateString = selectedDate?.toLocaleDateString('sv-SE');
+
+    return (
+        <div className="w-1/3 shrink-0 px-1">
+            <DayOfWeekHeader />
+            <div className="grid grid-cols-7">
+                {daysInMonth.map((day, index) => {
+                    const dayString = day.toLocaleDateString('sv-SE');
+                    const isDifferentMonth = day.getMonth() !== currentDisplayMonth;
+                    
+                    // Fast lookups from maps
+                    const entriesForDay = !isDifferentMonth ? (entriesMap.get(dayString) || []) : [];
+                    const absenceForDay = !isDifferentMonth ? absencesMap.get(dayString) : undefined;
+                    const holiday = holidaysMap.get(dayString);
+                    
+                    const isSelected = !isDifferentMonth && selectedDateString === dayString;
+                    const isToday = day.getTime() === today.getTime();
+
+                    return (
+                        <CalendarDay 
+                            key={dayString} // Using date string as key is stable for same dates
+                            day={day}
+                            isCurrentMonth={!isDifferentMonth}
+                            isSelected={isSelected}
+                            isToday={isToday}
+                            entries={entriesForDay}
+                            absence={absenceForDay}
+                            holiday={holiday}
+                            onSelect={onSelectDate}
+                        />
+                    );
+                })}
+            </div>
+        </div>
+    );
+});
+
 
 export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const { 
@@ -60,7 +233,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const [isRequestsExpanded, setIsRequestsExpanded] = useState(false);
   const entriesListRef = useRef<HTMLDivElement>(null);
   
-  // Touch / Animation Refs (Direct DOM Manipulation for Performance)
   const swipeContainerRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null); 
   const touchStartX = useRef<number | null>(null);
@@ -70,8 +242,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const animationFrameId = useRef<number | null>(null);
   const isLocked = useRef(false);
 
-  // Constants
-  const VELOCITY_THRESHOLD = 0.3; // px/ms
+  const VELOCITY_THRESHOLD = 0.3; 
 
   useEffect(() => {
     const yearsToEnsure = new Set([currentDate.getFullYear()]);
@@ -80,16 +251,11 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     yearsToEnsure.forEach(year => onEnsureHolidaysForYear(year));
   }, [currentDate, onEnsureHolidaysForYear]);
 
-  // CRITICAL: Seamless Loop Reset
-  // This layout effect fires synchronously after the DOM updates with the new month data (from changeMonth).
-  // We immediately snap the slider back to the center position (-33%) WITHOUT animation.
-  // Since the "Center" now contains the "New Month", and the visual position was previously showing the "New Month" 
-  // via transform (-66% or 0%), the user sees NO movement. It's a perfect swap.
+  // Visual Reset Layout Effect
   useLayoutEffect(() => {
       if (sliderRef.current) {
           sliderRef.current.style.transition = 'none';
           sliderRef.current.style.transform = 'translateX(-33.333333%)';
-          // Unlock interaction after the swap is complete
           isLocked.current = false;
       }
   }, [currentDate]);
@@ -98,10 +264,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     return selectedEntryId ? timeEntries.find(e => e.id === selectedEntryId) : null;
   }, [selectedEntryId, timeEntries]);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // OPTIMIZATION: Pre-calculate data maps for fast O(1) lookup during render loop
+  // --- OPTIMIZED MAP GENERATION ---
+  // We create a fast lookup map for Absences. 
+  // Instead of filtering the array for every day cell, we pre-fill a Map.
   const { entriesMap, absencesMap, holidaysMap } = useMemo(() => {
       const eMap = new Map<string, TimeEntry[]>();
       timeEntries.forEach(entry => {
@@ -110,46 +275,36 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
           eMap.get(dateStr)!.push(entry);
       });
 
-      // For absences, we iterate days since they span ranges. 
-      // Optimized for typical viewing range (current year +/- 1) could be better, 
-      // but for now we just map the relevant ones for the view.
-      // Since generateMonthDays is called inside render, we can't limit the map easily here without logic duplication.
-      // Instead, we filter the absenceRequests list to only 'active' ones once.
-      const activeAbsences = absenceRequests.filter(r => r.status !== 'rejected');
+      const aMap = new Map<string, AbsenceRequest>();
+      // We only care about absences in the viewable range (Current Year +/- 1 usually)
+      // Iterating all absences is fast enough (<1000 items usually).
+      absenceRequests.forEach(req => {
+          if (req.status === 'rejected') return;
+          
+          let loopDate = new Date(req.startDate);
+          const endDate = new Date(req.endDate);
+          
+          while (loopDate <= endDate) {
+              const dateStr = loopDate.toLocaleDateString('sv-SE');
+              // If there's already an absence for this day, we prioritize 'pending' to show the user they have an action waiting,
+              // or just keep the first one found.
+              const existing = aMap.get(dateStr);
+              if (!existing || (existing.status === 'approved' && req.status === 'pending')) {
+                  aMap.set(dateStr, req);
+              }
+              loopDate.setDate(loopDate.getDate() + 1);
+          }
+      });
 
       const hMap = new Map<string, Holiday>();
       (Object.values(holidaysByYear).flat() as Holiday[]).forEach(h => {
           hMap.set(h.date, h);
       });
 
-      return { entriesMap: eMap, absencesMap: activeAbsences, holidaysMap: hMap };
+      return { entriesMap: eMap, absencesMap: aMap, holidaysMap: hMap };
   }, [timeEntries, absenceRequests, holidaysByYear]);
 
-  const generateMonthDays = (date: Date): Date[] => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const startOfMonth = new Date(year, month, 1);
-    const endOfMonth = new Date(year, month + 1, 0);
-    const days: Date[] = [];
-    const startDayOfWeek = (startOfMonth.getDay() + 6) % 7;
-    const prevMonthEndDate = new Date(year, month, 0);
-    
-    for (let i = startDayOfWeek; i > 0; i--) {
-        days.push(new Date(year, month - 1, prevMonthEndDate.getDate() - i + 1));
-    }
-    for (let i = 1; i <= endOfMonth.getDate(); i++) {
-        days.push(new Date(year, month, i));
-    }
-    const totalCells = 42;
-    let nextDay = 1;
-    while (days.length < totalCells) {
-        days.push(new Date(year, month + 1, nextDay++));
-    }
-    return days;
-  };
-
   const changeMonth = useCallback((offset: number) => {
-    // Only update state. The visual reset happens in useLayoutEffect.
     setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
     setSelectedDate(null);
   }, []);
@@ -162,8 +317,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     }
   };
 
-  // --- TOUCH HANDLERS (Direct DOM) ---
-
+  // --- TOUCH HANDLERS ---
   useEffect(() => {
     const node = swipeContainerRef.current;
     const slider = sliderRef.current;
@@ -175,8 +329,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         touchStartY.current = e.touches[0].clientY;
         touchStartTime.current = Date.now();
         isSwiping.current = false;
-        
-        // Remove any existing transition to allow instant dragging
         slider.style.transition = 'none';
     };
 
@@ -228,10 +380,10 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         let monthChange = 0;
 
         if ((isFastSwipe || isLongSwipe) && deltaX > 0) {
-            targetPercent = 0; // Prev Month
+            targetPercent = 0; 
             monthChange = -1;
         } else if ((isFastSwipe || isLongSwipe) && deltaX < 0) {
-            targetPercent = -66.666666; // Next Month
+            targetPercent = -66.666666; 
             monthChange = 1;
         }
 
@@ -239,7 +391,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         slider.style.transform = `translateX(${targetPercent}%)`;
 
         const handleTransitionEnd = (evt: TransitionEvent) => {
-            // CRITICAL FIX: Only react to the slider's transform transition, not children bubbling up
             if (evt.target !== slider || evt.propertyName !== 'transform') return;
 
             if (monthChange !== 0) {
@@ -274,111 +425,19 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     };
   }, [changeMonth]);
 
-  
-  const renderMonthGrid = useCallback((dateForMonth: Date) => {
-    const daysInMonth = generateMonthDays(dateForMonth);
-    const currentDisplayMonth = dateForMonth.getMonth();
-
-    return (
-        <div className="w-1/3 shrink-0 px-1">
-            <DayOfWeekHeader />
-            <div className="grid grid-cols-7">
-              {daysInMonth.map((day, index) => {
-                const isDifferentMonth = day.getMonth() !== currentDisplayMonth;
-                const dayString = day.toLocaleDateString('sv-SE');
-                
-                // Optimized Data Access using Maps
-                const entriesForDay = !isDifferentMonth ? (entriesMap.get(dayString) || []) : [];
-                // Absences still filter, but list is pre-filtered for 'rejected'. 
-                // For extremely large datasets, we'd spatially index this too, but < 100 requests is fine.
-                const absencesForDay = !isDifferentMonth ? absencesMap.filter(a => dayString >= a.startDate && dayString <= a.endDate) : [];
-                const absenceForDay = absencesForDay.find(a => a.status === 'pending') || absencesForDay[0];
-                const holiday = holidaysMap.get(dayString);
-                
-                const isSelected = !isDifferentMonth && selectedDate?.toLocaleDateString('sv-SE') === dayString;
-                
-                const isToday = day.toDateString() === today.toDateString();
-                const dayOfWeek = day.getDay();
-                const isSunday = dayOfWeek === 0;
-
-                let containerClasses = 'relative h-12 flex items-center justify-center transition-colors duration-200';
-                if (!isDifferentMonth) containerClasses += ' cursor-pointer';
-
-                let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
-
-                if (isSelected) {
-                    containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
-                    numberClasses += ' bg-blue-600 text-white';
-                } else {
-                    if (!isDifferentMonth) containerClasses += ' rounded-lg hover:bg-gray-100';
-                    if (isDifferentMonth) {
-                        numberClasses += ' text-gray-400';
-                    } else if (isToday) {
-                        if (!isDifferentMonth) containerClasses += ' bg-gray-50';
-                        numberClasses += ' text-blue-600 font-bold';
-                    } else if (holiday || isSunday) {
-                        numberClasses += ' text-red-600 font-semibold';
-                    } else {
-                        numberClasses += ' text-gray-700';
-                    }
-                }
-
-                if (absenceForDay) {
-                    if (entriesForDay.length > 0) { numberClasses += ' bg-white/50 backdrop-blur-sm'; } 
-                    else if (absenceForDay.status === 'approved') { numberClasses += ' text-white'; }
-                }
-                
-                return (
-                    <div 
-                        key={index} 
-                        onClick={() => !isDifferentMonth && setSelectedDate(day)} 
-                        className={containerClasses}
-                    >
-                        {absenceForDay && (() => {
-                            const ui = getAbsenceTypeDetails(absenceForDay.type);
-                            const isStart = absenceForDay.startDate === dayString;
-                            const isEnd = absenceForDay.endDate === dayString;
-                            const isSingle = isStart && isEnd;
-                            const isPending = absenceForDay.status === 'pending';
-                            const isHalfDay = absenceForDay.dayPortion && absenceForDay.dayPortion !== 'full';
-                            
-                            let pillStyle: React.CSSProperties = {};
-                            let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-8 flex items-center justify-center text-xs font-bold z-0 `;
-                            
-                            if (isPending) {
-                                pillClasses += `${ui.pendingClass} border-dashed ${ui.pendingBorderClass}`;
-                                if (isSingle) { pillClasses += ' border-2 rounded-lg mx-0.5'; } 
-                                else { pillClasses += ' border-y-2'; if (isStart) pillClasses += ' border-l-2 rounded-l-lg justify-start pl-2'; if (isEnd) pillClasses += ' border-r-2 rounded-r-lg'; }
-                            } else {
-                                pillClasses += `${ui.solidClass}`;
-                                if (isSingle) { pillClasses += ' rounded-lg mx-0.5'; } 
-                                else if (isStart) { pillClasses += ' rounded-l-lg justify-start pl-2'; } 
-                                else if (isEnd) { pillClasses += ' rounded-r-lg'; }
-                            }
-                            if (isHalfDay && isSingle) {
-                                if (absenceForDay.dayPortion === 'am') pillStyle.clipPath = 'polygon(0 0, 100% 0, 0 100%)';
-                                else pillStyle.clipPath = 'polygon(100% 0, 100% 100%, 0 100%)';
-                            }
-                            return <div style={pillStyle} className={pillClasses}></div>;
-                        })()}
-                        <span className={numberClasses}>{day.getDate()}</span>
-                        <div className="absolute bottom-1 flex items-center justify-center space-x-1 h-1.5">
-                            {entriesForDay.length > 0 && !absenceForDay && <div className={`w-1.5 h-1.5 bg-green-500 rounded-full`}></div>}
-                        </div>
-                    </div>
-                );
-              })}
-            </div>
-        </div>
-    );
-  }, [entriesMap, absencesMap, holidaysMap, selectedDate]);
-
   const prevMonthDate = useMemo(() => new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1), [currentDate]);
   const nextMonthDate = useMemo(() => new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1), [currentDate]);
 
   const selectedDateString = selectedDate?.toLocaleDateString('sv-SE');
   const entriesForSelectedDay = useMemo(() => selectedDateString ? (entriesMap.get(selectedDateString) || []).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()) : [], [selectedDateString, entriesMap]);
-  const absencesForSelectedDay = useMemo(() => selectedDateString ? absencesMap.filter(a => selectedDateString >= a.startDate && selectedDateString <= a.endDate && a.status === 'approved') : [], [selectedDateString, absencesMap]);
+  // Re-use map for selected day lookup
+  const absenceForSelectedDay = useMemo(() => selectedDateString ? absencesMap.get(selectedDateString) : undefined, [selectedDateString, absencesMap]);
+  // We need to show all approved absences for the list below the calendar, usually it's just one, but logic remains same
+  const absencesForSelectedDayList = useMemo(() => {
+      if (!absenceForSelectedDay || absenceForSelectedDay.status !== 'approved') return [];
+      return [absenceForSelectedDay];
+  }, [absenceForSelectedDay]);
+  
   const holidayForSelectedDay = useMemo(() => selectedDateString ? holidaysMap.get(selectedDateString) : null, [selectedDateString, holidaysMap]);
 
   const groupedRequests = useMemo(() => {
@@ -392,6 +451,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     return groups;
   }, [absenceRequests]);
   const sortedYears = Object.keys(groupedRequests).sort((a, b) => Number(b) - Number(a));
+
+  const handleSelectDate = useCallback((date: Date) => setSelectedDate(date), []);
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -417,15 +478,36 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                     willChange: 'transform' // Force GPU Layer for smoother animation
                 }}
             >
-                {renderMonthGrid(prevMonthDate)}
-                {renderMonthGrid(currentDate)}
-                {renderMonthGrid(nextMonthDate)}
+                <CalendarMonthGrid 
+                    dateForMonth={prevMonthDate} 
+                    selectedDate={selectedDate}
+                    entriesMap={entriesMap}
+                    absencesMap={absencesMap}
+                    holidaysMap={holidaysMap}
+                    onSelectDate={handleSelectDate}
+                />
+                <CalendarMonthGrid 
+                    dateForMonth={currentDate} 
+                    selectedDate={selectedDate}
+                    entriesMap={entriesMap}
+                    absencesMap={absencesMap}
+                    holidaysMap={holidaysMap}
+                    onSelectDate={handleSelectDate}
+                />
+                <CalendarMonthGrid 
+                    dateForMonth={nextMonthDate} 
+                    selectedDate={selectedDate}
+                    entriesMap={entriesMap}
+                    absencesMap={absencesMap}
+                    holidaysMap={holidaysMap}
+                    onSelectDate={handleSelectDate}
+                />
             </div>
         </div>
       </div>
 
       {selectedDate && (
-        <div ref={entriesListRef} className="animate-fade-in"><h3 className="text-lg font-bold mb-3">Einträge für den {selectedDate.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' })}</h3><Card><div className="space-y-3">{holidayForSelectedDay && (<div className="p-3 bg-red-50 rounded-lg border border-red-200 flex items-center"><div className="w-2.5 h-2.5 bg-red-500 rounded-full mr-3"></div><p className="font-semibold text-red-800">{holidayForSelectedDay.name} (Feiertag)</p></div>)}{absencesForSelectedDay.map(absence => { const d = getAbsenceTypeDetails(absence.type); const dayPortionText = absence.dayPortion === 'am' ? ' (Vormittags)' : absence.dayPortion === 'pm' ? ' (Nachmittags)' : ''; return (<div key={absence.id} className={`p-3 rounded-lg border flex items-center ${d.bgClass} ${d.borderClass}`}><div className={`w-2.5 h-2.5 ${d.dotClass} rounded-full mr-3`}></div><p className={`font-semibold ${d.textClass}`}>{d.label}{dayPortionText}</p></div>);})}{entriesForSelectedDay.map(entry => {const d = (new Date(entry.end).getTime() - new Date(entry.start).getTime())/36e5-(entry.breakDurationMinutes/60); return (<button key={entry.id} onClick={()=>setSelectedEntryId(entry.id)} className="w-full p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-left hover:bg-gray-100"><div><p className="font-semibold">{activities.find(a=>a.id===entry.activityId)?.name||'N/A'}</p><p className="text-sm text-gray-600">{customers.find(c=>c.id===entry.customerId)?.name||'N/A'}</p><p className="text-xs text-gray-500 mt-1">{new Date(entry.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} - {new Date(entry.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</p></div><p className="font-bold text-lg text-blue-600">{d.toFixed(2)} h</p></button>);})}{entriesForSelectedDay.length===0 && absencesForSelectedDay.length===0 && !holidayForSelectedDay && <p className="text-center text-gray-500 py-4">Keine Einträge für diesen Tag.</p>}</div></Card></div>
+        <div ref={entriesListRef} className="animate-fade-in"><h3 className="text-lg font-bold mb-3">Einträge für den {selectedDate.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' })}</h3><Card><div className="space-y-3">{holidayForSelectedDay && (<div className="p-3 bg-red-50 rounded-lg border border-red-200 flex items-center"><div className="w-2.5 h-2.5 bg-red-500 rounded-full mr-3"></div><p className="font-semibold text-red-800">{holidayForSelectedDay.name} (Feiertag)</p></div>)}{absencesForSelectedDayList.map(absence => { const d = getAbsenceTypeDetails(absence.type); const dayPortionText = absence.dayPortion === 'am' ? ' (Vormittags)' : absence.dayPortion === 'pm' ? ' (Nachmittags)' : ''; return (<div key={absence.id} className={`p-3 rounded-lg border flex items-center ${d.bgClass} ${d.borderClass}`}><div className={`w-2.5 h-2.5 ${d.dotClass} rounded-full mr-3`}></div><p className={`font-semibold ${d.textClass}`}>{d.label}{dayPortionText}</p></div>);})}{entriesForSelectedDay.map(entry => {const d = (new Date(entry.end).getTime() - new Date(entry.start).getTime())/36e5-(entry.breakDurationMinutes/60); return (<button key={entry.id} onClick={()=>setSelectedEntryId(entry.id)} className="w-full p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-left hover:bg-gray-100"><div><p className="font-semibold">{activities.find(a=>a.id===entry.activityId)?.name||'N/A'}</p><p className="text-sm text-gray-600">{customers.find(c=>c.id===entry.customerId)?.name||'N/A'}</p><p className="text-xs text-gray-500 mt-1">{new Date(entry.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} - {new Date(entry.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</p></div><p className="font-bold text-lg text-blue-600">{d.toFixed(2)} h</p></button>);})}{entriesForSelectedDay.length===0 && absencesForSelectedDayList.length===0 && !holidayForSelectedDay && <p className="text-center text-gray-500 py-4">Keine Einträge für diesen Tag.</p>}</div></Card></div>
       )}
 
       <Card>
