@@ -189,13 +189,32 @@ const App: React.FC = () => {
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const intervalRef = React.useRef<number | null>(null);
 
-  // SCROLL RESET EFFECT - CHANGED TO useLayoutEffect
-  // useLayoutEffect fires synchronously after all DOM mutations.
-  // This ensures the scroll position is reset BEFORE the browser paints the new screen.
+  // FORCE SCROLL RESET on view changes
   useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-    document.body.scrollTop = 0; // For Safari
-    document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
+    // 1. Disable browser's automatic scroll restoration to prevent it from remembering the position
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
+    const resetScroll = () => {
+      // Use 'instant' behavior where supported, otherwise standard scrollTo
+      // @ts-ignore
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+    };
+
+    // 2. Reset immediately
+    resetScroll();
+
+    // 3. Reset again slightly later to override any mobile browser async layout shifts
+    const t1 = setTimeout(resetScroll, 10);
+    const t2 = setTimeout(resetScroll, 100);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [loggedInUser, currentView, adminViewMode]);
 
   useEffect(() => {
