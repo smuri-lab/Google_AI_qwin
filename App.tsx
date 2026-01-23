@@ -375,6 +375,12 @@ const App: React.FC = () => {
     const user = employees.find(e => e.username.toLowerCase() === username.toLowerCase());
     if (!user) return 'Benutzer nicht gefunden.';
     if (user.password !== password) return 'Falsches Passwort.';
+    
+    // CLOSE KEYBOARD
+    if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+    }
+    
     setLoggedInUser(user);
     return null;
   }, [employees]);
@@ -383,6 +389,11 @@ const App: React.FC = () => {
       employeeData: Omit<Employee, 'id' | 'lastModified' | 'contractHistory' | 'role' | 'isActive'>,
       companyData: Omit<CompanySettings, 'adminTimeFormat' | 'employeeTimeFormat'>
   ) => {
+      // CLOSE KEYBOARD
+      if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+      }
+
       const newAdmin: Employee = {
           ...employeeData,
           id: 0,
@@ -747,9 +758,9 @@ const App: React.FC = () => {
     );
   }
 
-  // APP LAYOUT with Scroll Container
+  // APP LAYOUT with Fixed Positioning
   return (
-    <div className="h-[100dvh] bg-gray-50 text-gray-800 flex flex-col overflow-hidden">
+    <div className="fixed inset-0 w-full h-full bg-gray-50 text-gray-800 flex flex-col overflow-hidden">
       {/* Header is fixed by flex layout, no sticky needed */}
       <header className="flex-none bg-white shadow-md z-30 relative">
         <div className={`${isDisplayingAdminView ? 'max-w-8xl' : 'max-w-7xl'} mx-auto px-4 py-4 flex justify-between items-center`}>
@@ -799,6 +810,7 @@ const App: React.FC = () => {
       <main 
         ref={mainScrollRef}
         className={`flex-1 overflow-y-auto overflow-x-hidden scroll-container w-full ${isDisplayingAdminView ? '' : 'max-w-7xl mx-auto'} p-4 ${!isDisplayingAdminView ? 'pb-24' : ''} isolate`}
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {isDisplayingAdminView ? (
           <AdminView 
