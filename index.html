@@ -2,7 +2,7 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Zeiterfassungssystem</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -19,6 +19,20 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #555;
+      }
+      
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        /* PREVENT WHOLE PAGE BOUNCE/OVERSCROLL */
+        overscroll-behavior-y: none;
+      }
+
+      #root {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
       }
       
       /* PREVENT INPUT LAYOUT SHIFTS */

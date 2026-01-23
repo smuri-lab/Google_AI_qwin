@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { CalendarView } from './components/CalendarView';
 import { AdminView } from './components/AdminView';
@@ -189,10 +189,13 @@ const App: React.FC = () => {
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const intervalRef = React.useRef<number | null>(null);
 
-  // SCROLL RESET EFFECT
-  // Ensures content starts at top when logging in or switching main views
-  useEffect(() => {
+  // SCROLL RESET EFFECT - CHANGED TO useLayoutEffect
+  // useLayoutEffect fires synchronously after all DOM mutations.
+  // This ensures the scroll position is reset BEFORE the browser paints the new screen.
+  useLayoutEffect(() => {
     window.scrollTo(0, 0);
+    document.body.scrollTop = 0; // For Safari
+    document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
   }, [loggedInUser, currentView, adminViewMode]);
 
   useEffect(() => {
