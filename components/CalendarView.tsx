@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback, useLayoutEffect, useTransition } from 'react';
 import type { TimeEntry, AbsenceRequest, Customer, Activity, Holiday, CompanySettings, HolidaysByYear, Employee } from '../types';
 import { AbsenceType } from '../types';
 import { EntryDetailModal } from './EntryDetailModal';
@@ -268,6 +268,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const isSwiping = useRef(false);
   const animationFrameId = useRef<number | null>(null);
   const isLocked = useRef(false);
+  
+  // React 18: Use transition to mark update as non-urgent to prevent UI blocking
+  const [isPending, startTransition] = useTransition();
 
   // Constants
   const VELOCITY_THRESHOLD = 0.3; 
@@ -285,6 +288,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
       if (sliderRef.current) {
           sliderRef.current.style.transition = 'none';
           sliderRef.current.style.transform = 'translateX(-33.333333%)';
+          // Force layout reflow
+          void sliderRef.current.offsetWidth;
           isLocked.current = false;
       }
   }, [currentDate]);
@@ -328,8 +333,10 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   }, [timeEntries, absenceRequests, holidaysByYear]);
 
   const changeMonth = useCallback((offset: number) => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
-    setSelectedDateString(null);
+    startTransition(() => {
+        setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
+        setSelectedDateString(null);
+    });
   }, []);
   
   const handleCloseModal = () => setSelectedEntryId(null);
@@ -376,7 +383,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             e.preventDefault(); 
             if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
             animationFrameId.current = requestAnimationFrame(() => {
-                slider.style.transform = `translateX(calc(-33.333333% + ${deltaX}px))`;
+                slider.style.transform = `translateX(calc(-33.333333% + ${deltaX}px)) translateZ(0)`;
             });
         }
     };
@@ -410,31 +417,35 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             monthChange = 1;
         }
 
+        // Use cubic-bezier for a natural feel, enforce hardware accel
         slider.style.transition = 'transform 250ms cubic-bezier(0.1, 0.9, 0.2, 1)';
-        slider.style.transform = `translateX(${targetPercent}%)`;
+        slider.style.transform = `translateX(${targetPercent}%) translateZ(0)`;
 
         // Safety unlock incase transitionend misses
         const safetyUnlock = setTimeout(() => {
              if (isLocked.current) {
                  isLocked.current = false;
-                 // Force reset if we are stuck in a non-center position without a data change
                  if (monthChange === 0 && slider) {
                      slider.style.transition = 'none';
-                     slider.style.transform = 'translateX(-33.333333%)';
+                     slider.style.transform = 'translateX(-33.333333%) translateZ(0)';
                  }
              }
-        }, 300);
+        }, 350);
 
         const handleTransitionEnd = (evt: TransitionEvent) => {
             if (evt.target !== slider || evt.propertyName !== 'transform') return;
             clearTimeout(safetyUnlock);
 
             if (monthChange !== 0) {
-                changeMonth(monthChange);
+                // IMPORTANT: Let the animation finish visually BEFORE doing the heavy react update.
+                // requestAnimationFrame pushes the work to the next paint cycle.
+                requestAnimationFrame(() => {
+                    changeMonth(monthChange);
+                });
             } else {
                 if (sliderRef.current) {
                     sliderRef.current.style.transition = 'none';
-                    sliderRef.current.style.transform = 'translateX(-33.333333%)';
+                    sliderRef.current.style.transform = 'translateX(-33.333333%) translateZ(0)';
                     isLocked.current = false;
                 }
             }
@@ -508,10 +519,11 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             <div
                 ref={sliderRef}
                 style={{
-                    transform: 'translateX(-33.333333%)',
+                    transform: 'translateX(-33.333333%) translateZ(0)',
                     width: '300%',
                     display: 'flex',
-                    willChange: 'transform' // GPU Hint
+                    willChange: 'transform',
+                    backfaceVisibility: 'hidden'
                 }}
             >
                 <CalendarMonthGrid 
