@@ -276,8 +276,7 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = React.memo(({ year, 
     const daysData = getCachedDaysForMonth(year, month);
 
     return (
-        // KEY FIX: will-change-transform promotes this specific grid to a GPU layer
-        <div className="w-1/3 shrink-0 px-1" style={{ contain: 'content', willChange: 'transform' }}>
+        <div className="w-1/3 shrink-0 px-1" style={{ contain: 'content' }}>
             <DayOfWeekHeader />
             <div className="grid grid-cols-7">
                 {daysData.map((dayItem, index) => {
@@ -360,7 +359,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   useLayoutEffect(() => {
       if (sliderRef.current) {
           sliderRef.current.style.transition = 'none';
-          sliderRef.current.style.transform = 'translate3d(-33.333333%, 0, 0)'; // Force 3D
+          sliderRef.current.style.transform = 'translate3d(-33.333333%, 0, 0)'; 
+          // KEY FIX: Turn off will-change when not interacting to save GPU memory on mobile
+          sliderRef.current.style.willChange = 'auto'; 
           isLocked.current = false;
       }
   }, [currentDate]);
@@ -446,6 +447,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         touchStartY.current = e.touches[0].clientY;
         touchStartTime.current = Date.now();
         isSwiping.current = false;
+        
+        // KEY FIX: Only enable will-change during interaction
+        slider.style.willChange = 'transform';
         slider.style.transition = 'none';
     };
 
@@ -485,6 +489,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
 
         if (!isSwiping.current || touchStartX.current === null) {
             touchStartX.current = null;
+            // Reset will-change if no swipe happened
+            slider.style.willChange = 'auto';
             return;
         }
 
@@ -514,31 +520,35 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         slider.style.transition = 'transform 300ms cubic-bezier(0.1, 0.9, 0.2, 1)';
         slider.style.transform = `translate3d(${targetPercent}%, 0, 0)`;
 
-        // KEY FIX: Increased timeout to 300ms (matching transition duration)
-        // This prevents the React state update from hogging the main thread while 
-        // the visual snap animation is still playing on the GPU.
+        // Fallback safety
         const safetyUnlock = setTimeout(() => {
              if (isLocked.current) {
                  isLocked.current = false;
                  if (monthChange === 0 && slider) {
                      slider.style.transition = 'none';
                      slider.style.transform = 'translate3d(-33.333333%, 0, 0)';
+                     slider.style.willChange = 'auto';
                  } else if (monthChange !== 0) {
                      changeMonth(monthChange);
                  }
              }
-        }, 320); // Slightly longer than transition
+        }, 320); 
 
         const handleTransitionEnd = (evt: TransitionEvent) => {
             if (evt.target !== slider || evt.propertyName !== 'transform') return;
             clearTimeout(safetyUnlock);
 
             if (monthChange !== 0) {
-                changeMonth(monthChange);
+                // KEY FIX: Use requestAnimationFrame to decouple the visual end 
+                // from the heavy state calculation. Give the browser 1 frame to breathe.
+                requestAnimationFrame(() => {
+                    changeMonth(monthChange);
+                });
             } else {
                 if (sliderRef.current) {
                     sliderRef.current.style.transition = 'none';
                     sliderRef.current.style.transform = 'translate3d(-33.333333%, 0, 0)';
+                    sliderRef.current.style.willChange = 'auto';
                     isLocked.current = false;
                 }
             }
@@ -552,7 +562,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     };
 
     node.addEventListener('touchstart', handleTouchStart, { passive: true });
-    node.addEventListener('touchmove', handleTouchMove, { passive: false }); // Must be non-passive to preventDefault
+    node.addEventListener('touchmove', handleTouchMove, { passive: false }); 
     node.addEventListener('touchend', handleTouchEnd);
     node.addEventListener('touchcancel', handleTouchEnd);
 
@@ -628,7 +638,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                     transform: 'translate3d(-33.333333%, 0, 0)', // Force GPU
                     width: '300%',
                     display: 'flex',
-                    willChange: 'transform',
+                    // willChange is now managed dynamically
                     backfaceVisibility: 'hidden'
                 }}
             >
