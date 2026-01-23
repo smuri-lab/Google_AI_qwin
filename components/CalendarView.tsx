@@ -491,39 +491,38 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         slider.style.transition = 'transform 300ms cubic-bezier(0.1, 0.9, 0.2, 1)';
         slider.style.transform = `translate3d(${targetX}px, 0, 0)`;
 
-        const safetyUnlock = setTimeout(() => {
-             if (isLocked.current) {
-                 isLocked.current = false;
-                 if (monthChange === 0 && slider) {
-                     slider.style.transition = 'none';
-                     slider.style.transform = `translate3d(-${width}px, 0, 0)`;
-                     slider.style.willChange = 'auto';
-                 } else if (monthChange !== 0) {
-                     changeMonth(monthChange);
-                 }
-             }
-        }, 320); 
-
-        const handleTransitionEnd = (evt: TransitionEvent) => {
-            if (evt.target !== slider || evt.propertyName !== 'transform') return;
+        let resolved = false;
+        const resolveSwipe = () => {
+            if (resolved) return;
+            resolved = true;
+            
+            // Cleanup listeners and timeouts
             clearTimeout(safetyUnlock);
-
+            slider.removeEventListener('transitionend', handleTransitionEnd as EventListener);
+            
             if (monthChange !== 0) {
-                // Decouple render
+                // Decouple state change from UI event
                 requestAnimationFrame(() => {
                     changeMonth(monthChange);
                 });
             } else {
+                // If no month change, reset manually
                 if (sliderRef.current) {
                     sliderRef.current.style.transition = 'none';
                     sliderRef.current.style.transform = `translate3d(-${width}px, 0, 0)`;
                     sliderRef.current.style.willChange = 'auto';
-                    isLocked.current = false;
+                    isLocked.current = false; // Manually unlock if no state change will trigger useLayoutEffect
                 }
             }
-            slider.removeEventListener('transitionend', handleTransitionEnd as EventListener);
         };
-        
+
+        const safetyUnlock = setTimeout(resolveSwipe, 320); 
+
+        const handleTransitionEnd = (evt: TransitionEvent) => {
+            if (evt.target !== slider || evt.propertyName !== 'transform') return;
+            resolveSwipe();
+        };
+                
         slider.addEventListener('transitionend', handleTransitionEnd as EventListener);
 
         touchStartX.current = null;
