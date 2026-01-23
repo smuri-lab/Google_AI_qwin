@@ -189,6 +189,12 @@ const App: React.FC = () => {
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const intervalRef = React.useRef<number | null>(null);
 
+  // SCROLL RESET EFFECT
+  // Ensures content starts at top when logging in or switching main views
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [loggedInUser, currentView, adminViewMode]);
+
   useEffect(() => {
     if (showAbsenceSuccess) {
       const timer = setTimeout(() => setShowAbsenceSuccess(false), 3000);
