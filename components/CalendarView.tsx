@@ -60,19 +60,19 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const [isRequestsExpanded, setIsRequestsExpanded] = useState(false);
   const entriesListRef = useRef<HTMLDivElement>(null);
   
-  // Touch handling refs
+  // Touch / Animation state
+  const swipeContainerRef = useRef<HTMLDivElement>(null);
+  const sliderRef = useRef<HTMLDivElement>(null); // Ref for the moving element
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const isSwiping = useRef(false);
-  const isLocked = useRef(false); 
-  const animationTimeoutRef = useRef<number | null>(null);
+  const isLocked = useRef(false);
+  const pendingMonthChange = useRef<number>(0);
   
   const [touchDeltaX, setTouchDeltaX] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const swipeContainerRef = useRef<HTMLDivElement>(null);
 
-  // Animation duration constant
-  const SWIPE_ANIMATION_DURATION = 500;
+  const SWIPE_ANIMATION_DURATION = 300; 
 
   useEffect(() => {
     const yearsToEnsure = new Set([currentDate.getFullYear()]);
@@ -80,13 +80,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     if (currentDate.getMonth() === 11) yearsToEnsure.add(currentDate.getFullYear() + 1);
     yearsToEnsure.forEach(year => onEnsureHolidaysForYear(year));
   }, [currentDate, onEnsureHolidaysForYear]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-      return () => {
-          if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
-      };
-  }, []);
 
   const selectedEntry = useMemo(() => {
     return selectedEntryId ? timeEntries.find(e => e.id === selectedEntryId) : null;
@@ -98,29 +91,23 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const generateMonthDays = (date: Date): Date[] => {
     const year = date.getFullYear();
     const month = date.getMonth();
-    
     const startOfMonth = new Date(year, month, 1);
     const endOfMonth = new Date(year, month + 1, 0);
-    
     const days: Date[] = [];
-    
     const startDayOfWeek = (startOfMonth.getDay() + 6) % 7;
-    
     const prevMonthEndDate = new Date(year, month, 0);
+    
     for (let i = startDayOfWeek; i > 0; i--) {
         days.push(new Date(year, month - 1, prevMonthEndDate.getDate() - i + 1));
     }
-
     for (let i = 1; i <= endOfMonth.getDate(); i++) {
         days.push(new Date(year, month, i));
     }
-
     const totalCells = 42;
     let nextDay = 1;
     while (days.length < totalCells) {
         days.push(new Date(year, month + 1, nextDay++));
     }
-    
     return days;
   };
 
@@ -137,6 +124,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     }
   };
 
+  // --- TOUCH HANDLERS ---
+
   useEffect(() => {
     const node = swipeContainerRef.current;
     if (!node) return;
@@ -146,13 +135,11 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         touchStartX.current = e.touches[0].clientX;
         touchStartY.current = e.touches[0].clientY;
         isSwiping.current = false;
-        setTouchDeltaX(0);
-        setIsTransitioning(false);
+        setIsTransitioning(false); // Ensure no transition during drag
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-        if (isLocked.current) return;
-        if (!touchStartX.current || !touchStartY.current) return;
+        if (isLocked.current || touchStartX.current === null || touchStartY.current === null) return;
         
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
@@ -160,79 +147,59 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const deltaY = currentY - touchStartY.current;
 
         if (!isSwiping.current) {
-            // Determine if horizontal swipe
+            // Check if user is scrolling vertically or swiping horizontally
             if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
                 isSwiping.current = true;
             } else if (Math.abs(deltaY) > Math.abs(deltaX)) {
-                // Vertical scroll, ignore this touch session
+                // Vertical scroll, ignore this swipe
                 touchStartX.current = null;
-                touchStartY.current = null;
                 return;
             }
         }
         
         if (isSwiping.current) {
-            e.preventDefault(); // Prevent scrolling while swiping
+            e.preventDefault(); // Stop scrolling
             setTouchDeltaX(deltaX);
         }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-        if (isLocked.current) return;
+        if (isLocked.current || touchStartX.current === null) return;
         
-        if (!touchStartX.current || !isSwiping.current) {
+        // If we were not swiping (just a tap), reset and return
+        if (!isSwiping.current) {
             touchStartX.current = null;
-            touchStartY.current = null;
-            isSwiping.current = false;
             return;
         }
-        
-        const finalDeltaX = e.changedTouches[0].clientX - touchStartX.current;
-        const SWIPE_THRESHOLD = 60;
-        const calendarWidth = node.offsetWidth;
-        
-        isLocked.current = true; // Lock immediately
-        setIsTransitioning(true); // Enable transition for snap
 
-        let targetDelta = 0;
-        let action: (() => void) | null = null;
+        const currentX = e.changedTouches[0].clientX;
+        const deltaX = currentX - touchStartX.current;
+        const width = node.offsetWidth;
+        const threshold = width * 0.25; // 25% threshold
 
-        if (finalDeltaX > SWIPE_THRESHOLD) {
-          targetDelta = calendarWidth;
-          action = () => changeMonth(-1);
-        } else if (finalDeltaX < -SWIPE_THRESHOLD) {
-          targetDelta = -calendarWidth;
-          action = () => changeMonth(1);
+        // Lock interaction during animation
+        isLocked.current = true;
+        setIsTransitioning(true); // Enable CSS transition
+
+        if (deltaX > threshold) {
+            // Swipe Right -> Previous Month
+            setTouchDeltaX(width);
+            pendingMonthChange.current = -1;
+        } else if (deltaX < -threshold) {
+            // Swipe Left -> Next Month
+            setTouchDeltaX(-width);
+            pendingMonthChange.current = 1;
         } else {
-          targetDelta = 0;
+            // Revert (didn't move enough)
+            setTouchDeltaX(0);
+            pendingMonthChange.current = 0;
         }
-        
-        setTouchDeltaX(targetDelta);
 
-        // Clear previous timeout if any (safety)
-        if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
-
-        animationTimeoutRef.current = window.setTimeout(() => { 
-            if (action) action(); // Update data state
-            
-            // Instantly reset position without transition
-            setIsTransitioning(false); 
-            setTouchDeltaX(0); 
-            
-            // Short delay before unlocking to ensure DOM paint is complete
-            setTimeout(() => {
-                isLocked.current = false;
-            }, 50);
-            
-        }, SWIPE_ANIMATION_DURATION);
-        
-        // Reset touch tracking immediately
         touchStartX.current = null;
-        touchStartY.current = null;
         isSwiping.current = false;
     };
 
-    // Use native listeners for all events to ensure consistency
+    // Use passive: false for touchmove to allow preventing default scroll
     node.addEventListener('touchstart', handleTouchStart, { passive: true });
     node.addEventListener('touchmove', handleTouchMove, { passive: false });
     node.addEventListener('touchend', handleTouchEnd);
@@ -244,7 +211,47 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         node.removeEventListener('touchend', handleTouchEnd);
         node.removeEventListener('touchcancel', handleTouchEnd);
     };
+  }, []);
+
+  const finishTransition = useCallback(() => {
+      // 1. Disable transition immediately so the snap-back is instant
+      setIsTransitioning(false);
+      
+      // 2. Snap position back to center (0)
+      setTouchDeltaX(0);
+      
+      // 3. Apply the data change (if any)
+      if (pendingMonthChange.current !== 0) {
+          changeMonth(pendingMonthChange.current);
+          pendingMonthChange.current = 0;
+      }
+      
+      // 4. Unlock interaction
+      isLocked.current = false;
   }, [changeMonth]);
+
+  const onTransitionEnd = useCallback((e: React.TransitionEvent) => {
+      // CRITICAL FIX: Only handle transitions originating from the slider itself.
+      // This prevents bubbling events (like color transitions on dates) from triggering the swipe logic.
+      if (e.target !== sliderRef.current) return;
+      if (e.propertyName !== 'transform') return;
+      
+      finishTransition();
+  }, [finishTransition]);
+
+  // Safety fallback: if transitionEnd doesn't fire (e.g. tab backgrounded), unlock after timeout
+  useEffect(() => {
+      if (isLocked.current && isTransitioning) {
+          const timer = setTimeout(() => {
+              if (isLocked.current) {
+                  // console.warn("Transition timeout safety triggered");
+                  finishTransition();
+              }
+          }, SWIPE_ANIMATION_DURATION + 150);
+          return () => clearTimeout(timer);
+      }
+  }, [isTransitioning, finishTransition]);
+
   
   const renderMonthGrid = (dateForMonth: Date, isInteractive: boolean) => {
     const daysInMonth = generateMonthDays(dateForMonth);
@@ -256,21 +263,17 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             <div className="grid grid-cols-7">
               {daysInMonth.map((day, index) => {
                 const isDifferentMonth = day.getMonth() !== currentDisplayMonth;
-                
                 const dayString = day.toLocaleDateString('sv-SE');
                 const absencesForDay = isDifferentMonth ? [] : absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
                 const absenceForDay = absencesForDay.find(a => a.status === 'pending') || absencesForDay[0];
                 const entriesForDay = isDifferentMonth ? [] : timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === dayString);
-                
                 const holidaysForThisDay = holidaysByYear[day.getFullYear()] || [];
                 const holiday = holidaysForThisDay.find(h => h.date === dayString);
-
                 const isSelected = isInteractive && !isDifferentMonth && selectedDate?.toLocaleDateString('sv-SE') === dayString;
                 const isToday = day.toDateString() === today.toDateString();
                 const dayOfWeek = day.getDay();
                 const isSunday = dayOfWeek === 0;
 
-                // Increased height from h-10 to h-12 for more spacing
                 let containerClasses = 'relative h-12 flex items-center justify-center transition-colors duration-200';
                 if (isInteractive && !isDifferentMonth) containerClasses += ' cursor-pointer';
 
@@ -281,7 +284,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                     numberClasses += ' bg-blue-600 text-white';
                 } else {
                     if (isInteractive && !isDifferentMonth) containerClasses += ' rounded-lg hover:bg-gray-100';
-                    
                     if (isDifferentMonth) {
                         numberClasses += ' text-gray-400';
                     } else if (isToday) {
@@ -330,7 +332,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                             return <div style={pillStyle} className={pillClasses}></div>;
                         })()}
                         <span className={numberClasses}>{day.getDate()}</span>
-                        {/* Adjusted bottom position to bottom-1 for more spacing */}
                         <div className="absolute bottom-1 flex items-center justify-center space-x-1 h-1.5">
                             {entriesForDay.length > 0 && !absenceForDay && <div className={`w-1.5 h-1.5 bg-green-500 rounded-full ${!isInteractive ? 'opacity-50' : ''}`}></div>}
                         </div>
@@ -365,23 +366,27 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <div className="bg-white p-2 sm:p-4 rounded-lg shadow-lg">
-        <div className="flex justify-between items-center mb-2 px-2">
+      <div className="bg-white p-2 sm:p-4 rounded-lg shadow-lg overflow-hidden">
+        <div className="flex justify-between items-center mb-2 px-2 relative z-20">
             <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronLeftIcon className="h-5 w-5 text-gray-600" /></button>
             <h2 className="text-lg font-bold text-gray-800">{currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h2>
             <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronRightIcon className="h-5 w-5 text-gray-600" /></button>
         </div>
+        
+        {/* Infinite Scroll Container */}
         <div 
           ref={swipeContainerRef}
-          className="overflow-hidden relative"
-          // Native listener added via useEffect, no React event here
+          className="overflow-hidden relative touch-pan-y" 
         >
             <div
+                ref={sliderRef}
+                onTransitionEnd={onTransitionEnd}
                 style={{
-                    transform: `translateX(calc(-33.333% + ${touchDeltaX}px))`,
-                    transition: isTransitioning ? `transform ${SWIPE_ANIMATION_DURATION}ms ease-in-out` : 'none'
+                    transform: `translateX(calc(-33.3333% + ${touchDeltaX}px))`,
+                    transition: isTransitioning ? `transform ${SWIPE_ANIMATION_DURATION}ms cubic-bezier(0.25, 1, 0.5, 1)` : 'none',
+                    width: '300%',
+                    display: 'flex',
                 }}
-                className="flex w-[300%]"
             >
                 <div className="w-1/3 shrink-0 px-1">{renderMonthGrid(prevMonthDate, false)}</div>
                 <div className="w-1/3 shrink-0 px-1">{renderMonthGrid(currentDate, true)}</div>
