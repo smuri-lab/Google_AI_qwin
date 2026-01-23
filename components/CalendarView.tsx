@@ -146,8 +146,9 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
         numberClasses += ' text-gray-700';
     }
 
+    // REMOVED backdrop-blur-sm -> HUGE Performance killer on mobile
     if (absenceType) {
-        if (hasEntry) { numberClasses += ' bg-white/50 backdrop-blur-sm'; } 
+        if (hasEntry) { numberClasses += ' bg-white/90 border border-gray-200 shadow-sm'; } 
         else if (absenceStatus === 'approved') { numberClasses += ' text-white'; }
     }
 
@@ -193,7 +194,6 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
         </div>
     );
 }, (prev, next) => {
-    // Strict primitive comparison for maximum performance
     return prev.dateString === next.dateString &&
            prev.isCurrentMonth === next.isCurrentMonth &&
            prev.isSelected === next.isSelected &&
@@ -256,7 +256,6 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = React.memo(({ dateFo
                 {daysData.map((dayItem, index) => {
                     const dateStr = toISODate(dayItem.date);
                     
-                    // Fast lookups
                     const hasEntry = !dayItem.isCurrent ? false : entriesMap.has(dateStr);
                     const absence = !dayItem.isCurrent ? undefined : absencesMap.get(dateStr);
                     const isHoliday = !!holidaysMap.get(dateStr);
@@ -267,7 +266,7 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = React.memo(({ dateFo
 
                     return (
                         <CalendarDay 
-                            key={index} // Index is stable in the 42-grid
+                            key={index}
                             dayNum={dayItem.date.getDate()}
                             dateString={dateStr}
                             isCurrentMonth={dayItem.isCurrent}
@@ -314,7 +313,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const animationFrameId = useRef<number | null>(null);
   const isLocked = useRef(false);
   
-  // Constants
   const VELOCITY_THRESHOLD = 0.3; 
   const todayString = useMemo(() => toISODate(new Date()), []);
 
@@ -420,7 +418,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         }
         
         if (isSwiping.current) {
-            // Only prevent default if we are sure it's a horizontal swipe
             if (e.cancelable) e.preventDefault(); 
             
             if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
@@ -438,9 +435,10 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
 
         const currentX = e.changedTouches[0].clientX;
         const deltaX = currentX - touchStartX.current;
-        const width = node.offsetWidth;
+        
         const touchEndTime = Date.now();
         const timeElapsed = touchEndTime - touchStartTime.current;
+        const width = node.offsetWidth;
         
         const velocity = Math.abs(deltaX) / timeElapsed;
         const isFastSwipe = velocity > VELOCITY_THRESHOLD && Math.abs(deltaX) > 20;
@@ -459,7 +457,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             monthChange = 1;
         }
 
-        // Use cubic-bezier for a natural feel, enforce hardware accel
         slider.style.transition = 'transform 250ms cubic-bezier(0.1, 0.9, 0.2, 1)';
         slider.style.transform = `translateX(${targetPercent}%) translateZ(0)`;
 
@@ -467,10 +464,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const safetyUnlock = setTimeout(() => {
              if (isLocked.current) {
                  isLocked.current = false;
-                 // If we were supposed to change month but transition failed, force it
-                 if (monthChange !== 0) {
-                     changeMonth(monthChange);
-                 } else if (slider) {
+                 if (monthChange === 0 && slider) {
                      slider.style.transition = 'none';
                      slider.style.transform = 'translateX(-33.333333%) translateZ(0)';
                  }
@@ -482,8 +476,14 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             clearTimeout(safetyUnlock);
 
             if (monthChange !== 0) {
-                // Perform state update immediately after visual transition
-                changeMonth(monthChange);
+                // CRITICAL FIX: setTimeout(..., 10)
+                // Detach the heavy React state update (Rendering 126 components) from the 
+                // visual animation finish event. This allows the browser to 'rest' for a frame,
+                // finish the composite, and prevents the 'stutter' where the animation freezes 
+                // at the very end.
+                setTimeout(() => {
+                    changeMonth(monthChange);
+                }, 10);
             } else {
                 if (sliderRef.current) {
                     sliderRef.current.style.transition = 'none';
