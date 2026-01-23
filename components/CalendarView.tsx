@@ -25,7 +25,6 @@ interface CalendarViewProps {
 }
 
 // --- GLOBAL CACHE (Prevents Garbage Collection Stutter) ---
-// We cache the grid structure (days, dates) so we don't recreate 126 Date objects on every swipe.
 const MONTH_GRID_CACHE: { [key: string]: { date: Date; isCurrent: boolean; dateStr: string }[] } = {};
 
 const getCachedDaysForMonth = (year: number, month: number) => {
@@ -38,7 +37,6 @@ const getCachedDaysForMonth = (year: number, month: number) => {
     const startDayOfWeek = (startOfMonth.getDay() + 6) % 7; // Mon=0
     const prevMonthEndDate = new Date(year, month, 0);
     
-    // Helper to format ISO date without calling toISOString() (slow)
     const fmt = (d: Date) => {
         const y = d.getFullYear();
         const m = d.getMonth() + 1;
@@ -68,12 +66,11 @@ const getCachedDaysForMonth = (year: number, month: number) => {
     return days;
 };
 
-// --- Static Constants (Zero Allocation) ---
+// --- Static Constants ---
 
 const ABSENCE_STYLES = {
     [AbsenceType.Vacation]: {
         label: 'Urlaub',
-        // Removed transparencies/alphas for better GPU performance
         solidClass: 'bg-blue-500 text-white',
         pendingClass: 'bg-blue-50 text-blue-700', 
         pendingBorderClass: 'border-blue-400',
@@ -117,7 +114,6 @@ const DEFAULT_ABSENCE_STYLE = {
 
 const getAbsenceStyle = (type: AbsenceType) => ABSENCE_STYLES[type] || DEFAULT_ABSENCE_STYLE;
 
-// Faster date generation for today comparison
 const TODAY_STR = (() => {
     const d = new Date();
     const year = d.getFullYear();
@@ -169,12 +165,9 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
     isHoliday, isSunday, onSelect 
 }) => {
     
-    // Performance: Use static class strings where possible to avoid template literal churn
-    let containerClasses = 'relative h-12 flex items-center justify-center'; // Removed transition for faster paint
+    let containerClasses = 'relative h-12 flex items-center justify-center'; 
     
     if (isCurrentMonth) {
-        // Only add cursor pointer if current month
-        // Avoid hover effects on touch devices to prevent sticky hover states
         containerClasses += ' cursor-pointer sm:hover:bg-gray-100'; 
         
         if (isSelected) {
@@ -191,7 +184,7 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
     if (isSelected) {
         numberClasses += 'bg-blue-600 text-white';
     } else if (!isCurrentMonth) {
-        numberClasses += 'text-gray-300'; // Lighter gray for better distinction
+        numberClasses += 'text-gray-300';
     } else if (isToday) {
         numberClasses += 'text-blue-600 font-bold';
     } else if (isHoliday || isSunday) {
@@ -200,10 +193,8 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
         numberClasses += 'text-gray-700';
     }
 
-    // Performance: Solid colors instead of alpha/blur
     if (absenceType) {
         if (hasEntry) { 
-            // Solid background to prevent GPU overdraw
             numberClasses += ' bg-white border border-gray-200 shadow-sm'; 
         } else if (absenceStatus === 'approved') { 
             numberClasses += ' text-white'; 
@@ -227,7 +218,6 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
                 const isHalfDay = absenceDayPortion && absenceDayPortion !== 'full';
                 
                 let pillStyle: React.CSSProperties = {};
-                // Reduced class complexity
                 let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-8 flex items-center justify-center z-0 `;
                 
                 if (isPending) {
@@ -241,7 +231,6 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
                     else if (isEnd) { pillClasses += ' rounded-r-lg mr-0.5'; }
                 }
                 
-                // ClipPath triggers GPU rasterization, keep it, but ensure background is solid
                 if (isHalfDay && isSingle) {
                     if (absenceDayPortion === 'am') pillStyle.clipPath = 'polygon(0 0, 100% 0, 0 100%)';
                     else pillStyle.clipPath = 'polygon(100% 0, 100% 100%, 0 100%)';
@@ -259,7 +248,6 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
         </div>
     );
 }, (prev, next) => {
-    // Strict primitive comparison
     return prev.dateString === next.dateString &&
            prev.isCurrentMonth === next.isCurrentMonth &&
            prev.isSelected === next.isSelected &&
@@ -277,24 +265,22 @@ interface CalendarMonthGridProps {
     year: number;
     month: number;
     selectedDateString: string | null;
-    entriesMap: Map<string, boolean>; // Changed to boolean for faster check
+    entriesMap: Map<string, boolean>;
     absencesMap: Map<string, AbsenceRequest>;
-    holidaysMap: Map<string, boolean>; // Changed to boolean
+    holidaysMap: Map<string, boolean>;
     onSelectDate: (dateString: string) => void;
 }
 
 const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = React.memo(({ year, month, selectedDateString, entriesMap, absencesMap, holidaysMap, onSelectDate }) => {
     
-    // Use cached grid data (Zero allocation on re-renders)
     const daysData = getCachedDaysForMonth(year, month);
 
     return (
-        <div className="w-1/3 shrink-0 px-1" style={{ contain: 'content' }}>
+        // KEY FIX: will-change-transform promotes this specific grid to a GPU layer
+        <div className="w-1/3 shrink-0 px-1" style={{ contain: 'content', willChange: 'transform' }}>
             <DayOfWeekHeader />
             <div className="grid grid-cols-7">
                 {daysData.map((dayItem, index) => {
-                    // Optimized lookups
-                    // We access properties directly to avoid destructuring overhead in loop
                     const dateStr = dayItem.dateStr;
                     const isCurrent = dayItem.isCurrent;
                     
@@ -374,7 +360,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   useLayoutEffect(() => {
       if (sliderRef.current) {
           sliderRef.current.style.transition = 'none';
-          sliderRef.current.style.transform = 'translateX(-33.333333%)';
+          sliderRef.current.style.transform = 'translate3d(-33.333333%, 0, 0)'; // Force 3D
           isLocked.current = false;
       }
   }, [currentDate]);
@@ -384,15 +370,13 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   }, [selectedEntryId, timeEntries]);
 
   // --- OPTIMIZED MAP GENERATION ---
-  // Using boolean maps where possible for faster lookups in the grid
   const { entriesMap, entriesDataMap, absencesMap, holidaysMap } = useMemo(() => {
       const eBoolMap = new Map<string, boolean>();
       const eDataMap = new Map<string, TimeEntry[]>();
       
-      // Single pass for time entries
       for(let i=0; i<timeEntries.length; i++) {
           const entry = timeEntries[i];
-          const dateStr = entry.start.split('T')[0]; // Faster than toISOString manipulation
+          const dateStr = entry.start.split('T')[0]; 
           eBoolMap.set(dateStr, true);
           
           if (!eDataMap.has(dateStr)) eDataMap.set(dateStr, []);
@@ -400,7 +384,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
       }
 
       const aMap = new Map<string, AbsenceRequest>();
-      // Process absences
       for(let i=0; i<absenceRequests.length; i++) {
           const req = absenceRequests[i];
           if (req.status === 'rejected') continue;
@@ -408,7 +391,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
           let loopDate = new Date(req.startDate);
           const endDate = new Date(req.endDate);
           
-          // Limit loop to avoid infinite loops on bad data
           let safety = 0;
           while (loopDate <= endDate && safety < 366) {
               const y = loopDate.getFullYear();
@@ -426,7 +408,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
       }
 
       const hMap = new Map<string, boolean>();
-      // Flatten holidays
       const years = Object.keys(holidaysByYear);
       for(let i=0; i<years.length; i++) {
           const yearHolidays = holidaysByYear[Number(years[i])];
@@ -477,13 +458,13 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const deltaY = currentY - touchStartY.current;
 
         if (!isSwiping.current) {
+            // More aggressive vertical scroll detection check
             if (Math.abs(deltaY) > Math.abs(deltaX)) {
                 touchStartX.current = null;
                 return;
             }
             if (Math.abs(deltaX) > 10) {
                 isSwiping.current = true;
-                // Disable pointer events on children during swipe to prevent accidental clicks
                 slider.style.pointerEvents = 'none';
             }
         }
@@ -493,13 +474,13 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             
             if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
             animationFrameId.current = requestAnimationFrame(() => {
-                slider.style.transform = `translateX(calc(-33.333333% + ${deltaX}px)) translateZ(0)`;
+                // Use translate3d for GPU acceleration
+                slider.style.transform = `translate3d(calc(-33.333333% + ${deltaX}px), 0, 0)`;
             });
         }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-        // Re-enable pointer events
         slider.style.pointerEvents = 'auto';
 
         if (!isSwiping.current || touchStartX.current === null) {
@@ -530,33 +511,34 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             monthChange = 1;
         }
 
-        slider.style.transition = 'transform 250ms cubic-bezier(0.1, 0.9, 0.2, 1)';
-        slider.style.transform = `translateX(${targetPercent}%) translateZ(0)`;
+        slider.style.transition = 'transform 300ms cubic-bezier(0.1, 0.9, 0.2, 1)';
+        slider.style.transform = `translate3d(${targetPercent}%, 0, 0)`;
 
+        // KEY FIX: Increased timeout to 300ms (matching transition duration)
+        // This prevents the React state update from hogging the main thread while 
+        // the visual snap animation is still playing on the GPU.
         const safetyUnlock = setTimeout(() => {
              if (isLocked.current) {
                  isLocked.current = false;
                  if (monthChange === 0 && slider) {
                      slider.style.transition = 'none';
-                     slider.style.transform = 'translateX(-33.333333%) translateZ(0)';
+                     slider.style.transform = 'translate3d(-33.333333%, 0, 0)';
                  } else if (monthChange !== 0) {
-                     // Fallback if transitionEnd missed
                      changeMonth(monthChange);
                  }
              }
-        }, 300);
+        }, 320); // Slightly longer than transition
 
         const handleTransitionEnd = (evt: TransitionEvent) => {
             if (evt.target !== slider || evt.propertyName !== 'transform') return;
             clearTimeout(safetyUnlock);
 
             if (monthChange !== 0) {
-                // Perform state update immediately after visual transition
                 changeMonth(monthChange);
             } else {
                 if (sliderRef.current) {
                     sliderRef.current.style.transition = 'none';
-                    sliderRef.current.style.transform = 'translateX(-33.333333%) translateZ(0)';
+                    sliderRef.current.style.transform = 'translate3d(-33.333333%, 0, 0)';
                     isLocked.current = false;
                 }
             }
@@ -570,7 +552,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     };
 
     node.addEventListener('touchstart', handleTouchStart, { passive: true });
-    node.addEventListener('touchmove', handleTouchMove, { passive: false });
+    node.addEventListener('touchmove', handleTouchMove, { passive: false }); // Must be non-passive to preventDefault
     node.addEventListener('touchend', handleTouchEnd);
     node.addEventListener('touchcancel', handleTouchEnd);
 
@@ -583,11 +565,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     };
   }, [changeMonth]);
 
-  // Pre-calculate month dates for the grid
   const year = currentDate.getFullYear();
-  const month = currentDate.getMonth(); // 0-indexed
+  const month = currentDate.getMonth(); 
   
-  // Calculate prev/next safely handling year boundaries
   const prevDate = new Date(year, month - 1, 1);
   const nextDate = new Date(year, month + 1, 1);
 
@@ -606,7 +586,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   
   const holidayForSelectedDay = useMemo(() => {
       if(!selectedDateString) return null;
-      // Need to find the holiday object since the map only stores booleans now
       const year = parseInt(selectedDateString.split('-')[0]);
       const holidays = holidaysByYear[year] || [];
       return holidays.find(h => h.date === selectedDateString) || null;
@@ -640,13 +619,13 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         {/* Infinite Scroll Container */}
         <div 
           ref={swipeContainerRef}
-          className="overflow-hidden relative touch-pan-y" 
-          style={{ touchAction: 'pan-y' }}
+          className="overflow-hidden relative" 
+          style={{ touchAction: 'none' }} // KEY FIX: Prevents browser scrolling interference
         >
             <div
                 ref={sliderRef}
                 style={{
-                    transform: 'translateX(-33.333333%) translateZ(0)',
+                    transform: 'translate3d(-33.333333%, 0, 0)', // Force GPU
                     width: '300%',
                     display: 'flex',
                     willChange: 'transform',
