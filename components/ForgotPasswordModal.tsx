@@ -15,12 +15,6 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
   const [result, setResult] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   
-  useEffect(() => {
-    if (isOpen) {
-        setIsClosing(false);
-    }
-  }, [isOpen]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const foundPassword = onFindPassword(username);

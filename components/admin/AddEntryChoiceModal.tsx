@@ -16,10 +16,6 @@ interface AddEntryChoiceModalProps {
 export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClose, onSelect }) => {
   const [isClosing, setIsClosing] = useState(false);
 
-  useEffect(() => {
-    setIsClosing(false);
-  }, []);
-  
   const handleClose = () => {
     setIsClosing(true);
     setTimeout(onClose, 300);

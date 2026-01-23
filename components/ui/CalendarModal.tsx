@@ -44,7 +44,6 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setIsClosing(false);
       const start = initialStartDate ? new Date(initialStartDate) : null;
       let end = initialEndDate ? new Date(initialEndDate) : null;
       if (selectionMode === 'single' && start) {

@@ -14,8 +14,9 @@ export const BreakModal: React.FC<BreakModalProps> = ({ onClose, onSave }) => {
   const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
-    // Reset closing state when modal is opened
-    setIsClosing(false);
+    // This effect is only to handle the initial mount state,
+    // which is now implicitly handled by useState.
+    // If we re-open, the component re-mounts and isClosing is false again.
   }, []);
 
   const handleClose = () => {

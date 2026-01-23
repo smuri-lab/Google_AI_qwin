@@ -24,7 +24,6 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose,
   
   useEffect(() => {
     if (isOpen) {
-      setIsClosing(false);
       setSearchTerm('');
     }
   }, [isOpen]);

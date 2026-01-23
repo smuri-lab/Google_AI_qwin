@@ -15,12 +15,6 @@ interface ConfirmModalProps {
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Bestätigen', cancelText = 'Abbrechen' }) => {
   const [isClosing, setIsClosing] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      setIsClosing(false);
-    }
-  }, [isOpen]);
-
   if (!isOpen) return null;
   
   const handleClose = () => {
