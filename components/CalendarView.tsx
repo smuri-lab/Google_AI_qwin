@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback, useLayoutEffect, useTransition } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import type { TimeEntry, AbsenceRequest, Customer, Activity, Holiday, CompanySettings, HolidaysByYear, Employee } from '../types';
 import { AbsenceType } from '../types';
 import { EntryDetailModal } from './EntryDetailModal';
@@ -8,7 +8,6 @@ import { ConfirmModal } from './ui/ConfirmModal';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { PlusIcon } from './icons/PlusIcon';
-import { getAbsenceTypeDetails } from './utils';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 
 interface CalendarViewProps {
@@ -26,7 +25,53 @@ interface CalendarViewProps {
   onAddAbsenceClick: () => void;
 }
 
-// --- Helper Functions ---
+// --- Static Constants & Helpers (Zero Allocation) ---
+
+const ABSENCE_STYLES = {
+    [AbsenceType.Vacation]: {
+        label: 'Urlaub',
+        solidClass: 'bg-blue-500 text-white',
+        pendingClass: 'bg-blue-100 text-blue-700',
+        pendingBorderClass: 'border-blue-400',
+        dotClass: 'bg-blue-500',
+        bgClass: 'bg-blue-50',
+        borderClass: 'border-blue-200',
+        textClass: 'text-blue-800'
+    },
+    [AbsenceType.SickLeave]: {
+        label: 'Krank',
+        solidClass: 'bg-orange-500 text-white',
+        pendingClass: 'bg-orange-100 text-orange-700',
+        pendingBorderClass: 'border-orange-400',
+        dotClass: 'bg-orange-500',
+        bgClass: 'bg-orange-50',
+        borderClass: 'border-orange-200',
+        textClass: 'text-orange-800'
+    },
+    [AbsenceType.TimeOff]: {
+        label: 'Frei',
+        solidClass: 'bg-green-500 text-white',
+        pendingClass: 'bg-green-100 text-green-700',
+        pendingBorderClass: 'border-green-400',
+        dotClass: 'bg-green-500',
+        bgClass: 'bg-green-50',
+        borderClass: 'border-green-200',
+        textClass: 'text-green-800'
+    }
+};
+
+const DEFAULT_ABSENCE_STYLE = {
+    label: 'Abwesenheit',
+    solidClass: 'bg-gray-500 text-white',
+    pendingClass: 'bg-gray-100',
+    pendingBorderClass: 'border-gray-400',
+    dotClass: 'bg-gray-500',
+    bgClass: 'bg-gray-50',
+    borderClass: 'border-gray-200',
+    textClass: 'text-gray-800'
+};
+
+const getAbsenceStyle = (type: AbsenceType) => ABSENCE_STYLES[type] || DEFAULT_ABSENCE_STYLE;
 
 // Faster than toLocaleDateString in loops
 const toISODate = (d: Date): string => {
@@ -79,26 +124,26 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
     isHoliday, isSunday, onSelect 
 }) => {
     
+    // Compute container classes
     let containerClasses = 'relative h-12 flex items-center justify-center transition-colors duration-200';
     if (isCurrentMonth) containerClasses += ' cursor-pointer';
+    if (isCurrentMonth && !isSelected) containerClasses += ' rounded-lg hover:bg-gray-100';
+    if (isCurrentMonth && isToday && !isSelected) containerClasses += ' bg-gray-50';
+    if (isSelected) containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
 
+    // Compute number classes
     let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
-
+    
     if (isSelected) {
-        containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
         numberClasses += ' bg-blue-600 text-white';
+    } else if (!isCurrentMonth) {
+        numberClasses += ' text-gray-400';
+    } else if (isToday) {
+        numberClasses += ' text-blue-600 font-bold';
+    } else if (isHoliday || isSunday) {
+        numberClasses += ' text-red-600 font-semibold';
     } else {
-        if (isCurrentMonth) containerClasses += ' rounded-lg hover:bg-gray-100';
-        if (!isCurrentMonth) {
-            numberClasses += ' text-gray-400';
-        } else if (isToday) {
-            if (isCurrentMonth) containerClasses += ' bg-gray-50';
-            numberClasses += ' text-blue-600 font-bold';
-        } else if (isHoliday || isSunday) {
-            numberClasses += ' text-red-600 font-semibold';
-        } else {
-            numberClasses += ' text-gray-700';
-        }
+        numberClasses += ' text-gray-700';
     }
 
     if (absenceType) {
@@ -115,7 +160,7 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
     return (
         <div onClick={handleDayClick} className={containerClasses}>
             {absenceType && (() => {
-                const ui = getAbsenceTypeDetails(absenceType);
+                const ui = getAbsenceStyle(absenceType);
                 const isStart = absenceStart === dateString;
                 const isEnd = absenceEnd === dateString;
                 const isSingle = isStart && isEnd;
@@ -148,7 +193,7 @@ const CalendarDay: React.FC<CalendarDayProps> = React.memo(({
         </div>
     );
 }, (prev, next) => {
-    // strict primitive comparison
+    // Strict primitive comparison for maximum performance
     return prev.dateString === next.dateString &&
            prev.isCurrentMonth === next.isCurrentMonth &&
            prev.isSelected === next.isSelected &&
@@ -205,7 +250,7 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = React.memo(({ dateFo
     }, [dateForMonth.getFullYear(), dateForMonth.getMonth()]);
 
     return (
-        <div className="w-1/3 shrink-0 px-1">
+        <div className="w-1/3 shrink-0 px-1" style={{ contain: 'content' }}>
             <DayOfWeekHeader />
             <div className="grid grid-cols-7">
                 {daysData.map((dayItem, index) => {
@@ -216,7 +261,7 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = React.memo(({ dateFo
                     const absence = !dayItem.isCurrent ? undefined : absencesMap.get(dateStr);
                     const isHoliday = !!holidaysMap.get(dateStr);
                     
-                    const isSelected = !dayItem.isCurrent && false ? false : selectedDateString === dateStr;
+                    const isSelected = !dayItem.isCurrent ? false : selectedDateString === dateStr;
                     const isToday = dateStr === todayString;
                     const isSunday = dayItem.date.getDay() === 0;
 
@@ -269,9 +314,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const animationFrameId = useRef<number | null>(null);
   const isLocked = useRef(false);
   
-  // React 18: Use transition to mark update as non-urgent to prevent UI blocking
-  const [isPending, startTransition] = useTransition();
-
   // Constants
   const VELOCITY_THRESHOLD = 0.3; 
   const todayString = useMemo(() => toISODate(new Date()), []);
@@ -288,8 +330,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
       if (sliderRef.current) {
           sliderRef.current.style.transition = 'none';
           sliderRef.current.style.transform = 'translateX(-33.333333%)';
-          // Force layout reflow
-          void sliderRef.current.offsetWidth;
           isLocked.current = false;
       }
   }, [currentDate]);
@@ -333,10 +373,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   }, [timeEntries, absenceRequests, holidaysByYear]);
 
   const changeMonth = useCallback((offset: number) => {
-    startTransition(() => {
-        setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
-        setSelectedDateString(null);
-    });
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
+    setSelectedDateString(null);
   }, []);
   
   const handleCloseModal = () => setSelectedEntryId(null);
@@ -371,16 +409,20 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const deltaY = currentY - touchStartY.current;
 
         if (!isSwiping.current) {
-            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-                isSwiping.current = true;
-            } else if (Math.abs(deltaY) > Math.abs(deltaX)) {
+            // More aggressive vertical scroll detection
+            if (Math.abs(deltaY) > Math.abs(deltaX)) {
                 touchStartX.current = null;
                 return;
+            }
+            if (Math.abs(deltaX) > 10) {
+                isSwiping.current = true;
             }
         }
         
         if (isSwiping.current) {
-            e.preventDefault(); 
+            // Only prevent default if we are sure it's a horizontal swipe
+            if (e.cancelable) e.preventDefault(); 
+            
             if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
             animationFrameId.current = requestAnimationFrame(() => {
                 slider.style.transform = `translateX(calc(-33.333333% + ${deltaX}px)) translateZ(0)`;
@@ -425,7 +467,10 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const safetyUnlock = setTimeout(() => {
              if (isLocked.current) {
                  isLocked.current = false;
-                 if (monthChange === 0 && slider) {
+                 // If we were supposed to change month but transition failed, force it
+                 if (monthChange !== 0) {
+                     changeMonth(monthChange);
+                 } else if (slider) {
                      slider.style.transition = 'none';
                      slider.style.transform = 'translateX(-33.333333%) translateZ(0)';
                  }
@@ -437,11 +482,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             clearTimeout(safetyUnlock);
 
             if (monthChange !== 0) {
-                // IMPORTANT: Let the animation finish visually BEFORE doing the heavy react update.
-                // requestAnimationFrame pushes the work to the next paint cycle.
-                requestAnimationFrame(() => {
-                    changeMonth(monthChange);
-                });
+                // Perform state update immediately after visual transition
+                changeMonth(monthChange);
             } else {
                 if (sliderRef.current) {
                     sliderRef.current.style.transition = 'none';
@@ -558,7 +600,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
       </div>
 
       {selectedDateObject && (
-        <div ref={entriesListRef} className="animate-fade-in"><h3 className="text-lg font-bold mb-3">Einträge für den {selectedDateObject.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' })}</h3><Card><div className="space-y-3">{holidayForSelectedDay && (<div className="p-3 bg-red-50 rounded-lg border border-red-200 flex items-center"><div className="w-2.5 h-2.5 bg-red-500 rounded-full mr-3"></div><p className="font-semibold text-red-800">{holidayForSelectedDay.name} (Feiertag)</p></div>)}{absencesForSelectedDayList.map(absence => { const d = getAbsenceTypeDetails(absence.type); const dayPortionText = absence.dayPortion === 'am' ? ' (Vormittags)' : absence.dayPortion === 'pm' ? ' (Nachmittags)' : ''; return (<div key={absence.id} className={`p-3 rounded-lg border flex items-center ${d.bgClass} ${d.borderClass}`}><div className={`w-2.5 h-2.5 ${d.dotClass} rounded-full mr-3`}></div><p className={`font-semibold ${d.textClass}`}>{d.label}{dayPortionText}</p></div>);})}{entriesForSelectedDay.map(entry => {const d = (new Date(entry.end).getTime() - new Date(entry.start).getTime())/36e5-(entry.breakDurationMinutes/60); return (<button key={entry.id} onClick={()=>setSelectedEntryId(entry.id)} className="w-full p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-left hover:bg-gray-100"><div><p className="font-semibold">{activities.find(a=>a.id===entry.activityId)?.name||'N/A'}</p><p className="text-sm text-gray-600">{customers.find(c=>c.id===entry.customerId)?.name||'N/A'}</p><p className="text-xs text-gray-500 mt-1">{new Date(entry.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} - {new Date(entry.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</p></div><p className="font-bold text-lg text-blue-600">{d.toFixed(2)} h</p></button>);})}{entriesForSelectedDay.length===0 && absencesForSelectedDayList.length===0 && !holidayForSelectedDay && <p className="text-center text-gray-500 py-4">Keine Einträge für diesen Tag.</p>}</div></Card></div>
+        <div ref={entriesListRef} className="animate-fade-in"><h3 className="text-lg font-bold mb-3">Einträge für den {selectedDateObject.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' })}</h3><Card><div className="space-y-3">{holidayForSelectedDay && (<div className="p-3 bg-red-50 rounded-lg border border-red-200 flex items-center"><div className="w-2.5 h-2.5 bg-red-500 rounded-full mr-3"></div><p className="font-semibold text-red-800">{holidayForSelectedDay.name} (Feiertag)</p></div>)}{absencesForSelectedDayList.map(absence => { const d = getAbsenceStyle(absence.type); const dayPortionText = absence.dayPortion === 'am' ? ' (Vormittags)' : absence.dayPortion === 'pm' ? ' (Nachmittags)' : ''; return (<div key={absence.id} className={`p-3 rounded-lg border flex items-center ${d.bgClass} ${d.borderClass}`}><div className={`w-2.5 h-2.5 ${d.dotClass} rounded-full mr-3`}></div><p className={`font-semibold ${d.textClass}`}>{d.label}{dayPortionText}</p></div>);})}{entriesForSelectedDay.map(entry => {const d = (new Date(entry.end).getTime() - new Date(entry.start).getTime())/36e5-(entry.breakDurationMinutes/60); return (<button key={entry.id} onClick={()=>setSelectedEntryId(entry.id)} className="w-full p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-left hover:bg-gray-100"><div><p className="font-semibold">{activities.find(a=>a.id===entry.activityId)?.name||'N/A'}</p><p className="text-sm text-gray-600">{customers.find(c=>c.id===entry.customerId)?.name||'N/A'}</p><p className="text-xs text-gray-500 mt-1">{new Date(entry.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} - {new Date(entry.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</p></div><p className="font-bold text-lg text-blue-600">{d.toFixed(2)} h</p></button>);})}{entriesForSelectedDay.length===0 && absencesForSelectedDayList.length===0 && !holidayForSelectedDay && <p className="text-center text-gray-500 py-4">Keine Einträge für diesen Tag.</p>}</div></Card></div>
       )}
 
       <Card>
@@ -593,7 +635,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                         <div key={req.id} className="p-3 bg-gray-50 rounded-lg border">
                           <div className="flex justify-between items-start gap-2">
                             <div>
-                              <p className="font-semibold">{getAbsenceTypeDetails(req.type).label}</p>
+                              <p className="font-semibold">{getAbsenceStyle(req.type).label}</p>
                               <p className="text-sm text-gray-600">{dateText}</p>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">
