@@ -65,7 +65,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const sliderRef = useRef<HTMLDivElement>(null); 
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
-  const touchStartTime = useRef<number>(0); // Track time for velocity
+  const touchStartTime = useRef<number>(0); 
   
   const isSwiping = useRef(false);
   const isLocked = useRef(false);
@@ -150,18 +150,16 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const deltaY = currentY - touchStartY.current;
 
         if (!isSwiping.current) {
-            // Check if user is scrolling vertically or swiping horizontally
             if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
                 isSwiping.current = true;
             } else if (Math.abs(deltaY) > Math.abs(deltaX)) {
-                // Vertical scroll, ignore this swipe
                 touchStartX.current = null;
                 return;
             }
         }
         
         if (isSwiping.current) {
-            e.preventDefault(); // Stop scrolling
+            e.preventDefault(); 
             setTouchDeltaX(deltaX);
         }
     };
@@ -180,37 +178,28 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const touchEndTime = Date.now();
         const timeElapsed = touchEndTime - touchStartTime.current;
         
-        // Velocity Check: fast flick (> 0.3px/ms)
         const velocity = Math.abs(deltaX) / timeElapsed;
         const isFastSwipe = velocity > 0.3 && Math.abs(deltaX) > 20;
         const isLongSwipe = Math.abs(deltaX) > (width * 0.25);
 
-        // Lock interaction during animation
         isLocked.current = true;
-        
-        // Enable CSS transition explicitly
         setIsTransitioning(true); 
 
         let targetDelta = 0;
 
         if (isFastSwipe || isLongSwipe) {
             if (deltaX > 0) {
-                // Previous Month
                 targetDelta = width;
                 pendingMonthChange.current = -1;
             } else {
-                // Next Month
                 targetDelta = -width;
                 pendingMonthChange.current = 1;
             }
         } else {
-            // Revert (stay)
             targetDelta = 0;
             pendingMonthChange.current = 0;
         }
 
-        // Use Double rAF to ensure the transition class is applied by the browser
-        // BEFORE setting the new coordinates. This fixes the "instant jump" on fast flicks.
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 setTouchDeltaX(targetDelta);
@@ -221,7 +210,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         isSwiping.current = false;
     };
 
-    // Use passive: false for touchmove to allow preventing default scroll
     node.addEventListener('touchstart', handleTouchStart, { passive: true });
     node.addEventListener('touchmove', handleTouchMove, { passive: false });
     node.addEventListener('touchend', handleTouchEnd);
@@ -236,30 +224,21 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   }, []);
 
   const finishTransition = useCallback(() => {
-      // 1. Disable transition immediately so the snap-back is instant
       setIsTransitioning(false);
-      
-      // 2. Snap position back to center (0)
       setTouchDeltaX(0);
-      
-      // 3. Apply the data change (if any)
       if (pendingMonthChange.current !== 0) {
           changeMonth(pendingMonthChange.current);
           pendingMonthChange.current = 0;
       }
-      
-      // 4. Unlock interaction
       isLocked.current = false;
   }, [changeMonth]);
 
   const onTransitionEnd = useCallback((e: React.TransitionEvent) => {
       if (e.target !== sliderRef.current) return;
       if (e.propertyName !== 'transform') return;
-      
       finishTransition();
   }, [finishTransition]);
 
-  // Safety fallback
   useEffect(() => {
       if (isLocked.current && isTransitioning) {
           const timer = setTimeout(() => {
@@ -288,13 +267,16 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 const entriesForDay = isDifferentMonth ? [] : timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === dayString);
                 const holidaysForThisDay = holidaysByYear[day.getFullYear()] || [];
                 const holiday = holidaysForThisDay.find(h => h.date === dayString);
-                const isSelected = isInteractive && !isDifferentMonth && selectedDate?.toLocaleDateString('sv-SE') === dayString;
+                
+                // FIX: Highlight should appear on all grids if it matches the selected date
+                const isSelected = !isDifferentMonth && selectedDate?.toLocaleDateString('sv-SE') === dayString;
+                
                 const isToday = day.toDateString() === today.toDateString();
                 const dayOfWeek = day.getDay();
                 const isSunday = dayOfWeek === 0;
 
                 let containerClasses = 'relative h-12 flex items-center justify-center transition-colors duration-200';
-                if (isInteractive && !isDifferentMonth) containerClasses += ' cursor-pointer';
+                if (!isDifferentMonth) containerClasses += ' cursor-pointer';
 
                 let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
 
@@ -302,16 +284,18 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                     containerClasses += ' ring-2 ring-blue-400 z-10 rounded-lg';
                     numberClasses += ' bg-blue-600 text-white';
                 } else {
-                    if (isInteractive && !isDifferentMonth) containerClasses += ' rounded-lg hover:bg-gray-100';
+                    if (!isDifferentMonth) containerClasses += ' rounded-lg hover:bg-gray-100';
                     if (isDifferentMonth) {
                         numberClasses += ' text-gray-400';
                     } else if (isToday) {
-                        if (isInteractive) containerClasses += ' bg-gray-50';
+                        if (!isDifferentMonth) containerClasses += ' bg-gray-50';
                         numberClasses += ' text-blue-600 font-bold';
                     } else if (holiday || isSunday) {
-                        numberClasses += isInteractive ? ' text-red-600 font-semibold' : ' text-red-300';
+                        // FIX: Ensure red color is consistent across all grids
+                        numberClasses += ' text-red-600 font-semibold';
                     } else {
-                        numberClasses += isInteractive ? ' text-gray-700' : ' text-gray-400';
+                        // FIX: Ensure dark color is consistent across all grids, not just interactive one
+                        numberClasses += ' text-gray-700';
                     }
                 }
 
@@ -321,7 +305,11 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 }
                 
                 return (
-                    <div key={index} onClick={() => isInteractive && !isDifferentMonth && setSelectedDate(day)} className={containerClasses}>
+                    <div 
+                        key={index} 
+                        onClick={() => isInteractive && !isDifferentMonth && setSelectedDate(day)} 
+                        className={containerClasses}
+                    >
                         {absenceForDay && (() => {
                             const ui = getAbsenceTypeDetails(absenceForDay.type);
                             const isStart = absenceForDay.startDate === dayString;
@@ -331,9 +319,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                             const isHalfDay = absenceForDay.dayPortion && absenceForDay.dayPortion !== 'full';
                             
                             let pillStyle: React.CSSProperties = {};
+                            // FIX: Remove opacity reduction for non-interactive grids to prevent flickering
                             let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-8 flex items-center justify-center text-xs font-bold z-0 `;
-                            if (!isInteractive) pillClasses += ' opacity-50';
-
+                            
                             if (isPending) {
                                 pillClasses += `${ui.pendingClass} border-dashed ${ui.pendingBorderClass}`;
                                 if (isSingle) { pillClasses += ' border-2 rounded-lg mx-0.5'; } 
@@ -352,7 +340,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                         })()}
                         <span className={numberClasses}>{day.getDate()}</span>
                         <div className="absolute bottom-1 flex items-center justify-center space-x-1 h-1.5">
-                            {entriesForDay.length > 0 && !absenceForDay && <div className={`w-1.5 h-1.5 bg-green-500 rounded-full ${!isInteractive ? 'opacity-50' : ''}`}></div>}
+                            {entriesForDay.length > 0 && !absenceForDay && <div className={`w-1.5 h-1.5 bg-green-500 rounded-full`}></div>}
                         </div>
                     </div>
                 );
