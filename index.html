@@ -23,16 +23,27 @@
       
       html, body {
         height: 100%;
+        width: 100%;
         margin: 0;
         padding: 0;
-        /* PREVENT WHOLE PAGE BOUNCE/OVERSCROLL */
-        overscroll-behavior-y: none;
+        /* CRITICAL: Disable window scrolling entirely */
+        overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
       }
 
       #root {
-        min-height: 100%;
+        height: 100%;
+        width: 100%;
         display: flex;
         flex-direction: column;
+      }
+      
+      /* Utility to ensure main content scrolls smoothly */
+      .scroll-container {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
       }
       
       /* PREVENT INPUT LAYOUT SHIFTS */

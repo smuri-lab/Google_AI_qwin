@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { CalendarView } from './components/CalendarView';
 import { AdminView } from './components/AdminView';
@@ -188,33 +188,15 @@ const App: React.FC = () => {
   const [stopwatchComment, setStopwatchComment] = useState('');
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const intervalRef = React.useRef<number | null>(null);
+  const mainScrollRef = useRef<HTMLDivElement>(null);
 
-  // FORCE SCROLL RESET on view changes
+  // SCROLL RESET - Targeted at the internal container
   useLayoutEffect(() => {
-    // 1. Disable browser's automatic scroll restoration to prevent it from remembering the position
-    if ('scrollRestoration' in window.history) {
-      window.history.scrollRestoration = 'manual';
+    if (mainScrollRef.current) {
+        mainScrollRef.current.scrollTop = 0;
     }
-
-    const resetScroll = () => {
-      // Use 'instant' behavior where supported, otherwise standard scrollTo
-      // @ts-ignore
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      document.body.scrollTop = 0;
-      document.documentElement.scrollTop = 0;
-    };
-
-    // 2. Reset immediately
-    resetScroll();
-
-    // 3. Reset again slightly later to override any mobile browser async layout shifts
-    const t1 = setTimeout(resetScroll, 10);
-    const t2 = setTimeout(resetScroll, 100);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
+    // Also reset window scroll just in case, though overflow:hidden on body should prevent it
+    window.scrollTo(0, 0);
   }, [loggedInUser, currentView, adminViewMode]);
 
   useEffect(() => {
@@ -753,22 +735,28 @@ const App: React.FC = () => {
   };
 
   if (!loggedInUser) {
-    const hasAdmin = employees.some(e => e.role === 'admin');
-    if (authView === 'login' && hasAdmin) {
-      return <LoginScreen onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} employees={employees} />;
-    } else {
-      return <RegistrationScreen onRegister={handleRegister} onSwitchToLogin={() => setAuthView('login')} />;
-    }
+    // Only the outer container scrolls for login
+    return (
+        <div className="h-[100dvh] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
+            {authView === 'login' && employees.some(e => e.role === 'admin') ? (
+                <LoginScreen onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} employees={employees} />
+            ) : (
+                <RegistrationScreen onRegister={handleRegister} onSwitchToLogin={() => setAuthView('login')} />
+            )}
+        </div>
+    );
   }
 
+  // APP LAYOUT with Scroll Container
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col">
-      <header className="bg-white shadow-md sticky top-0 z-30">
+    <div className="h-[100dvh] bg-gray-50 text-gray-800 flex flex-col overflow-hidden">
+      {/* Header is fixed by flex layout, no sticky needed */}
+      <header className="flex-none bg-white shadow-md z-30 relative">
         <div className={`${isDisplayingAdminView ? 'max-w-8xl' : 'max-w-7xl'} mx-auto px-4 py-4 flex justify-between items-center`}>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 truncate pr-2">
              {isDisplayingAdminView ? 'Admin-Dashboard' : `Hallo, ${loggedInUser.firstName}`}
           </h1>
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             {isDisplayingAdminView && (
               <>
                 <button
@@ -806,7 +794,12 @@ const App: React.FC = () => {
           </div>
         </div>
       </header>
-      <main className={`flex-grow ${isDisplayingAdminView ? '' : 'max-w-7xl'} w-full mx-auto p-4 ${!isDisplayingAdminView ? 'pb-24' : ''} isolate`}>
+
+      {/* Main Scrollable Area */}
+      <main 
+        ref={mainScrollRef}
+        className={`flex-1 overflow-y-auto overflow-x-hidden scroll-container w-full ${isDisplayingAdminView ? '' : 'max-w-7xl mx-auto'} p-4 ${!isDisplayingAdminView ? 'pb-24' : ''} isolate`}
+      >
         {isDisplayingAdminView ? (
           <AdminView 
             loggedInUser={loggedInUser}
@@ -850,6 +843,7 @@ const App: React.FC = () => {
           renderEmployeeView()
         )}
       </main>
+
       {!isDisplayingAdminView && loggedInUser && (
         <BottomNav 
           currentView={currentView} 
