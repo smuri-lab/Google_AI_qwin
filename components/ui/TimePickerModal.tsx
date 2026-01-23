@@ -29,7 +29,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
   const [selectedHour, setSelectedHour] = useState('08');
   const [selectedMinute, setSelectedMinute] = useState('00');
   const [isClosing, setIsClosing] = useState(false);
-  const [animationKey, setAnimationKey] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
   
   const hourRef = useRef<HTMLDivElement>(null);
   const minuteRef = useRef<HTMLDivElement>(null);
@@ -37,8 +37,10 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
   // Initialisierung und Reset des Closing-Status
   useEffect(() => {
     if (isOpen) {
-      setIsClosing(false); // Reset closing animation state on open
-      setAnimationKey(prev => prev + 1); // Force re-render for animation
+      setIsClosing(false);
+      // Trigger animation after mount
+      const timer = setTimeout(() => setIsVisible(true), 10);
+      
       const [h, m] = (initialTime || '08:00').split(':');
       setSelectedHour(h);
       setSelectedMinute(m);
@@ -47,6 +49,8 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
         if (hourRef.current) hourRef.current.scrollTop = parseInt(h, 10) * ITEM_HEIGHT;
         if (minuteRef.current) minuteRef.current.scrollTop = parseInt(m, 10) * ITEM_HEIGHT;
       }, 50);
+      
+      return () => clearTimeout(timer);
     }
   }, [isOpen, initialTime]);
 
@@ -86,12 +90,11 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
 
   return (
     <div 
-      key={animationKey}
-      className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} 
+      className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} 
       onClick={handleClose}
     >
       <Card 
-        className={`w-full max-w-xs bg-white rounded-xl shadow-2xl overflow-hidden ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} 
+        className={`w-full max-w-xs bg-white rounded-xl shadow-2xl overflow-hidden ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} 
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-4 border-b border-gray-100">

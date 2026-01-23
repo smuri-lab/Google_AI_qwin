@@ -10,11 +10,12 @@ interface ActionSheetProps {
 
 export const ActionSheet: React.FC<ActionSheetProps> = ({ onClose, onSelect }) => {
   const [isClosing, setIsClosing] = useState(false);
-  const [animationKey, setAnimationKey] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     // This component is always open when rendered, so we trigger animation on mount.
-    setAnimationKey(prev => prev + 1);
+    const timer = setTimeout(() => setIsVisible(true), 10);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleClose = () => {
@@ -28,9 +29,9 @@ export const ActionSheet: React.FC<ActionSheetProps> = ({ onClose, onSelect }) =
   };
 
   return (
-    <div key={animationKey} className={`fixed inset-0 bg-black flex items-end justify-center z-40 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+    <div className={`fixed inset-0 bg-black flex items-end justify-center z-40 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} onClick={handleClose}>
       <div 
-        className={`w-full max-w-md bg-white rounded-t-2xl shadow-lg p-4 ${isClosing ? 'animate-slide-down-sheet' : 'animate-slide-up'}`}
+        className={`w-full max-w-md bg-white rounded-t-2xl shadow-lg p-4 ${isClosing ? 'animate-slide-down-sheet' : (isVisible ? 'animate-slide-up' : 'translate-y-full')}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">

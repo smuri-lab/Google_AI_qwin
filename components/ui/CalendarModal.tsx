@@ -41,12 +41,14 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
   const [range, setRange] = useState<{ start: Date | null, end: Date | null }>({ start: null, end: null });
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
   const [isClosing, setIsClosing] = useState(false);
-  const [animationKey, setAnimationKey] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setIsClosing(false); // Reset closing animation state on open
-      setAnimationKey(prev => prev + 1); // Force re-render for animation
+      setIsClosing(false);
+      // Trigger animation after mount
+      const timer = setTimeout(() => setIsVisible(true), 10);
+      
       const start = initialStartDate ? new Date(initialStartDate) : null;
       let end = initialEndDate ? new Date(initialEndDate) : null;
       if (selectionMode === 'single' && start) {
@@ -56,6 +58,8 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
       if (end) end.setHours(12, 0, 0, 0);
       setRange({ start, end });
       setCurrentMonthDate(start || new Date());
+      
+      return () => clearTimeout(timer);
     }
   }, [isOpen, initialStartDate, initialEndDate, selectionMode]);
 
@@ -118,8 +122,8 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
   }
 
   return (
-    <div key={animationKey} className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
-      <Card className={`w-full max-w-sm ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} onClick={handleClose}>
+      <Card className={`w-full max-w-sm ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center pb-4 border-b">
           <h2 className="text-xl font-bold">{title}</h2>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600"><XIcon className="h-6 w-6" /></button>

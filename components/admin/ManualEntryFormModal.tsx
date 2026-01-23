@@ -30,12 +30,13 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
     initialDate,
 }) => {
     const [isClosing, setIsClosing] = useState(false);
-    const [animationKey, setAnimationKey] = useState(0);
+    const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
-            setIsClosing(false); // Reset closing animation state on open
-            setAnimationKey(prev => prev + 1); // Force re-render for animation
+            setIsClosing(false);
+            const timer = setTimeout(() => setIsVisible(true), 10);
+            return () => clearTimeout(timer);
         }
     }, [isOpen]);
 
@@ -47,8 +48,8 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
     };
 
     return (
-        <div key={animationKey} className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`}>
-            <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+        <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`}>
+            <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
                 <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
                     <XIcon className="h-6 w-6" />
                 </button>
