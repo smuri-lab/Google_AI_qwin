@@ -63,6 +63,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const isSwiping = useRef(false);
+  const isLocked = useRef(false); // Lock interaction during animation
   const [touchDeltaX, setTouchDeltaX] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const swipeContainerRef = useRef<HTMLDivElement>(null);
@@ -127,6 +128,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (isLocked.current) return; // Prevent interaction during animation
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
     isSwiping.current = false;
@@ -139,6 +141,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     if (!node) return;
 
     const handleTouchMove = (e: TouchEvent) => {
+        if (isLocked.current) return;
         if (!touchStartX.current || !touchStartY.current) return;
         const deltaX = e.touches[0].clientX - touchStartX.current;
         const deltaY = e.touches[0].clientY - touchStartY.current;
@@ -160,6 +163,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
+        if (isLocked.current) return;
         if (!touchStartX.current || !isSwiping.current) {
             touchStartX.current = null;
             touchStartY.current = null;
@@ -168,19 +172,33 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         }
         
         const finalDeltaX = e.changedTouches[0].clientX - touchStartX.current;
-        setIsTransitioning(true);
         const SWIPE_THRESHOLD = 60;
         const calendarWidth = node.offsetWidth;
+        
+        setIsTransitioning(true);
+        isLocked.current = true; // Lock interactions
+
+        let targetDelta = 0;
+        let action: (() => void) | null = null;
 
         if (finalDeltaX > SWIPE_THRESHOLD) {
-          setTouchDeltaX(calendarWidth); 
-          setTimeout(() => { changeMonth(-1); setIsTransitioning(false); setTouchDeltaX(0); }, SWIPE_ANIMATION_DURATION);
+          targetDelta = calendarWidth;
+          action = () => changeMonth(-1);
         } else if (finalDeltaX < -SWIPE_THRESHOLD) {
-          setTouchDeltaX(-calendarWidth);
-          setTimeout(() => { changeMonth(1); setIsTransitioning(false); setTouchDeltaX(0); }, SWIPE_ANIMATION_DURATION);
+          targetDelta = -calendarWidth;
+          action = () => changeMonth(1);
         } else {
-          setTouchDeltaX(0);
+          targetDelta = 0;
         }
+        
+        setTouchDeltaX(targetDelta);
+
+        setTimeout(() => { 
+            if (action) action(); 
+            setIsTransitioning(false); 
+            setTouchDeltaX(0); 
+            isLocked.current = false; // Unlock interactions
+        }, SWIPE_ANIMATION_DURATION);
         
         touchStartX.current = null;
         touchStartY.current = null;
