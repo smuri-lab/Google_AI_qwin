@@ -101,6 +101,30 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // OPTIMIZATION: Pre-calculate data maps for fast O(1) lookup during render loop
+  const { entriesMap, absencesMap, holidaysMap } = useMemo(() => {
+      const eMap = new Map<string, TimeEntry[]>();
+      timeEntries.forEach(entry => {
+          const dateStr = new Date(entry.start).toLocaleDateString('sv-SE');
+          if (!eMap.has(dateStr)) eMap.set(dateStr, []);
+          eMap.get(dateStr)!.push(entry);
+      });
+
+      // For absences, we iterate days since they span ranges. 
+      // Optimized for typical viewing range (current year +/- 1) could be better, 
+      // but for now we just map the relevant ones for the view.
+      // Since generateMonthDays is called inside render, we can't limit the map easily here without logic duplication.
+      // Instead, we filter the absenceRequests list to only 'active' ones once.
+      const activeAbsences = absenceRequests.filter(r => r.status !== 'rejected');
+
+      const hMap = new Map<string, Holiday>();
+      (Object.values(holidaysByYear).flat() as Holiday[]).forEach(h => {
+          hMap.set(h.date, h);
+      });
+
+      return { entriesMap: eMap, absencesMap: activeAbsences, holidaysMap: hMap };
+  }, [timeEntries, absenceRequests, holidaysByYear]);
+
   const generateMonthDays = (date: Date): Date[] => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -165,22 +189,18 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const deltaY = currentY - touchStartY.current;
 
         if (!isSwiping.current) {
-            // Check if user is scrolling vertically or swiping horizontally
             if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
                 isSwiping.current = true;
             } else if (Math.abs(deltaY) > Math.abs(deltaX)) {
-                // Vertical scroll, ignore this swipe
                 touchStartX.current = null;
                 return;
             }
         }
         
         if (isSwiping.current) {
-            e.preventDefault(); // Stop scrolling
-            // Using requestAnimationFrame for smoother visual updates during drag
+            e.preventDefault(); 
             if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
             animationFrameId.current = requestAnimationFrame(() => {
-                // Base position is -33.333333% (center)
                 slider.style.transform = `translateX(calc(-33.333333% + ${deltaX}px))`;
             });
         }
@@ -202,50 +222,44 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const isFastSwipe = velocity > VELOCITY_THRESHOLD && Math.abs(deltaX) > 20;
         const isLongSwipe = Math.abs(deltaX) > (width * 0.25);
 
-        // Lock interaction during animation
         isLocked.current = true;
 
-        // Determine snap target
-        let targetPercent = -33.333333; // Default stay
+        let targetPercent = -33.333333; 
         let monthChange = 0;
 
         if ((isFastSwipe || isLongSwipe) && deltaX > 0) {
-            // Swipe Right -> Prev Month (move slider to 0%)
-            targetPercent = 0;
+            targetPercent = 0; // Prev Month
             monthChange = -1;
         } else if ((isFastSwipe || isLongSwipe) && deltaX < 0) {
-            // Swipe Left -> Next Month (move slider to -66%)
-            targetPercent = -66.666666;
+            targetPercent = -66.666666; // Next Month
             monthChange = 1;
         }
 
-        // Apply transition
-        slider.style.transition = 'transform 300ms cubic-bezier(0.1, 0.9, 0.2, 1)';
+        slider.style.transition = 'transform 250ms cubic-bezier(0.1, 0.9, 0.2, 1)';
         slider.style.transform = `translateX(${targetPercent}%)`;
 
-        const handleTransitionEnd = () => {
-            // If data needs to change, update state.
-            // The useLayoutEffect hook will handle the visual reset to -33% instantly after render.
+        const handleTransitionEnd = (evt: TransitionEvent) => {
+            // CRITICAL FIX: Only react to the slider's transform transition, not children bubbling up
+            if (evt.target !== slider || evt.propertyName !== 'transform') return;
+
             if (monthChange !== 0) {
                 changeMonth(monthChange);
             } else {
-                // If NO change, we must reset manually because useLayoutEffect won't fire (no state change)
                 if (sliderRef.current) {
                     sliderRef.current.style.transition = 'none';
                     sliderRef.current.style.transform = 'translateX(-33.333333%)';
                     isLocked.current = false;
                 }
             }
-            slider.removeEventListener('transitionend', handleTransitionEnd);
+            slider.removeEventListener('transitionend', handleTransitionEnd as EventListener);
         };
         
-        slider.addEventListener('transitionend', handleTransitionEnd);
+        slider.addEventListener('transitionend', handleTransitionEnd as EventListener);
 
         touchStartX.current = null;
         isSwiping.current = false;
     };
 
-    // Use passive: false for touchmove to allow preventing default scroll
     node.addEventListener('touchstart', handleTouchStart, { passive: true });
     node.addEventListener('touchmove', handleTouchMove, { passive: false });
     node.addEventListener('touchend', handleTouchEnd);
@@ -258,10 +272,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         node.removeEventListener('touchcancel', handleTouchEnd);
         if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
     };
-  }, [changeMonth]); // Dependencies
+  }, [changeMonth]);
 
   
-  // Helper to optimize rendering
   const renderMonthGrid = useCallback((dateForMonth: Date) => {
     const daysInMonth = generateMonthDays(dateForMonth);
     const currentDisplayMonth = dateForMonth.getMonth();
@@ -273,11 +286,14 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
               {daysInMonth.map((day, index) => {
                 const isDifferentMonth = day.getMonth() !== currentDisplayMonth;
                 const dayString = day.toLocaleDateString('sv-SE');
-                const absencesForDay = isDifferentMonth ? [] : absenceRequests.filter(a => dayString >= a.startDate && dayString <= a.endDate && a.status !== 'rejected');
+                
+                // Optimized Data Access using Maps
+                const entriesForDay = !isDifferentMonth ? (entriesMap.get(dayString) || []) : [];
+                // Absences still filter, but list is pre-filtered for 'rejected'. 
+                // For extremely large datasets, we'd spatially index this too, but < 100 requests is fine.
+                const absencesForDay = !isDifferentMonth ? absencesMap.filter(a => dayString >= a.startDate && dayString <= a.endDate) : [];
                 const absenceForDay = absencesForDay.find(a => a.status === 'pending') || absencesForDay[0];
-                const entriesForDay = isDifferentMonth ? [] : timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === dayString);
-                const holidaysForThisDay = holidaysByYear[day.getFullYear()] || [];
-                const holiday = holidaysForThisDay.find(h => h.date === dayString);
+                const holiday = holidaysMap.get(dayString);
                 
                 const isSelected = !isDifferentMonth && selectedDate?.toLocaleDateString('sv-SE') === dayString;
                 
@@ -355,16 +371,15 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             </div>
         </div>
     );
-  }, [absenceRequests, timeEntries, holidaysByYear, selectedDate]);
+  }, [entriesMap, absencesMap, holidaysMap, selectedDate]);
 
   const prevMonthDate = useMemo(() => new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1), [currentDate]);
   const nextMonthDate = useMemo(() => new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1), [currentDate]);
 
   const selectedDateString = selectedDate?.toLocaleDateString('sv-SE');
-  const holidaysForSelectedDayMonth = holidaysByYear[selectedDate?.getFullYear() || currentDate.getFullYear()] || [];
-  const entriesForSelectedDay = useMemo(() => selectedDateString ? timeEntries.filter(e => new Date(e.start).toLocaleDateString('sv-SE') === selectedDateString).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()) : [], [selectedDateString, timeEntries]);
-  const absencesForSelectedDay = useMemo(() => selectedDateString ? absenceRequests.filter(a => selectedDateString >= a.startDate && selectedDateString <= a.endDate && a.status === 'approved') : [], [selectedDateString, absenceRequests]);
-  const holidayForSelectedDay = useMemo(() => selectedDateString ? holidaysForSelectedDayMonth.find(h => h.date === selectedDateString) : null, [selectedDateString, holidaysForSelectedDayMonth]);
+  const entriesForSelectedDay = useMemo(() => selectedDateString ? (entriesMap.get(selectedDateString) || []).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()) : [], [selectedDateString, entriesMap]);
+  const absencesForSelectedDay = useMemo(() => selectedDateString ? absencesMap.filter(a => selectedDateString >= a.startDate && selectedDateString <= a.endDate && a.status === 'approved') : [], [selectedDateString, absencesMap]);
+  const holidayForSelectedDay = useMemo(() => selectedDateString ? holidaysMap.get(selectedDateString) : null, [selectedDateString, holidaysMap]);
 
   const groupedRequests = useMemo(() => {
     const groups: { [year: string]: AbsenceRequest[] } = {};
@@ -391,7 +406,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         <div 
           ref={swipeContainerRef}
           className="overflow-hidden relative touch-pan-y" 
-          style={{ touchAction: 'pan-y' }} // Let browser handle vertical scroll, we handle horizontal
+          style={{ touchAction: 'pan-y' }}
         >
             <div
                 ref={sliderRef}
