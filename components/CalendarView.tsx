@@ -62,9 +62,11 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   
   // Touch / Animation state
   const swipeContainerRef = useRef<HTMLDivElement>(null);
-  const sliderRef = useRef<HTMLDivElement>(null); // Ref for the moving element
+  const sliderRef = useRef<HTMLDivElement>(null); 
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const touchStartTime = useRef<number>(0); // Track time for velocity
+  
   const isSwiping = useRef(false);
   const isLocked = useRef(false);
   const pendingMonthChange = useRef<number>(0);
@@ -134,8 +136,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         if (isLocked.current) return;
         touchStartX.current = e.touches[0].clientX;
         touchStartY.current = e.touches[0].clientY;
+        touchStartTime.current = Date.now();
         isSwiping.current = false;
-        setIsTransitioning(false); // Ensure no transition during drag
+        setIsTransitioning(false); 
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -166,7 +169,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     const handleTouchEnd = (e: TouchEvent) => {
         if (isLocked.current || touchStartX.current === null) return;
         
-        // If we were not swiping (just a tap), reset and return
         if (!isSwiping.current) {
             touchStartX.current = null;
             return;
@@ -175,25 +177,45 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const currentX = e.changedTouches[0].clientX;
         const deltaX = currentX - touchStartX.current;
         const width = node.offsetWidth;
-        const threshold = width * 0.25; // 25% threshold
+        const touchEndTime = Date.now();
+        const timeElapsed = touchEndTime - touchStartTime.current;
+        
+        // Velocity Check: fast flick (> 0.3px/ms)
+        const velocity = Math.abs(deltaX) / timeElapsed;
+        const isFastSwipe = velocity > 0.3 && Math.abs(deltaX) > 20;
+        const isLongSwipe = Math.abs(deltaX) > (width * 0.25);
 
         // Lock interaction during animation
         isLocked.current = true;
-        setIsTransitioning(true); // Enable CSS transition
+        
+        // Enable CSS transition explicitly
+        setIsTransitioning(true); 
 
-        if (deltaX > threshold) {
-            // Swipe Right -> Previous Month
-            setTouchDeltaX(width);
-            pendingMonthChange.current = -1;
-        } else if (deltaX < -threshold) {
-            // Swipe Left -> Next Month
-            setTouchDeltaX(-width);
-            pendingMonthChange.current = 1;
+        let targetDelta = 0;
+
+        if (isFastSwipe || isLongSwipe) {
+            if (deltaX > 0) {
+                // Previous Month
+                targetDelta = width;
+                pendingMonthChange.current = -1;
+            } else {
+                // Next Month
+                targetDelta = -width;
+                pendingMonthChange.current = 1;
+            }
         } else {
-            // Revert (didn't move enough)
-            setTouchDeltaX(0);
+            // Revert (stay)
+            targetDelta = 0;
             pendingMonthChange.current = 0;
         }
+
+        // Use Double rAF to ensure the transition class is applied by the browser
+        // BEFORE setting the new coordinates. This fixes the "instant jump" on fast flicks.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                setTouchDeltaX(targetDelta);
+            });
+        });
 
         touchStartX.current = null;
         isSwiping.current = false;
@@ -231,20 +253,17 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   }, [changeMonth]);
 
   const onTransitionEnd = useCallback((e: React.TransitionEvent) => {
-      // CRITICAL FIX: Only handle transitions originating from the slider itself.
-      // This prevents bubbling events (like color transitions on dates) from triggering the swipe logic.
       if (e.target !== sliderRef.current) return;
       if (e.propertyName !== 'transform') return;
       
       finishTransition();
   }, [finishTransition]);
 
-  // Safety fallback: if transitionEnd doesn't fire (e.g. tab backgrounded), unlock after timeout
+  // Safety fallback
   useEffect(() => {
       if (isLocked.current && isTransitioning) {
           const timer = setTimeout(() => {
               if (isLocked.current) {
-                  // console.warn("Transition timeout safety triggered");
                   finishTransition();
               }
           }, SWIPE_ANIMATION_DURATION + 150);
