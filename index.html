@@ -2,7 +2,7 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Zeiterfassungssystem</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -20,6 +20,21 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #555;
       }
+      
+      /* PREVENT INPUT LAYOUT SHIFTS */
+      /* Hide IE/Edge clear and reveal buttons */
+      input::-ms-clear,
+      input::-ms-reveal {
+        display: none;
+      }
+      /* Hide Chrome/Safari search cancel button */
+      input::-webkit-search-decoration,
+      input::-webkit-search-cancel-button,
+      input::-webkit-search-results-button,
+      input::-webkit-search-results-decoration {
+        display: none;
+      }
+      
       /* Animation for general content fade-in */
       @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
