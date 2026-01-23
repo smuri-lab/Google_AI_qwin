@@ -129,17 +129,17 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
         {dashboardType === 'standard' && (
           <Card className="text-center !p-2 sm:!p-4">
             <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Stundenkonto</h3>
-            <p className={`text-xl sm:text-2xl font-bold ${timeBalanceColor} whitespace-nowrap`}>{formattedTimeBalance}</p>
+            <p className={`text-lg sm:text-xl font-bold ${timeBalanceColor} whitespace-nowrap`}>{formattedTimeBalance}</p>
           </Card>
         )}
         <Card className="text-center !p-2 sm:!p-4">
             <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Ist-Stunden</h3>
-            <p className="text-xl sm:text-2xl font-bold text-gray-800 whitespace-nowrap">{formattedWorkedHours}</p>
+            <p className="text-lg sm:text-xl font-bold text-gray-800 whitespace-nowrap">{formattedWorkedHours}</p>
         </Card>
         <Card className="text-center !p-2 sm:!p-4">
           <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Urlaub</h3>
            <div className="flex items-center justify-center gap-1.5">
-            <p className="text-xl sm:text-2xl font-bold text-green-600 whitespace-nowrap">{userAccount.vacationDaysLeft} Tage</p>
+            <p className="text-lg sm:text-xl font-bold text-green-600 whitespace-nowrap">{userAccount.vacationDaysLeft} Tage</p>
             {showCarryoverWarning && (
               <button
                 type="button"
