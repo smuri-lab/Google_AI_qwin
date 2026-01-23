@@ -60,10 +60,13 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const [isRequestsExpanded, setIsRequestsExpanded] = useState(false);
   const entriesListRef = useRef<HTMLDivElement>(null);
   
+  // Touch handling refs
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const isSwiping = useRef(false);
-  const isLocked = useRef(false); // Lock interaction during animation
+  const isLocked = useRef(false); 
+  const animationTimeoutRef = useRef<number | null>(null);
+  
   const [touchDeltaX, setTouchDeltaX] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const swipeContainerRef = useRef<HTMLDivElement>(null);
@@ -77,6 +80,13 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     if (currentDate.getMonth() === 11) yearsToEnsure.add(currentDate.getFullYear() + 1);
     yearsToEnsure.forEach(year => onEnsureHolidaysForYear(year));
   }, [currentDate, onEnsureHolidaysForYear]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+      return () => {
+          if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
+      };
+  }, []);
 
   const selectedEntry = useMemo(() => {
     return selectedEntryId ? timeEntries.find(e => e.id === selectedEntryId) : null;
@@ -127,29 +137,34 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     }
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (isLocked.current) return; // Prevent interaction during animation
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    isSwiping.current = false;
-    setTouchDeltaX(0);
-    setIsTransitioning(false);
-  };
-
   useEffect(() => {
     const node = swipeContainerRef.current;
     if (!node) return;
 
+    const handleTouchStart = (e: TouchEvent) => {
+        if (isLocked.current) return;
+        touchStartX.current = e.touches[0].clientX;
+        touchStartY.current = e.touches[0].clientY;
+        isSwiping.current = false;
+        setTouchDeltaX(0);
+        setIsTransitioning(false);
+    };
+
     const handleTouchMove = (e: TouchEvent) => {
         if (isLocked.current) return;
         if (!touchStartX.current || !touchStartY.current) return;
-        const deltaX = e.touches[0].clientX - touchStartX.current;
-        const deltaY = e.touches[0].clientY - touchStartY.current;
+        
+        const currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
+        const deltaX = currentX - touchStartX.current;
+        const deltaY = currentY - touchStartY.current;
 
         if (!isSwiping.current) {
+            // Determine if horizontal swipe
             if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
                 isSwiping.current = true;
             } else if (Math.abs(deltaY) > Math.abs(deltaX)) {
+                // Vertical scroll, ignore this touch session
                 touchStartX.current = null;
                 touchStartY.current = null;
                 return;
@@ -157,13 +172,14 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         }
         
         if (isSwiping.current) {
-            e.preventDefault();
+            e.preventDefault(); // Prevent scrolling while swiping
             setTouchDeltaX(deltaX);
         }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
         if (isLocked.current) return;
+        
         if (!touchStartX.current || !isSwiping.current) {
             touchStartX.current = null;
             touchStartY.current = null;
@@ -175,8 +191,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const SWIPE_THRESHOLD = 60;
         const calendarWidth = node.offsetWidth;
         
-        setIsTransitioning(true);
-        isLocked.current = true; // Lock interactions
+        isLocked.current = true; // Lock immediately
+        setIsTransitioning(true); // Enable transition for snap
 
         let targetDelta = 0;
         let action: (() => void) | null = null;
@@ -193,23 +209,37 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         
         setTouchDeltaX(targetDelta);
 
-        setTimeout(() => { 
-            if (action) action(); 
+        // Clear previous timeout if any (safety)
+        if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
+
+        animationTimeoutRef.current = window.setTimeout(() => { 
+            if (action) action(); // Update data state
+            
+            // Instantly reset position without transition
             setIsTransitioning(false); 
             setTouchDeltaX(0); 
-            isLocked.current = false; // Unlock interactions
+            
+            // Short delay before unlocking to ensure DOM paint is complete
+            setTimeout(() => {
+                isLocked.current = false;
+            }, 50);
+            
         }, SWIPE_ANIMATION_DURATION);
         
+        // Reset touch tracking immediately
         touchStartX.current = null;
         touchStartY.current = null;
         isSwiping.current = false;
     };
 
+    // Use native listeners for all events to ensure consistency
+    node.addEventListener('touchstart', handleTouchStart, { passive: true });
     node.addEventListener('touchmove', handleTouchMove, { passive: false });
     node.addEventListener('touchend', handleTouchEnd);
     node.addEventListener('touchcancel', handleTouchEnd);
 
     return () => {
+        node.removeEventListener('touchstart', handleTouchStart);
         node.removeEventListener('touchmove', handleTouchMove);
         node.removeEventListener('touchend', handleTouchEnd);
         node.removeEventListener('touchcancel', handleTouchEnd);
@@ -344,7 +374,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         <div 
           ref={swipeContainerRef}
           className="overflow-hidden relative"
-          onTouchStart={handleTouchStart}
+          // Native listener added via useEffect, no React event here
         >
             <div
                 style={{
