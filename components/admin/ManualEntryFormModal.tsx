@@ -31,6 +31,12 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
 }) => {
     const [isClosing, setIsClosing] = useState(false);
 
+    useEffect(() => {
+        if (isOpen) {
+            setIsClosing(false); // Reset closing animation state on open
+        }
+    }, [isOpen]);
+
     if (!isOpen) return null;
     
     const handleClose = () => {

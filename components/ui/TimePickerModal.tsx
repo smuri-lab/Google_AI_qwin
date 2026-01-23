@@ -36,6 +36,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
   // Initialisierung und Reset des Closing-Status
   useEffect(() => {
     if (isOpen) {
+      setIsClosing(false); // Reset closing animation state on open
       const [h, m] = (initialTime || '08:00').split(':');
       setSelectedHour(h);
       setSelectedMinute(m);

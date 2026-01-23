@@ -44,6 +44,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      setIsClosing(false); // Reset closing animation state on open
       const start = initialStartDate ? new Date(initialStartDate) : null;
       let end = initialEndDate ? new Date(initialEndDate) : null;
       if (selectionMode === 'single' && start) {

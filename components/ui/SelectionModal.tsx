@@ -25,6 +25,7 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose,
   useEffect(() => {
     if (isOpen) {
       setSearchTerm('');
+      setIsClosing(false); // Reset closing animation state on open
     }
   }, [isOpen]);
 

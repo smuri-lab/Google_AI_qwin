@@ -42,6 +42,7 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
   
   useEffect(() => {
     if (isOpen) {
+        setIsClosing(false); // Reset closing animation state on open
         setType(AbsenceType.Vacation);
         setStartDate('');
         setEndDate('');

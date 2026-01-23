@@ -14,6 +14,12 @@ interface InfoModalProps {
 export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, message }) => {
   const [isClosing, setIsClosing] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      setIsClosing(false); // Reset closing animation state on open
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
   
   const handleClose = () => {
