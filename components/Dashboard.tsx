@@ -137,9 +137,8 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
             <p className="text-lg sm:text-xl font-bold text-gray-800 whitespace-nowrap">{formattedWorkedHours}</p>
         </Card>
         <Card className="text-center !p-2 sm:!p-4">
-          <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Urlaub</h3>
-           <div className="flex items-center justify-center gap-1.5">
-            <p className="text-lg sm:text-xl font-bold text-green-600 whitespace-nowrap">{userAccount.vacationDaysLeft} Tage</p>
+          <div className="flex items-center justify-center gap-1">
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-500 truncate">Urlaub</h3>
             {showCarryoverWarning && (
               <button
                 type="button"
@@ -147,10 +146,11 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
                 className="focus:outline-none"
                 aria-label="Resturlaub-Warnung anzeigen"
               >
-                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
+                <ExclamationTriangleIcon className="h-4 w-4 text-yellow-500" />
               </button>
             )}
           </div>
+          <p className="text-lg sm:text-xl font-bold text-green-600 whitespace-nowrap">{userAccount.vacationDaysLeft} Tage</p>
         </Card>
       </div>
   );
