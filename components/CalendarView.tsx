@@ -67,6 +67,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const swipeContainerRef = useRef<HTMLDivElement>(null);
 
+  // Animation duration constant
+  const SWIPE_ANIMATION_DURATION = 500;
+
   useEffect(() => {
     const yearsToEnsure = new Set([currentDate.getFullYear()]);
     if (currentDate.getMonth() === 0) yearsToEnsure.add(currentDate.getFullYear() - 1);
@@ -171,10 +174,10 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
 
         if (finalDeltaX > SWIPE_THRESHOLD) {
           setTouchDeltaX(calendarWidth); 
-          setTimeout(() => { changeMonth(-1); setIsTransitioning(false); setTouchDeltaX(0); }, 300);
+          setTimeout(() => { changeMonth(-1); setIsTransitioning(false); setTouchDeltaX(0); }, SWIPE_ANIMATION_DURATION);
         } else if (finalDeltaX < -SWIPE_THRESHOLD) {
           setTouchDeltaX(-calendarWidth);
-          setTimeout(() => { changeMonth(1); setIsTransitioning(false); setTouchDeltaX(0); }, 300);
+          setTimeout(() => { changeMonth(1); setIsTransitioning(false); setTouchDeltaX(0); }, SWIPE_ANIMATION_DURATION);
         } else {
           setTouchDeltaX(0);
         }
@@ -219,7 +222,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 const dayOfWeek = day.getDay();
                 const isSunday = dayOfWeek === 0;
 
-                let containerClasses = 'relative h-10 flex items-center justify-center transition-colors duration-200';
+                // Increased height from h-10 to h-12 for more spacing
+                let containerClasses = 'relative h-12 flex items-center justify-center transition-colors duration-200';
                 if (isInteractive && !isDifferentMonth) containerClasses += ' cursor-pointer';
 
                 let numberClasses = 'flex items-center justify-center w-7 h-7 rounded-full text-center font-medium text-sm transition-all z-10';
@@ -278,7 +282,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                             return <div style={pillStyle} className={pillClasses}></div>;
                         })()}
                         <span className={numberClasses}>{day.getDate()}</span>
-                        <div className="absolute bottom-1.5 flex items-center justify-center space-x-1 h-1.5">
+                        {/* Adjusted bottom position to bottom-1 for more spacing */}
+                        <div className="absolute bottom-1 flex items-center justify-center space-x-1 h-1.5">
                             {entriesForDay.length > 0 && !absenceForDay && <div className={`w-1.5 h-1.5 bg-green-500 rounded-full ${!isInteractive ? 'opacity-50' : ''}`}></div>}
                         </div>
                     </div>
@@ -326,7 +331,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
             <div
                 style={{
                     transform: `translateX(calc(-33.333% + ${touchDeltaX}px))`,
-                    transition: isTransitioning ? 'transform 0.3s ease-in-out' : 'none'
+                    transition: isTransitioning ? `transform ${SWIPE_ANIMATION_DURATION}ms ease-in-out` : 'none'
                 }}
                 className="flex w-[300%]"
             >
