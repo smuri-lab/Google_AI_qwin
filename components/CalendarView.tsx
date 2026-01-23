@@ -60,21 +60,18 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const [isRequestsExpanded, setIsRequestsExpanded] = useState(false);
   const entriesListRef = useRef<HTMLDivElement>(null);
   
-  // Touch / Animation state
+  // Touch / Animation Refs (Direct DOM Manipulation for Performance)
   const swipeContainerRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null); 
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const touchStartTime = useRef<number>(0); 
-  
   const isSwiping = useRef(false);
-  const isLocked = useRef(false);
-  const pendingMonthChange = useRef<number>(0);
-  
-  const [touchDeltaX, setTouchDeltaX] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const animationFrameId = useRef<number | null>(null);
 
-  const SWIPE_ANIMATION_DURATION = 300; 
+  // Constants
+  const SWIPE_THRESHOLD = 50; // px to trigger switch
+  const VELOCITY_THRESHOLD = 0.3; // px/ms
 
   useEffect(() => {
     const yearsToEnsure = new Set([currentDate.getFullYear()]);
@@ -126,23 +123,25 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     }
   };
 
-  // --- TOUCH HANDLERS ---
+  // --- TOUCH HANDLERS (Direct DOM) ---
 
   useEffect(() => {
     const node = swipeContainerRef.current;
-    if (!node) return;
+    const slider = sliderRef.current;
+    if (!node || !slider) return;
 
     const handleTouchStart = (e: TouchEvent) => {
-        if (isLocked.current) return;
         touchStartX.current = e.touches[0].clientX;
         touchStartY.current = e.touches[0].clientY;
         touchStartTime.current = Date.now();
         isSwiping.current = false;
-        setIsTransitioning(false); 
+        
+        // Kill any ongoing transition immediately
+        slider.style.transition = 'none';
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-        if (isLocked.current || touchStartX.current === null || touchStartY.current === null) return;
+        if (touchStartX.current === null || touchStartY.current === null) return;
         
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
@@ -150,24 +149,29 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const deltaY = currentY - touchStartY.current;
 
         if (!isSwiping.current) {
+            // Check if user is scrolling vertically or swiping horizontally
             if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
                 isSwiping.current = true;
             } else if (Math.abs(deltaY) > Math.abs(deltaX)) {
+                // Vertical scroll, ignore this swipe
                 touchStartX.current = null;
                 return;
             }
         }
         
         if (isSwiping.current) {
-            e.preventDefault(); 
-            setTouchDeltaX(deltaX);
+            e.preventDefault(); // Stop scrolling
+            // Using requestAnimationFrame for smoother visual updates during drag
+            if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+            animationFrameId.current = requestAnimationFrame(() => {
+                // Base position is -33.333333% (center)
+                slider.style.transform = `translateX(calc(-33.333333% + ${deltaX}px))`;
+            });
         }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-        if (isLocked.current || touchStartX.current === null) return;
-        
-        if (!isSwiping.current) {
+        if (!isSwiping.current || touchStartX.current === null) {
             touchStartX.current = null;
             return;
         }
@@ -179,37 +183,47 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const timeElapsed = touchEndTime - touchStartTime.current;
         
         const velocity = Math.abs(deltaX) / timeElapsed;
-        const isFastSwipe = velocity > 0.3 && Math.abs(deltaX) > 20;
+        const isFastSwipe = velocity > VELOCITY_THRESHOLD && Math.abs(deltaX) > 20;
         const isLongSwipe = Math.abs(deltaX) > (width * 0.25);
 
-        isLocked.current = true;
-        setIsTransitioning(true); 
+        // Determine snap target
+        let targetPercent = -33.333333; // Default stay
+        let monthChange = 0;
 
-        let targetDelta = 0;
-
-        if (isFastSwipe || isLongSwipe) {
-            if (deltaX > 0) {
-                targetDelta = width;
-                pendingMonthChange.current = -1;
-            } else {
-                targetDelta = -width;
-                pendingMonthChange.current = 1;
-            }
-        } else {
-            targetDelta = 0;
-            pendingMonthChange.current = 0;
+        if ((isFastSwipe || isLongSwipe) && deltaX > 0) {
+            // Swipe Right -> Prev Month
+            targetPercent = 0;
+            monthChange = -1;
+        } else if ((isFastSwipe || isLongSwipe) && deltaX < 0) {
+            // Swipe Left -> Next Month
+            targetPercent = -66.666666;
+            monthChange = 1;
         }
 
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                setTouchDeltaX(targetDelta);
-            });
-        });
+        // Apply transition
+        slider.style.transition = 'transform 300ms cubic-bezier(0.1, 0.9, 0.2, 1)';
+        slider.style.transform = `translateX(${targetPercent}%)`;
+
+        // Wait for transition to finish, then reset DOM and update State
+        // We use a one-time event listener for cleanup
+        const handleTransitionEnd = () => {
+            slider.style.transition = 'none';
+            // Snap DOM back to center immediately (visually invisible if state updates correctly)
+            slider.style.transform = 'translateX(-33.333333%)'; 
+            
+            if (monthChange !== 0) {
+                changeMonth(monthChange);
+            }
+            slider.removeEventListener('transitionend', handleTransitionEnd);
+        };
+        
+        slider.addEventListener('transitionend', handleTransitionEnd);
 
         touchStartX.current = null;
         isSwiping.current = false;
     };
 
+    // Use passive: false for touchmove to allow preventing default scroll
     node.addEventListener('touchstart', handleTouchStart, { passive: true });
     node.addEventListener('touchmove', handleTouchMove, { passive: false });
     node.addEventListener('touchend', handleTouchEnd);
@@ -220,43 +234,18 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         node.removeEventListener('touchmove', handleTouchMove);
         node.removeEventListener('touchend', handleTouchEnd);
         node.removeEventListener('touchcancel', handleTouchEnd);
+        if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
     };
-  }, []);
-
-  const finishTransition = useCallback(() => {
-      setIsTransitioning(false);
-      setTouchDeltaX(0);
-      if (pendingMonthChange.current !== 0) {
-          changeMonth(pendingMonthChange.current);
-          pendingMonthChange.current = 0;
-      }
-      isLocked.current = false;
-  }, [changeMonth]);
-
-  const onTransitionEnd = useCallback((e: React.TransitionEvent) => {
-      if (e.target !== sliderRef.current) return;
-      if (e.propertyName !== 'transform') return;
-      finishTransition();
-  }, [finishTransition]);
-
-  useEffect(() => {
-      if (isLocked.current && isTransitioning) {
-          const timer = setTimeout(() => {
-              if (isLocked.current) {
-                  finishTransition();
-              }
-          }, SWIPE_ANIMATION_DURATION + 150);
-          return () => clearTimeout(timer);
-      }
-  }, [isTransitioning, finishTransition]);
+  }, [changeMonth]); // Dependencies
 
   
-  const renderMonthGrid = (dateForMonth: Date, isInteractive: boolean) => {
+  // Helper to optimize rendering
+  const renderMonthGrid = useCallback((dateForMonth: Date) => {
     const daysInMonth = generateMonthDays(dateForMonth);
     const currentDisplayMonth = dateForMonth.getMonth();
 
     return (
-        <>
+        <div className="w-1/3 shrink-0 px-1">
             <DayOfWeekHeader />
             <div className="grid grid-cols-7">
               {daysInMonth.map((day, index) => {
@@ -268,7 +257,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 const holidaysForThisDay = holidaysByYear[day.getFullYear()] || [];
                 const holiday = holidaysForThisDay.find(h => h.date === dayString);
                 
-                // FIX: Highlight should appear on all grids if it matches the selected date
                 const isSelected = !isDifferentMonth && selectedDate?.toLocaleDateString('sv-SE') === dayString;
                 
                 const isToday = day.toDateString() === today.toDateString();
@@ -291,10 +279,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                         if (!isDifferentMonth) containerClasses += ' bg-gray-50';
                         numberClasses += ' text-blue-600 font-bold';
                     } else if (holiday || isSunday) {
-                        // FIX: Ensure red color is consistent across all grids
                         numberClasses += ' text-red-600 font-semibold';
                     } else {
-                        // FIX: Ensure dark color is consistent across all grids, not just interactive one
                         numberClasses += ' text-gray-700';
                     }
                 }
@@ -307,7 +293,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 return (
                     <div 
                         key={index} 
-                        onClick={() => isInteractive && !isDifferentMonth && setSelectedDate(day)} 
+                        onClick={() => !isDifferentMonth && setSelectedDate(day)} 
                         className={containerClasses}
                     >
                         {absenceForDay && (() => {
@@ -319,7 +305,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                             const isHalfDay = absenceForDay.dayPortion && absenceForDay.dayPortion !== 'full';
                             
                             let pillStyle: React.CSSProperties = {};
-                            // FIX: Remove opacity reduction for non-interactive grids to prevent flickering
                             let pillClasses = `absolute top-1/2 -translate-y-1/2 left-0 right-0 h-8 flex items-center justify-center text-xs font-bold z-0 `;
                             
                             if (isPending) {
@@ -346,9 +331,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                 );
               })}
             </div>
-        </>
+        </div>
     );
-  }
+  }, [absenceRequests, timeEntries, holidaysByYear, selectedDate]);
 
   const prevMonthDate = useMemo(() => new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1), [currentDate]);
   const nextMonthDate = useMemo(() => new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1), [currentDate]);
@@ -387,17 +372,15 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         >
             <div
                 ref={sliderRef}
-                onTransitionEnd={onTransitionEnd}
                 style={{
-                    transform: `translateX(calc(-33.3333% + ${touchDeltaX}px))`,
-                    transition: isTransitioning ? `transform ${SWIPE_ANIMATION_DURATION}ms cubic-bezier(0.25, 1, 0.5, 1)` : 'none',
+                    transform: 'translateX(-33.333333%)',
                     width: '300%',
                     display: 'flex',
                 }}
             >
-                <div className="w-1/3 shrink-0 px-1">{renderMonthGrid(prevMonthDate, false)}</div>
-                <div className="w-1/3 shrink-0 px-1">{renderMonthGrid(currentDate, true)}</div>
-                <div className="w-1/3 shrink-0 px-1">{renderMonthGrid(nextMonthDate, false)}</div>
+                {renderMonthGrid(prevMonthDate)}
+                {renderMonthGrid(currentDate)}
+                {renderMonthGrid(nextMonthDate)}
             </div>
         </div>
       </div>
