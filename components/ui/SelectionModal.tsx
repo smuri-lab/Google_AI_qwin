@@ -21,11 +21,13 @@ interface SelectionModalProps {
 export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose, onSelect, items, title, selectedValue }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isClosing, setIsClosing] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
   
   useEffect(() => {
     if (isOpen) {
       setSearchTerm('');
       setIsClosing(false); // Reset closing animation state on open
+      setAnimationKey(prev => prev + 1); // Force re-render for animation
     }
   }, [isOpen]);
 
@@ -49,7 +51,7 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose,
   };
 
   return (
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+    <div key={animationKey} className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center pb-4 border-b">
           <h2 className="text-xl font-bold">{title}</h2>

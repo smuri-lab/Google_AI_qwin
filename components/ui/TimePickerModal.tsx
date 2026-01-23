@@ -29,6 +29,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
   const [selectedHour, setSelectedHour] = useState('08');
   const [selectedMinute, setSelectedMinute] = useState('00');
   const [isClosing, setIsClosing] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
   
   const hourRef = useRef<HTMLDivElement>(null);
   const minuteRef = useRef<HTMLDivElement>(null);
@@ -37,6 +38,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setIsClosing(false); // Reset closing animation state on open
+      setAnimationKey(prev => prev + 1); // Force re-render for animation
       const [h, m] = (initialTime || '08:00').split(':');
       setSelectedHour(h);
       setSelectedMinute(m);
@@ -84,6 +86,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
 
   return (
     <div 
+      key={animationKey}
       className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} 
       onClick={handleClose}
     >

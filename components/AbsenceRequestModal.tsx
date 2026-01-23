@@ -39,10 +39,12 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: '', message: '' });
   const [isClosing, setIsClosing] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
   
   useEffect(() => {
     if (isOpen) {
         setIsClosing(false); // Reset closing animation state on open
+        setAnimationKey(prev => prev + 1); // Force re-render for animation
         setType(AbsenceType.Vacation);
         setStartDate('');
         setEndDate('');
@@ -133,7 +135,7 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
 
   return (
     <>
-      <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+      <div key={animationKey} className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
         <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
            <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
              <XIcon className="h-6 w-6" />

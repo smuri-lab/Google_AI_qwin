@@ -10,6 +10,12 @@ interface ActionSheetProps {
 
 export const ActionSheet: React.FC<ActionSheetProps> = ({ onClose, onSelect }) => {
   const [isClosing, setIsClosing] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
+
+  useEffect(() => {
+    // This component is always open when rendered, so we trigger animation on mount.
+    setAnimationKey(prev => prev + 1);
+  }, []);
 
   const handleClose = () => {
     setIsClosing(true);
@@ -22,7 +28,7 @@ export const ActionSheet: React.FC<ActionSheetProps> = ({ onClose, onSelect }) =
   };
 
   return (
-    <div className={`fixed inset-0 bg-black flex items-end justify-center z-40 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+    <div key={animationKey} className={`fixed inset-0 bg-black flex items-end justify-center z-40 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <div 
         className={`w-full max-w-md bg-white rounded-t-2xl shadow-lg p-4 ${isClosing ? 'animate-slide-down-sheet' : 'animate-slide-up'}`}
         onClick={(e) => e.stopPropagation()}

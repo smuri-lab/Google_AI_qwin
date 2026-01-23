@@ -41,10 +41,12 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
   const [range, setRange] = useState<{ start: Date | null, end: Date | null }>({ start: null, end: null });
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
   const [isClosing, setIsClosing] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
       setIsClosing(false); // Reset closing animation state on open
+      setAnimationKey(prev => prev + 1); // Force re-render for animation
       const start = initialStartDate ? new Date(initialStartDate) : null;
       let end = initialEndDate ? new Date(initialEndDate) : null;
       if (selectionMode === 'single' && start) {
@@ -116,7 +118,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
   }
 
   return (
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+    <div key={animationKey} className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-sm ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center pb-4 border-b">
           <h2 className="text-xl font-bold">{title}</h2>
