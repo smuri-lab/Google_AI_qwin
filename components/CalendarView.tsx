@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import type { TimeEntry, AbsenceRequest, Customer, Activity, Holiday, CompanySettings, HolidaysByYear, Employee } from '../types';
 import { AbsenceType } from '../types';
 import { EntryDetailModal } from './EntryDetailModal';
@@ -68,9 +68,9 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const touchStartTime = useRef<number>(0); 
   const isSwiping = useRef(false);
   const animationFrameId = useRef<number | null>(null);
+  const isLocked = useRef(false);
 
   // Constants
-  const SWIPE_THRESHOLD = 50; // px to trigger switch
   const VELOCITY_THRESHOLD = 0.3; // px/ms
 
   useEffect(() => {
@@ -79,6 +79,20 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     if (currentDate.getMonth() === 11) yearsToEnsure.add(currentDate.getFullYear() + 1);
     yearsToEnsure.forEach(year => onEnsureHolidaysForYear(year));
   }, [currentDate, onEnsureHolidaysForYear]);
+
+  // CRITICAL: Seamless Loop Reset
+  // This layout effect fires synchronously after the DOM updates with the new month data (from changeMonth).
+  // We immediately snap the slider back to the center position (-33%) WITHOUT animation.
+  // Since the "Center" now contains the "New Month", and the visual position was previously showing the "New Month" 
+  // via transform (-66% or 0%), the user sees NO movement. It's a perfect swap.
+  useLayoutEffect(() => {
+      if (sliderRef.current) {
+          sliderRef.current.style.transition = 'none';
+          sliderRef.current.style.transform = 'translateX(-33.333333%)';
+          // Unlock interaction after the swap is complete
+          isLocked.current = false;
+      }
+  }, [currentDate]);
 
   const selectedEntry = useMemo(() => {
     return selectedEntryId ? timeEntries.find(e => e.id === selectedEntryId) : null;
@@ -111,6 +125,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   };
 
   const changeMonth = useCallback((offset: number) => {
+    // Only update state. The visual reset happens in useLayoutEffect.
     setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
     setSelectedDate(null);
   }, []);
@@ -131,17 +146,18 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
     if (!node || !slider) return;
 
     const handleTouchStart = (e: TouchEvent) => {
+        if (isLocked.current) return;
         touchStartX.current = e.touches[0].clientX;
         touchStartY.current = e.touches[0].clientY;
         touchStartTime.current = Date.now();
         isSwiping.current = false;
         
-        // Kill any ongoing transition immediately
+        // Remove any existing transition to allow instant dragging
         slider.style.transition = 'none';
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-        if (touchStartX.current === null || touchStartY.current === null) return;
+        if (isLocked.current || touchStartX.current === null || touchStartY.current === null) return;
         
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
@@ -186,16 +202,19 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         const isFastSwipe = velocity > VELOCITY_THRESHOLD && Math.abs(deltaX) > 20;
         const isLongSwipe = Math.abs(deltaX) > (width * 0.25);
 
+        // Lock interaction during animation
+        isLocked.current = true;
+
         // Determine snap target
         let targetPercent = -33.333333; // Default stay
         let monthChange = 0;
 
         if ((isFastSwipe || isLongSwipe) && deltaX > 0) {
-            // Swipe Right -> Prev Month
+            // Swipe Right -> Prev Month (move slider to 0%)
             targetPercent = 0;
             monthChange = -1;
         } else if ((isFastSwipe || isLongSwipe) && deltaX < 0) {
-            // Swipe Left -> Next Month
+            // Swipe Left -> Next Month (move slider to -66%)
             targetPercent = -66.666666;
             monthChange = 1;
         }
@@ -204,15 +223,18 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         slider.style.transition = 'transform 300ms cubic-bezier(0.1, 0.9, 0.2, 1)';
         slider.style.transform = `translateX(${targetPercent}%)`;
 
-        // Wait for transition to finish, then reset DOM and update State
-        // We use a one-time event listener for cleanup
         const handleTransitionEnd = () => {
-            slider.style.transition = 'none';
-            // Snap DOM back to center immediately (visually invisible if state updates correctly)
-            slider.style.transform = 'translateX(-33.333333%)'; 
-            
+            // If data needs to change, update state.
+            // The useLayoutEffect hook will handle the visual reset to -33% instantly after render.
             if (monthChange !== 0) {
                 changeMonth(monthChange);
+            } else {
+                // If NO change, we must reset manually because useLayoutEffect won't fire (no state change)
+                if (sliderRef.current) {
+                    sliderRef.current.style.transition = 'none';
+                    sliderRef.current.style.transform = 'translateX(-33.333333%)';
+                    isLocked.current = false;
+                }
             }
             slider.removeEventListener('transitionend', handleTransitionEnd);
         };
@@ -369,6 +391,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
         <div 
           ref={swipeContainerRef}
           className="overflow-hidden relative touch-pan-y" 
+          style={{ touchAction: 'pan-y' }} // Let browser handle vertical scroll, we handle horizontal
         >
             <div
                 ref={sliderRef}
@@ -376,6 +399,7 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
                     transform: 'translateX(-33.333333%)',
                     width: '300%',
                     display: 'flex',
+                    willChange: 'transform' // Force GPU Layer for smoother animation
                 }}
             >
                 {renderMonthGrid(prevMonthDate)}
