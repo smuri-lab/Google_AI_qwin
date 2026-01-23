@@ -45,8 +45,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setIsClosing(false);
-      // Trigger animation after mount
+      // Opening animation
       const timer = setTimeout(() => setIsVisible(true), 10);
       
       const start = initialStartDate ? new Date(initialStartDate) : null;
@@ -60,6 +59,10 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
       setCurrentMonthDate(start || new Date());
       
       return () => clearTimeout(timer);
+    } else {
+      // Reset state immediately when closed
+      setIsVisible(false);
+      setIsClosing(false);
     }
   }, [isOpen, initialStartDate, initialEndDate, selectionMode]);
 

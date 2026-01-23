@@ -17,9 +17,13 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, me
 
   useEffect(() => {
     if (isOpen) {
-      setIsClosing(false);
+      // Opening animation
       const timer = setTimeout(() => setIsVisible(true), 10);
       return () => clearTimeout(timer);
+    } else {
+      // Reset state immediately when closed
+      setIsVisible(false);
+      setIsClosing(false);
     }
   }, [isOpen]);
 

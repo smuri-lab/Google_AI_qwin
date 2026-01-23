@@ -43,8 +43,7 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
   
   useEffect(() => {
     if (isOpen) {
-        setIsClosing(false);
-        // Trigger animation after mount
+        // Opening animation
         const timer = setTimeout(() => setIsVisible(true), 10);
         
         setType(AbsenceType.Vacation);
@@ -54,6 +53,10 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
         setPhoto(undefined);
         
         return () => clearTimeout(timer);
+    } else {
+        // Reset state immediately when closed
+        setIsVisible(false);
+        setIsClosing(false);
     }
   }, [isOpen]);
 

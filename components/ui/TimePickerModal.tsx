@@ -37,8 +37,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
   // Initialisierung und Reset des Closing-Status
   useEffect(() => {
     if (isOpen) {
-      setIsClosing(false);
-      // Trigger animation after mount
+      // Opening animation
       const timer = setTimeout(() => setIsVisible(true), 10);
       
       const [h, m] = (initialTime || '08:00').split(':');
@@ -51,6 +50,10 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
       }, 50);
       
       return () => clearTimeout(timer);
+    } else {
+      // Reset state immediately when closed
+      setIsVisible(false);
+      setIsClosing(false);
     }
   }, [isOpen, initialTime]);
 

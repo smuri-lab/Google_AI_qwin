@@ -26,10 +26,13 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose,
   useEffect(() => {
     if (isOpen) {
       setSearchTerm('');
-      setIsClosing(false); 
-      // Trigger animation after mount
+      // Opening animation
       const timer = setTimeout(() => setIsVisible(true), 10);
       return () => clearTimeout(timer);
+    } else {
+      // Reset state immediately when closed
+      setIsVisible(false);
+      setIsClosing(false);
     }
   }, [isOpen]);
 

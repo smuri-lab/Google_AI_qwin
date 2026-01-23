@@ -13,7 +13,7 @@ export const ActionSheet: React.FC<ActionSheetProps> = ({ onClose, onSelect }) =
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // This component is always open when rendered, so we trigger animation on mount.
+    // Opening animation - since ActionSheet is conditionally rendered by parent, this mounts freshly.
     const timer = setTimeout(() => setIsVisible(true), 10);
     return () => clearTimeout(timer);
   }, []);
