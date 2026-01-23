@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PencilIcon } from '../icons/PencilIcon';
-import { SunIcon } from '../icons/SunIcon';
+import { VacationSunIcon } from '../icons/VacationSunIcon';
 import { XIcon } from '../icons/XIcon';
 
 interface ActionSheetProps {
@@ -55,7 +55,7 @@ export const ActionSheet: React.FC<ActionSheetProps> = ({ onClose, onSelect }) =
             onClick={() => handleSelect('absence')}
             className="w-full flex items-center gap-4 p-4 rounded-lg text-left hover:bg-gray-100 transition-colors"
           >
-            <SunIcon className="h-6 w-6 text-orange-500" />
+            <VacationSunIcon className="h-6 w-6" />
             <div>
               <p className="font-semibold text-gray-800">Abwesenheit beantragen</p>
               <p className="text-sm text-gray-500">Urlaub oder Krankheit einreichen.</p>

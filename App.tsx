@@ -18,6 +18,7 @@ import { CheckCircleIcon } from './components/icons/CheckCircleIcon';
 import { ManualEntryFormModal } from './components/ManualEntryFormModal';
 import { UserCircleIcon } from './components/icons/UserCircleIcon';
 import { CogIcon } from './components/icons/CogIcon';
+import { OverviewView } from './components/OverviewView';
 
 const generateDemoData = () => {
     const timeEntries: TimeEntry[] = [];
@@ -737,8 +738,22 @@ const App: React.FC = () => {
                   holidaysByYear={holidaysByYear}
                   companySettings={companySettings}
                   onEnsureHolidaysForYear={ensureHolidaysForYear}
-                  onRetractAbsenceRequest={retractAbsenceRequest}
                   onAddAbsenceClick={() => setIsAbsenceRequestModalOpen(true)}
+                />;
+       case View.Overview:
+        return <OverviewView 
+                  currentUser={currentUser}
+                  timeEntries={userTimeEntries}
+                  timeBalanceAdjustments={timeBalanceAdjustments.filter(adj => adj.employeeId === currentUser.id)}
+                  absenceRequests={absenceRequests.filter(r => r.employeeId === currentUser.id)}
+                  customers={customers}
+                  activities={activities}
+                  holidaysByYear={holidaysByYear}
+                  companySettings={companySettings}
+                  onEnsureHolidaysForYear={ensureHolidaysForYear}
+                  onRetractAbsenceRequest={retractAbsenceRequest}
+                  userAccount={{...userAccount, timeBalanceHours, ...vacationInfo}}
+                  selectedState={selectedState}
                 />;
       default:
         return <Dashboard {...dashboardProps} />;
@@ -770,21 +785,20 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             {isDisplayingAdminView && (
               <>
+                {/* Mobile-only buttons for Profile and Settings */}
                 <button
                   onClick={() => setAdminActiveView(AdminViewType.Profile)}
-                  className="flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  className="md:hidden flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
                   title="Profil"
                 >
                   <UserCircleIcon className="h-5 w-5" />
-                  <span className="hidden sm:inline">Profil</span>
                 </button>
                 <button
                   onClick={() => setAdminActiveView(AdminViewType.Settings)}
-                  className="flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  className="md:hidden flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
                   title="Einstellungen"
                 >
                   <CogIcon className="h-5 w-5" />
-                   <span className="hidden sm:inline">Einstellungen</span>
                 </button>
               </>
             )}
@@ -888,6 +902,10 @@ const App: React.FC = () => {
             existingAbsences={absenceRequests.filter(r => r.employeeId === currentUser.id)}
             timeEntries={timeEntries.filter(entry => entry.employeeId === currentUser.id)}
             companySettings={companySettings}
+            holidaysByYear={holidaysByYear}
+            onEnsureHolidaysForYear={ensureHolidaysForYear}
+            vacationDaysLeft={vacationInfo.vacationDaysLeft}
+            timeBalanceHours={timeBalanceHours}
           />
       )}
       {isManualEntryModalOpen && currentUser && (

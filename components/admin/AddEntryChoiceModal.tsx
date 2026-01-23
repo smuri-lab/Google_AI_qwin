@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { XIcon } from '../icons/XIcon';
 import { ClockIcon } from '../icons/ClockIcon';
-import { SunIcon } from '../icons/SunIcon';
+import { VacationSunIcon } from '../icons/VacationSunIcon';
 import { CurrencyEuroIcon } from '../icons/CurrencyEuroIcon';
 import { CalculatorIcon } from '../icons/CalculatorIcon';
 
@@ -47,7 +47,7 @@ export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClos
               onClick={() => handleSelect('absence')}
               className="p-6 border rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
             >
-              <SunIcon className="h-10 w-10 text-orange-500" />
+              <VacationSunIcon className="h-10 w-10" />
               <span className="font-semibold text-gray-700">Abwesenheit</span>
             </button>
             <button

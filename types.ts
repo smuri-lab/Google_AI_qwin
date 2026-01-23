@@ -127,6 +127,7 @@ export interface Employee {
 export enum View {
     Dashboard = 'dashboard',
     Calendar = 'calendar',
+    Overview = 'overview',
 }
 
 export enum AdminViewType {

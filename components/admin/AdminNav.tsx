@@ -7,6 +7,8 @@ import { UsersIcon } from '../icons/UsersIcon';
 import { BriefcaseIcon } from '../icons/BriefcaseIcon';
 import { ChevronDoubleLeftIcon } from '../icons/ChevronDoubleLeftIcon';
 import { ChevronDoubleRightIcon } from '../icons/ChevronDoubleRightIcon';
+import { UserCircleIcon } from '../icons/UserCircleIcon';
+import { CogIcon } from '../icons/CogIcon';
 
 interface AdminNavProps {
   activeView: AdminViewType;
@@ -64,12 +66,17 @@ export const AdminNav: React.FC<AdminNavProps> = ({ activeView, setActiveView, c
   
   const pendingRequestsCount = absenceRequests.filter(r => r.status === 'pending').length;
 
-  const navItems: NavItemData[] = [
+  const mainNavItems: NavItemData[] = [
       { label: "Planer", view: AdminViewType.Planner, icon: SunIcon, badge: pendingRequestsCount },
       { label: "Zeiterfassung", view: AdminViewType.TimeTracking, icon: ClockIcon },
       { label: "Zeitauswertung", view: AdminViewType.Reports, icon: ChartBarIcon },
       { label: "Mitarbeiter", view: AdminViewType.Employees, icon: UsersIcon },
       { label: "Verwaltung", view: AdminViewType.Customers, icon: BriefcaseIcon },
+  ];
+
+  const bottomNavItems: NavItemData[] = [
+    { label: "Profil", view: AdminViewType.Profile, icon: UserCircleIcon },
+    { label: "Einstellungen", view: AdminViewType.Settings, icon: CogIcon },
   ];
 
   const handleItemClick = (view: AdminViewType) => {
@@ -84,9 +91,9 @@ export const AdminNav: React.FC<AdminNavProps> = ({ activeView, setActiveView, c
         ${isCollapsed ? 'md:w-20' : 'md:w-60'}
       `}
     >
-      <nav className="flex-grow">
+      <nav className="flex-grow flex flex-col">
         <div className="space-y-1">
-            {navItems.map((item) => {
+            {mainNavItems.map((item) => {
               const isVerwaltungItem = item.label === 'Verwaltung';
               const isActive = isVerwaltungItem
                 ? activeView === AdminViewType.Customers || activeView === AdminViewType.Activities
@@ -106,9 +113,23 @@ export const AdminNav: React.FC<AdminNavProps> = ({ activeView, setActiveView, c
               );
             })}
         </div>
+        
+        <div className="mt-auto space-y-1 pt-4 border-t border-gray-200">
+            {bottomNavItems.map((item) => (
+                <NavItem
+                    key={item.view}
+                    label={item.label}
+                    view={item.view}
+                    isActive={activeView === item.view}
+                    onItemClick={handleItemClick}
+                    Icon={item.icon}
+                    isCollapsed={isCollapsed}
+                />
+            ))}
+        </div>
       </nav>
       
-      <div className="hidden md:block pt-2 mt-auto border-t">
+      <div className="hidden md:block pt-2 mt-2 border-t">
           <button
               onClick={() => setIsCollapsed(!isCollapsed)}
               className="flex items-center justify-center w-full px-3 py-2.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"

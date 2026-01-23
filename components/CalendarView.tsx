@@ -8,6 +8,7 @@ import { ConfirmModal } from './ui/ConfirmModal';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { formatHoursAndMinutes } from './utils';
 
 interface CalendarViewProps {
   currentUser: Employee;
@@ -20,7 +21,6 @@ interface CalendarViewProps {
   onDeleteTimeEntry: (id: number) => void;
   companySettings: CompanySettings;
   onEnsureHolidaysForYear: (year: number) => void;
-  onRetractAbsenceRequest: (id: number) => void;
   onAddAbsenceClick: () => void;
 }
 
@@ -71,13 +71,13 @@ const getCachedDaysForMonth = (year: number, month: number) => {
 const ABSENCE_STYLES = {
     [AbsenceType.Vacation]: {
         label: 'Urlaub',
-        solidClass: 'bg-blue-500 text-white',
-        pendingClass: 'bg-blue-50 text-blue-700', 
-        pendingBorderClass: 'border-blue-400',
-        dotClass: 'bg-blue-500',
-        bgClass: 'bg-blue-50',
-        borderClass: 'border-blue-200',
-        textClass: 'text-blue-800'
+        solidClass: 'bg-yellow-500 text-white',
+        pendingClass: 'bg-yellow-50 text-yellow-700', 
+        pendingBorderClass: 'border-yellow-400',
+        dotClass: 'bg-yellow-500',
+        bgClass: 'bg-yellow-50',
+        borderClass: 'border-yellow-200',
+        textClass: 'text-yellow-800'
     },
     [AbsenceType.SickLeave]: {
         label: 'Krank',
@@ -132,14 +132,6 @@ const DayOfWeekHeader: React.FC = React.memo(() => {
         </div>
     );
 });
-
-const getStatusChip = (status: AbsenceRequest['status']) => {
-    switch (status) {
-      case 'pending': return <span className="px-2 py-1 text-xs font-semibold text-yellow-800 bg-yellow-200 rounded-full">Ausstehend</span>;
-      case 'approved': return <span className="px-2 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">Genehmigt</span>;
-      case 'rejected': return <span className="px-2 py-1 text-xs font-semibold text-red-800 bg-red-200 rounded-full">Abgelehnt</span>;
-    }
-};
 
 // -- Optimized Day Component --
 interface CalendarDayProps {
@@ -303,14 +295,12 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const { 
     currentUser, timeEntries, absenceRequests, customers, activities,
     holidaysByYear, onUpdateTimeEntry, onDeleteTimeEntry, companySettings,
-    onEnsureHolidaysForYear, onRetractAbsenceRequest, onAddAbsenceClick
+    onEnsureHolidaysForYear, onAddAbsenceClick
   } = props;
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [selectedDateString, setSelectedDateString] = useState<string | null>(null);
-  const [requestToRetract, setRequestToRetract] = useState<AbsenceRequest | null>(null);
-  const [isRequestsExpanded, setIsRequestsExpanded] = useState(false);
   
   const swipeContainerRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null); 
@@ -325,7 +315,8 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   const animationFrameId = useRef<number | null>(null);
   const isLocked = useRef(false);
   
-  const VELOCITY_THRESHOLD = 0.3; 
+  const VELOCITY_THRESHOLD = 0.3;
+  const timeFormat = companySettings.employeeTimeFormat || 'hoursMinutes';
 
   useEffect(() => {
     const yearsToEnsure = new Set([currentDate.getFullYear()]);
@@ -410,12 +401,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
   }, []);
   
   const handleCloseModal = () => setSelectedEntryId(null);
-  const handleConfirmRetract = () => {
-    if (requestToRetract) {
-      onRetractAbsenceRequest(requestToRetract.id);
-      setRequestToRetract(null);
-    }
-  };
 
   // --- TOUCH HANDLERS ---
   useEffect(() => {
@@ -585,18 +570,6 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
       return holidays.find(h => h.date === selectedDateString) || null;
   }, [selectedDateString, holidaysByYear]);
 
-  const groupedRequests = useMemo(() => {
-    const groups: { [year: string]: AbsenceRequest[] } = {};
-    const sortedRequests = [...absenceRequests].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-    for (const req of sortedRequests) {
-        const year = new Date(req.startDate).getFullYear().toString();
-        if (!groups[year]) groups[year] = [];
-        groups[year].push(req);
-    }
-    return groups;
-  }, [absenceRequests]);
-  const sortedYears = Object.keys(groupedRequests).sort((a, b) => Number(b) - Number(a));
-
   const handleSelectDate = useCallback((dateStr: string) => setSelectedDateString(dateStr), []);
 
   const selectedDateObject = useMemo(() => selectedDateString ? new Date(selectedDateString) : null, [selectedDateString]);
@@ -659,65 +632,10 @@ export const CalendarView: React.FC<CalendarViewProps> = (props) => {
       </div>
 
       {selectedDateObject && (
-        <div ref={entriesListRef} className="animate-fade-in"><h3 className="text-lg font-bold mb-3">Einträge für den {selectedDateObject.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' })}</h3><Card><div className="space-y-3">{holidayForSelectedDay && (<div className="p-3 bg-red-50 rounded-lg border border-red-200 flex items-center"><div className="w-2.5 h-2.5 bg-red-500 rounded-full mr-3"></div><p className="font-semibold text-red-800">{holidayForSelectedDay.name} (Feiertag)</p></div>)}{absencesForSelectedDayList.map(absence => { const d = getAbsenceStyle(absence.type); const dayPortionText = absence.dayPortion === 'am' ? ' (Vormittags)' : absence.dayPortion === 'pm' ? ' (Nachmittags)' : ''; return (<div key={absence.id} className={`p-3 rounded-lg border flex items-center ${d.bgClass} ${d.borderClass}`}><div className={`w-2.5 h-2.5 ${d.dotClass} rounded-full mr-3`}></div><p className={`font-semibold ${d.textClass}`}>{d.label}{dayPortionText}</p></div>);})}{entriesForSelectedDay.map(entry => {const d = (new Date(entry.end).getTime() - new Date(entry.start).getTime())/36e5-(entry.breakDurationMinutes/60); return (<button key={entry.id} onClick={()=>setSelectedEntryId(entry.id)} className="w-full p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-left hover:bg-gray-100"><div><p className="font-semibold">{activities.find(a=>a.id===entry.activityId)?.name||'N/A'}</p><p className="text-sm text-gray-600">{customers.find(c=>c.id===entry.customerId)?.name||'N/A'}</p><p className="text-xs text-gray-500 mt-1">{new Date(entry.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} - {new Date(entry.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</p></div><p className="font-bold text-lg text-blue-600">{d.toFixed(2)} h</p></button>);})}{entriesForSelectedDay.length===0 && absencesForSelectedDayList.length===0 && !holidayForSelectedDay && <p className="text-center text-gray-500 py-4">Keine Einträge für diesen Tag.</p>}</div></Card></div>
+        <div ref={entriesListRef} className="animate-fade-in"><h3 className="text-lg font-bold mb-3">Einträge für den {selectedDateObject.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' })}</h3><Card><div className="space-y-3">{holidayForSelectedDay && (<div className="p-3 bg-red-50 rounded-lg border border-red-200 flex items-center"><div className="w-2.5 h-2.5 bg-red-500 rounded-full mr-3"></div><p className="font-semibold text-red-800">{holidayForSelectedDay.name} (Feiertag)</p></div>)}{absencesForSelectedDayList.map(absence => { const d = getAbsenceStyle(absence.type); const dayPortionText = absence.dayPortion === 'am' ? ' (Vormittags)' : absence.dayPortion === 'pm' ? ' (Nachmittags)' : ''; return (<div key={absence.id} className={`p-3 rounded-lg border flex items-center ${d.bgClass} ${d.borderClass}`}><div className={`w-2.5 h-2.5 ${d.dotClass} rounded-full mr-3`}></div><p className={`font-semibold ${d.textClass}`}>{d.label}{dayPortionText}</p></div>);})}{entriesForSelectedDay.map(entry => {const d = (new Date(entry.end).getTime() - new Date(entry.start).getTime())/36e5-(entry.breakDurationMinutes/60); return (<button key={entry.id} onClick={()=>setSelectedEntryId(entry.id)} className="w-full p-3 bg-gray-50 rounded-lg border flex justify-between items-center text-left hover:bg-gray-100"><div><p className="font-semibold">{activities.find(a=>a.id===entry.activityId)?.name||'N/A'}</p><p className="text-sm text-gray-600">{customers.find(c=>c.id===entry.customerId)?.name||'N/A'}</p><p className="text-xs text-gray-500 mt-1">{new Date(entry.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} - {new Date(entry.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</p></div><p className="font-bold text-lg text-blue-600">{formatHoursAndMinutes(d, timeFormat)}</p></button>);})}{entriesForSelectedDay.length===0 && absencesForSelectedDayList.length===0 && !holidayForSelectedDay && <p className="text-center text-gray-500 py-4">Keine Einträge für diesen Tag.</p>}</div></Card></div>
       )}
 
-      <Card>
-        <button
-          onClick={() => setIsRequestsExpanded(prev => !prev)}
-          className="w-full flex items-center justify-center relative py-1"
-          aria-expanded={isRequestsExpanded}
-          aria-controls="my-requests-list"
-        >
-          <h2 className="text-xl font-bold text-gray-800">Meine Anträge</h2>
-          <ChevronDownIcon 
-            className={`h-6 w-6 text-gray-400 transition-transform duration-300 absolute right-0 ${isRequestsExpanded ? 'rotate-180' : ''}`} 
-          />
-        </button>
-
-        <div
-          id="my-requests-list"
-          className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isRequestsExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-        >
-          <div className="overflow-hidden">
-            <div className="space-y-6 pt-4 mt-4 border-t">
-              {sortedYears.length > 0 ? sortedYears.map(year => (
-                <div key={year} className="space-y-4 pt-4 border-t first:border-t-0 first:pt-0">
-                  <h3 className="text-lg font-bold text-gray-800">{year}</h3>
-                  <div className="space-y-3">
-                    {groupedRequests[year].map(req => {
-                      const dayPortionText = req.dayPortion === 'am' ? ' (Vormittags)' : req.dayPortion === 'pm' ? ' (Nachmittags)' : '';
-                      const dateText = req.startDate === req.endDate
-                          ? `${new Date(req.startDate).toLocaleDateString('de-DE')}${dayPortionText}`
-                          : `${new Date(req.startDate).toLocaleDateString('de-DE')} - ${new Date(req.endDate).toLocaleDateString('de-DE')}`;
-                      return (
-                        <div key={req.id} className="p-3 bg-gray-50 rounded-lg border">
-                          <div className="flex justify-between items-start gap-2">
-                            <div>
-                              <p className="font-semibold">{getAbsenceStyle(req.type).label}</p>
-                              <p className="text-sm text-gray-600">{dateText}</p>
-                            </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              {getStatusChip(req.status)}
-                              {req.status==='pending' && (<Button onClick={()=>setRequestToRetract(req)} className="text-xs bg-gray-500 hover:bg-gray-600 px-2 py-1">Zurückziehen</Button>)}
-                            </div>
-                          </div>
-                          {req.adminComment && req.status!=='pending' && (<p className="mt-2 pt-2 border-t text-sm italic"><span className="font-medium not-italic text-gray-700">Kommentar:</span> "{req.adminComment}"</p>)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )) : (
-                <p className="text-center text-gray-500 py-4">Keine Anträge vorhanden.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
-
       {selectedEntry && (<EntryDetailModal entry={selectedEntry} customers={customers} activities={activities} timeEntries={timeEntries} onClose={handleCloseModal} onUpdate={onUpdateTimeEntry} onDelete={onDeleteTimeEntry} companySettings={companySettings}/>)}
-      <ConfirmModal isOpen={!!requestToRetract} onClose={() => setRequestToRetract(null)} onConfirm={handleConfirmRetract} title="Antrag zurückziehen" message="Möchten Sie diesen Antrag wirklich zurückziehen?" confirmText="Ja, zurückziehen" />
     </div>
   );
 };

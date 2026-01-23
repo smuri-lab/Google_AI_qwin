@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import type { AbsenceRequest, Employee, TimeEntry, CompanySettings } from '../types';
-import { AbsenceType } from '../types';
+import type { AbsenceRequest, Employee, TimeEntry, CompanySettings, HolidaysByYear, Holiday, WeeklySchedule } from '../types';
+import { AbsenceType, TargetHoursModel } from '../types';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Card } from './ui/Card';
@@ -8,10 +8,13 @@ import { CalendarModal } from './ui/CalendarModal';
 import { DateSelectorButton } from './ui/DateSelectorButton';
 import { XIcon } from './icons/XIcon';
 import { InfoModal } from './ui/InfoModal';
-import { RadioGroup } from './ui/RadioGroup';
-import { SunIcon } from './icons/SunIcon';
+import { Select } from './ui/Select';
+import { VacationSunIcon } from './icons/VacationSunIcon';
 import { SickFaceIcon } from './icons/SickFaceIcon';
 import { ClockIcon } from './icons/ClockIcon';
+import { InformationCircleIcon } from './icons/InformationCircleIcon';
+import { getContractDetailsForDate, formatHoursAndMinutes } from './utils';
+
 
 interface AbsenceRequestModalProps {
   currentUser: Employee;
@@ -21,6 +24,10 @@ interface AbsenceRequestModalProps {
   existingAbsences: AbsenceRequest[];
   timeEntries: TimeEntry[];
   companySettings: CompanySettings;
+  holidaysByYear: HolidaysByYear;
+  onEnsureHolidaysForYear: (year: number) => void;
+  vacationDaysLeft: number;
+  timeBalanceHours: number;
 }
 
 const formatDate = (dateString: string) => {
@@ -32,7 +39,7 @@ const formatDate = (dateString: string) => {
     });
 };
 
-export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ currentUser, onSubmit, isOpen, onClose, existingAbsences, timeEntries, companySettings }) => {
+export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ currentUser, onSubmit, isOpen, onClose, existingAbsences, timeEntries, companySettings, holidaysByYear, onEnsureHolidaysForYear, vacationDaysLeft, timeBalanceHours }) => {
   const [type, setType] = useState<AbsenceType>(AbsenceType.Vacation);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -42,6 +49,7 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: '', message: '' });
   const [isClosing, setIsClosing] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [timeOffHours, setTimeOffHours] = useState<number | null>(null);
   
   useEffect(() => {
     if (isOpen) {
@@ -67,6 +75,53 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
       setEndDate(startDate);
     }
   }, [dayPortion, startDate]);
+
+  useEffect(() => {
+    if (type !== AbsenceType.TimeOff || !startDate || !endDate) {
+        setTimeOffHours(null);
+        return;
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    onEnsureHolidaysForYear(start.getFullYear());
+    if (start.getFullYear() !== end.getFullYear()) {
+        onEnsureHolidaysForYear(end.getFullYear());
+    }
+
+    const holidaysForStartYear = holidaysByYear[start.getFullYear()] || [];
+    const holidaysForEndYear = holidaysByYear[end.getFullYear()] || [];
+    const holidayDates = new Set([
+        ...holidaysForStartYear.map(h => h.date),
+        ...holidaysForEndYear.map(h => h.date)
+    ]);
+    
+    let totalHours = 0;
+    const loopDate = new Date(start);
+
+    while(loopDate <= end) {
+        const dateString = loopDate.toLocaleDateString('sv-SE');
+        const dayOfWeek = loopDate.getDay();
+        
+        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidayDates.has(dateString)) {
+            const contract = getContractDetailsForDate(currentUser, loopDate);
+            let dailyScheduledHours = 0;
+
+            if (contract.targetHoursModel === TargetHoursModel.Weekly && contract.weeklySchedule) {
+                const dayKeys: (keyof WeeklySchedule)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+                dailyScheduledHours = contract.weeklySchedule[dayKeys[dayOfWeek]] || 0;
+            } else {
+                dailyScheduledHours = contract.dailyTargetHours;
+            }
+            totalHours += dailyScheduledHours;
+        }
+        loopDate.setDate(loopDate.getDate() + 1);
+    }
+    
+    setTimeOffHours(totalHours);
+
+  }, [type, startDate, endDate, currentUser, holidaysByYear, onEnsureHolidaysForYear]);
   
   const handleClose = () => {
     setIsClosing(true);
@@ -141,6 +196,13 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
     setEndDate(dateString);
     setIsRangePickerOpen(false);
   };
+  
+  const submitButtonColors = {
+    [AbsenceType.Vacation]: 'bg-yellow-500 hover:bg-yellow-600',
+    [AbsenceType.SickLeave]: 'bg-orange-500 hover:bg-orange-600',
+    [AbsenceType.TimeOff]: 'bg-green-600 hover:bg-green-700',
+  };
+  const submitButtonClass = submitButtonColors[type] || 'bg-blue-600 hover:bg-blue-700';
 
   return (
     <>
@@ -158,12 +220,12 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
                     onClick={() => setType(AbsenceType.Vacation)}
                     className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all duration-200 ${
                         type === AbsenceType.Vacation
-                        ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500 shadow-sm'
+                        ? 'bg-yellow-50 border-yellow-500 ring-1 ring-yellow-500 shadow-sm'
                         : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                     }`}
                 >
-                    <SunIcon className={`h-6 w-6 mb-2 ${type === AbsenceType.Vacation ? 'text-blue-600' : 'text-orange-500'}`} />
-                    <span className={`text-xs font-semibold ${type === AbsenceType.Vacation ? 'text-blue-700' : 'text-gray-700'}`}>Urlaub</span>
+                    <VacationSunIcon className="h-6 w-6 mb-2" />
+                    <span className={`text-xs font-semibold ${type === AbsenceType.Vacation ? 'text-yellow-700' : 'text-gray-700'}`}>Urlaub</span>
                 </button>
 
                 <button
@@ -171,12 +233,12 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
                     onClick={() => setType(AbsenceType.SickLeave)}
                     className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all duration-200 ${
                         type === AbsenceType.SickLeave
-                        ? 'bg-red-50 border-red-500 ring-1 ring-red-500 shadow-sm'
+                        ? 'bg-orange-50 border-orange-500 ring-1 ring-orange-500 shadow-sm'
                         : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                     }`}
                 >
-                    <SickFaceIcon className={`h-6 w-6 mb-2 ${type === AbsenceType.SickLeave ? 'text-red-600' : 'text-red-500'}`} />
-                    <span className={`text-xs font-semibold ${type === AbsenceType.SickLeave ? 'text-red-700' : 'text-gray-700'}`}>Krankheit</span>
+                    <SickFaceIcon className={`h-6 w-6 mb-2 ${type === AbsenceType.SickLeave ? 'text-orange-600' : 'text-orange-500'}`} />
+                    <span className={`text-xs font-semibold ${type === AbsenceType.SickLeave ? 'text-orange-700' : 'text-gray-700'}`}>Krankheit</span>
                 </button>
 
                 <button
@@ -193,18 +255,29 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
                 </button>
             </div>
             
+            {type === AbsenceType.Vacation && (
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 text-center animate-fade-in">
+                    Verfügbarer Urlaub: <span className="font-bold text-green-600">{vacationDaysLeft.toLocaleString('de-DE')} Tage</span>
+                </div>
+            )}
+
+            {type === AbsenceType.TimeOff && (
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 text-center animate-fade-in">
+                    Aktuelles Stundenkonto: <span className={`font-bold ${timeBalanceHours >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatHoursAndMinutes(timeBalanceHours, 'hoursMinutes')}</span>
+                </div>
+            )}
+            
             {type === AbsenceType.Vacation && companySettings.allowHalfDayVacations && (
-              <RadioGroup
+              <Select
                 name="dayPortion"
                 label="Dauer"
-                options={[
-                    { value: 'full', label: 'Ganzer Tag' },
-                    { value: 'am', label: 'Vormittags (halber Tag)' },
-                    { value: 'pm', label: 'Nachmittags (halber Tag)' },
-                ]}
-                selectedValue={dayPortion}
-                onChange={(value) => setDayPortion(value as 'full' | 'am' | 'pm')}
-              />
+                value={dayPortion}
+                onChange={(e) => setDayPortion(e.target.value as 'full' | 'am' | 'pm')}
+              >
+                <option value="full">Ganzer Tag</option>
+                <option value="am">Halber Tag - Vormittags</option>
+                <option value="pm">Halber Tag - Nachmittags</option>
+              </Select>
             )}
 
             <DateSelectorButton
@@ -213,13 +286,22 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
                 onClick={() => setIsRangePickerOpen(true)}
                 placeholder="Zeitraum auswählen..."
             />
+            
+            {type === AbsenceType.TimeOff && timeOffHours !== null && timeOffHours > 0 && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-start gap-3 text-sm text-blue-800 animate-fade-in">
+                    <InformationCircleIcon className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <p>
+                        Basierend auf Ihrer Soll-Arbeitszeit entspricht dieser Zeitraum <span className="font-bold">{timeOffHours.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Stunden</span> Freizeitausgleich.
+                    </p>
+                </div>
+            )}
 
             {type === AbsenceType.SickLeave && (
               <Input id="photo-upload" label="Foto hochladen (z.B. Krankenschein)" type="file" onChange={handleFileChange} />
             )}
             <div className="flex justify-end gap-4 pt-4 border-t">
               <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">Antrag einreichen</Button>
+              <Button type="submit" className={`w-full ${submitButtonClass}`}>Antrag einreichen</Button>
             </div>
           </form>
         </Card>

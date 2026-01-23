@@ -53,6 +53,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, setCurrentVie
         >
           <CalendarIcon className="h-6 w-6 mb-1" />
         </NavItem>
+        
+        <NavItem
+          label="Übersicht"
+          isActive={currentView === View.Overview}
+          onClick={() => setCurrentView(View.Overview)}
+        >
+            <DocumentTextIcon className="h-6 w-6 mb-1" />
+        </NavItem>
 
         <button
             onClick={onAddClick}
