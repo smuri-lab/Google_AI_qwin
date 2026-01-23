@@ -15,7 +15,7 @@ import { SelectionModal } from '../ui/SelectionModal';
 import { SelectorButton } from '../ui/SelectorButton';
 import { SunIcon } from '../icons/SunIcon';
 import { ClockIcon } from '../icons/ClockIcon';
-import { MedicalCrossIcon } from '../icons/MedicalCrossIcon';
+import { SickFaceIcon } from '../icons/SickFaceIcon';
 import { PlannerDisplayOptionsModal } from './PlannerDisplayOptionsModal';
 import { AdjustmentsHorizontalIcon } from '../icons/AdjustmentsHorizontalIcon';
 import { getContractDetailsForDate } from '../utils';
@@ -39,7 +39,7 @@ interface PlannerViewProps {
 const getAbsenceTypeUI = (type: AbsenceType) => {
     const details = {
         [AbsenceType.Vacation]: { icon: SunIcon, solidClass: 'bg-blue-500 text-white', pendingClass: 'bg-blue-100 text-blue-700', pendingBorderClass: 'border-blue-400', title: 'Urlaub' },
-        [AbsenceType.SickLeave]: { icon: MedicalCrossIcon, solidClass: 'bg-orange-500 text-white', pendingClass: 'bg-orange-100 text-orange-700', pendingBorderClass: 'border-orange-400', title: 'Krank' },
+        [AbsenceType.SickLeave]: { icon: SickFaceIcon, solidClass: 'bg-orange-500 text-white', pendingClass: 'bg-orange-100 text-orange-700', pendingBorderClass: 'border-orange-400', title: 'Krank' },
         [AbsenceType.TimeOff]: { icon: ClockIcon, solidClass: 'bg-green-500 text-white', pendingClass: 'bg-green-100 text-green-700', pendingBorderClass: 'border-green-400', title: 'Freizeitausgleich' },
     };
     return details[type];

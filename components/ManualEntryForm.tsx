@@ -73,6 +73,47 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
     setDate(initialDate || new Date().toLocaleDateString('sv-SE'));
   }, [initialDate]);
 
+  // Logic to set Start Time based on previous entries
+  useEffect(() => {
+    const entriesForDate = timeEntries.filter(entry => 
+        new Date(entry.start).toLocaleDateString('sv-SE') === date
+    );
+
+    if (entriesForDate.length > 0) {
+        // Find the latest end time
+        const sorted = [...entriesForDate].sort((a, b) => new Date(b.end).getTime() - new Date(a.end).getTime());
+        const lastEntry = sorted[0];
+        const lastEnd = new Date(lastEntry.end);
+        
+        const hours = String(lastEnd.getHours()).padStart(2, '0');
+        const minutes = String(lastEnd.getMinutes()).padStart(2, '0');
+        const newStartTime = `${hours}:${minutes}`;
+        
+        setStartTime(newStartTime);
+
+        // Adjust End Time if it is now before or equal to Start Time
+        const [endH, endM] = endTime.split(':').map(Number);
+        const [startH, startM] = newStartTime.split(':').map(Number);
+        
+        if (!isNaN(endH) && !isNaN(startH)) {
+            const endVal = endH * 60 + endM;
+            const startVal = startH * 60 + startM;
+            
+            if (endVal <= startVal) {
+                // Default to +1 hour if overlap, capped at 23:59
+                let newEndH = startH + 1;
+                let newEndM = startM;
+                if (newEndH > 23) { newEndH = 23; newEndM = 59; }
+                setEndTime(`${String(newEndH).padStart(2, '0')}:${String(newEndM).padStart(2, '0')}`);
+            }
+        }
+    } else {
+        // Default for new day
+        setStartTime('08:00');
+        setEndTime('17:00');
+    }
+  }, [date, timeEntries]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerId || !activityId || !date || !startTime || !endTime) {
@@ -119,9 +160,7 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
     if (onCancel) {
       onCancel();
     } else {
-      setDate(new Date().toLocaleDateString('sv-SE'));
-      setStartTime('08:00');
-      setEndTime('17:00');
+      // Keep the same date but reset times logic will trigger via useEffect when timeEntries updates
       setBreakDurationMinutes('');
       setCustomerId('');
       setActivityId('');

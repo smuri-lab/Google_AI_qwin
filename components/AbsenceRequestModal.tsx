@@ -3,13 +3,15 @@ import type { AbsenceRequest, Employee, TimeEntry, CompanySettings } from '../ty
 import { AbsenceType } from '../types';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
-import { Select } from './ui/Select';
 import { Card } from './ui/Card';
 import { CalendarModal } from './ui/CalendarModal';
 import { DateSelectorButton } from './ui/DateSelectorButton';
 import { XIcon } from './icons/XIcon';
 import { InfoModal } from './ui/InfoModal';
 import { RadioGroup } from './ui/RadioGroup';
+import { SunIcon } from './icons/SunIcon';
+import { SickFaceIcon } from './icons/SickFaceIcon';
+import { ClockIcon } from './icons/ClockIcon';
 
 interface AbsenceRequestModalProps {
   currentUser: Employee;
@@ -149,11 +151,47 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
            </button>
           <h2 className="text-xl font-bold text-center mb-4">Neuer Antrag</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Select label="Antragstyp" value={type} onChange={(e) => setType(e.target.value as AbsenceType)}>
-              <option value={AbsenceType.Vacation}>Urlaub</option>
-              <option value={AbsenceType.SickLeave}>Krankmeldung</option>
-              <option value={AbsenceType.TimeOff}>Freizeitausgleich</option>
-            </Select>
+            
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <button
+                    type="button"
+                    onClick={() => setType(AbsenceType.Vacation)}
+                    className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all duration-200 ${
+                        type === AbsenceType.Vacation
+                        ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500 shadow-sm'
+                        : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                    }`}
+                >
+                    <SunIcon className={`h-6 w-6 mb-2 ${type === AbsenceType.Vacation ? 'text-blue-600' : 'text-orange-500'}`} />
+                    <span className={`text-xs font-semibold ${type === AbsenceType.Vacation ? 'text-blue-700' : 'text-gray-700'}`}>Urlaub</span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setType(AbsenceType.SickLeave)}
+                    className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all duration-200 ${
+                        type === AbsenceType.SickLeave
+                        ? 'bg-red-50 border-red-500 ring-1 ring-red-500 shadow-sm'
+                        : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                    }`}
+                >
+                    <SickFaceIcon className={`h-6 w-6 mb-2 ${type === AbsenceType.SickLeave ? 'text-red-600' : 'text-red-500'}`} />
+                    <span className={`text-xs font-semibold ${type === AbsenceType.SickLeave ? 'text-red-700' : 'text-gray-700'}`}>Krankheit</span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setType(AbsenceType.TimeOff)}
+                    className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all duration-200 ${
+                        type === AbsenceType.TimeOff
+                        ? 'bg-green-50 border-green-500 ring-1 ring-green-500 shadow-sm'
+                        : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                    }`}
+                >
+                    <ClockIcon className={`h-6 w-6 mb-2 ${type === AbsenceType.TimeOff ? 'text-green-600' : 'text-green-500'}`} />
+                    <span className={`text-xs font-semibold text-center leading-tight ${type === AbsenceType.TimeOff ? 'text-green-700' : 'text-gray-700'}`}>Freizeit- ausgleich</span>
+                </button>
+            </div>
             
             {type === AbsenceType.Vacation && companySettings.allowHalfDayVacations && (
               <RadioGroup
