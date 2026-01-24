@@ -113,14 +113,16 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
 
   return (
     <div className="max-w-8xl mx-auto w-full">
-        <div className="flex flex-col md:flex-row gap-6 items-start pt-6">
-            <AdminNav 
-                activeView={activeView} 
-                setActiveView={setActiveView} 
-                companySettings={props.companySettings} 
-                absenceRequests={props.absenceRequests}
-            />
-            <main className="flex-grow w-full overflow-x-auto pb-16 md:pb-0">
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+            <div className="md:pt-6">
+              <AdminNav 
+                  activeView={activeView} 
+                  setActiveView={setActiveView} 
+                  companySettings={props.companySettings} 
+                  absenceRequests={props.absenceRequests}
+              />
+            </div>
+            <main className="flex-grow w-full overflow-x-auto pb-16 md:pb-0 md:pt-6">
                 {renderActiveView()}
             </main>
         </div>

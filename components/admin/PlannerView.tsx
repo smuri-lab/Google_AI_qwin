@@ -21,7 +21,7 @@ import { AdjustmentsHorizontalIcon } from '../icons/AdjustmentsHorizontalIcon';
 import { getContractDetailsForDate } from '../utils';
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import { CalendarDaysIcon } from '../icons/CalendarDaysIcon';
-import { PlannerDateRangeModal } from './PlannerDateRangeModal';
+import { PlannerDateRangeModal, type Preset } from './PlannerDateRangeModal';
 
 interface PlannerViewProps {
   employees: Employee[];
@@ -143,22 +143,12 @@ const getWeekAndYear = (d: Date): { week: number, year: number } => {
     return { week: weekNo, year };
 }
 
-const getStartOfWeek = (date: Date): Date => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff));
-};
-
 export const PlannerView: React.FC<PlannerViewProps> = (props) => {
     const [activeTab, setActiveTab] = useState<'planner' | 'list'>('planner');
-    const [viewStartDate, setViewStartDate] = useState(() => getStartOfWeek(new Date()));
-    const [viewEndDate, setViewEndDate] = useState(() => {
-        const d = getStartOfWeek(new Date());
-        d.setDate(d.getDate() + 20); // 3 weeks total
-        return d;
-    });
+    const [viewMode, setViewMode] = useState<'period' | 'month'>('month');
+    const todayForDefault = new Date();
+    const [viewStartDate, setViewStartDate] = useState(() => new Date(todayForDefault.getFullYear(), todayForDefault.getMonth(), 1));
+    const [viewEndDate, setViewEndDate] = useState(() => new Date(todayForDefault.getFullYear(), todayForDefault.getMonth() + 1, 0));
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [initialModalData, setInitialModalData] = useState<Partial<AbsenceFormData> | null>(null);
     const [approvalTarget, setApprovalTarget] = useState<AbsenceRequest | null>(null);
@@ -211,13 +201,21 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
     }, [viewStartDate, viewEndDate, props.onEnsureHolidaysForYear]);
 
     const changePeriod = (offset: number) => {
-        const duration = (viewEndDate.getTime() - viewStartDate.getTime()) + (24 * 60 * 60 * 1000);
-        const newStartDate = new Date(viewStartDate);
-        newStartDate.setTime(newStartDate.getTime() + offset * duration);
-        const newEndDate = new Date(viewEndDate);
-        newEndDate.setTime(newEndDate.getTime() + offset * duration);
-        setViewStartDate(newStartDate);
-        setViewEndDate(newEndDate);
+        if (viewMode === 'month') {
+            const newStartDate = new Date(viewStartDate);
+            newStartDate.setMonth(newStartDate.getMonth() + offset);
+            const newEndDate = new Date(newStartDate.getFullYear(), newStartDate.getMonth() + 1, 0);
+            setViewStartDate(newStartDate);
+            setViewEndDate(newEndDate);
+        } else {
+            const duration = (viewEndDate.getTime() - viewStartDate.getTime()) + (24 * 60 * 60 * 1000);
+            const newStartDate = new Date(viewStartDate);
+            newStartDate.setTime(newStartDate.getTime() + offset * duration);
+            const newEndDate = new Date(viewEndDate);
+            newEndDate.setTime(newEndDate.getTime() + offset * duration);
+            setViewStartDate(newStartDate);
+            setViewEndDate(newEndDate);
+        }
     };
     
     const visibleDays = useMemo(() => {
@@ -291,6 +289,10 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
     const handleListConfirmAction = () => { if (actionTarget) { props.onUpdateRequestStatus(actionTarget.id, actionTarget.status, adminComment.trim() || undefined); setActionTarget(null); setAdminComment(''); } };
 
     const formatHeaderDate = () => {
+        if (viewMode === 'month') {
+            return viewStartDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
+        }
+        
         const start = viewStartDate;
         const end = viewEndDate;
         const startYear = start.getFullYear();
@@ -378,24 +380,24 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
             {activeTab === 'planner' && (
                 <div className="animate-fade-in">
                     <Card>
-                        <div className="flex justify-between items-center mb-4">
-                            <button onClick={() => changePeriod(-1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronLeftIcon className="h-5 w-5 text-gray-600" /></button>
-                            <div className="text-center">
-                                <h2 className="text-lg font-bold text-gray-800">{formatHeaderDate()}</h2>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setIsDateRangeModalOpen(true)} className="p-2 rounded-full hover:bg-gray-100" title="Zeitraum anpassen">
-                                    <CalendarDaysIcon className="h-5 w-5 text-gray-600" />
-                                </button>
-                                <button onClick={() => changePeriod(1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronRightIcon className="h-5 w-5 text-gray-600" /></button>
-                            </div>
+                        <div className="flex justify-center items-center gap-2 sm:gap-4 mb-4">
+                            <button onClick={() => changePeriod(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Vorheriger Zeitraum">
+                                <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
+                            </button>
+                            <button onClick={() => setIsDateRangeModalOpen(true)} className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors" title="Zeitraum anpassen">
+                                <h2 className="text-lg font-bold text-gray-800 text-center">{formatHeaderDate()}</h2>
+                                <CalendarDaysIcon className="h-5 w-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                            </button>
+                            <button onClick={() => changePeriod(1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Nächster Zeitraum">
+                                <ChevronRightIcon className="h-5 w-5 text-gray-600" />
+                            </button>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="min-w-full border-collapse table-fixed">
                                 <thead className="sticky top-0 bg-white z-10">
                                      <tr>
-                                        <th rowSpan={2} className="sticky left-0 bg-white py-3 px-2 border-b border-r border-gray-200 w-48 z-20 align-middle">
-                                            <button onClick={() => setIsDisplayOptionsModalOpen(true)} className="w-full flex items-center justify-between text-left text-base font-semibold group">
+                                        <th rowSpan={2} className="sticky left-0 bg-white border-b border-r border-gray-200 w-48 z-20 align-middle">
+                                            <button onClick={() => setIsDisplayOptionsModalOpen(true)} className="w-full flex items-center justify-between text-left text-base font-semibold group py-3 px-2 hover:bg-gray-50 transition-colors">
                                                 <span>Mitarbeiter</span>
                                                 <AdjustmentsHorizontalIcon className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
                                             </button>
@@ -649,7 +651,11 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
             <PlannerDateRangeModal
                 isOpen={isDateRangeModalOpen}
                 onClose={() => setIsDateRangeModalOpen(false)}
-                onApply={(start, end) => { setViewStartDate(start); setViewEndDate(end); }}
+                onApply={(start, end, preset) => {
+                    setViewStartDate(start); 
+                    setViewEndDate(end); 
+                    setViewMode(preset === 'month' ? 'month' : 'period');
+                }}
                 currentStartDate={viewStartDate}
                 currentEndDate={viewEndDate}
             />

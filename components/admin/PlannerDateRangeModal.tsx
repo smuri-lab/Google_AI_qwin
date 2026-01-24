@@ -4,10 +4,12 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { XIcon } from '../icons/XIcon';
 
+export type Preset = '2w' | '3w' | '4w' | 'month';
+
 interface PlannerDateRangeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onApply: (startDate: Date, endDate: Date) => void;
+  onApply: (startDate: Date, endDate: Date, preset: Preset | null) => void;
   currentStartDate: Date;
   currentEndDate: Date;
 }
@@ -19,8 +21,6 @@ const getStartOfWeek = (date: Date): Date => {
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     return new Date(d.setDate(diff));
 };
-
-type Preset = '2w' | '3w' | '4w' | 'month';
 
 const checkDatesForPreset = (start: Date, end: Date): Preset | null => {
     const today = new Date();
@@ -82,7 +82,7 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
       alert('Das Startdatum darf nicht nach dem Enddatum liegen.');
       return;
     }
-    onApply(start, end);
+    onApply(start, end, activePreset);
     onClose();
   };
 

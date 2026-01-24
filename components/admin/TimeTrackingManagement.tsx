@@ -368,15 +368,15 @@ const TimeTrackingOverview: React.FC<TimeTrackingManagementProps> = ({
       <div className="space-y-6">
         <div className="flex justify-between items-center">
             <Button onClick={() => setActiveEmployeeId(null)} className="bg-gray-500 hover:bg-gray-600 flex items-center gap-2">
-                <ArrowUturnLeftIcon className="h-5 w-5" /> Zurück zur Übersicht
+                <ArrowUturnLeftIcon className="h-5 w-5" /> Zurück
             </Button>
             <Button onClick={() => setAddModalState('choice')} className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
-                <PlusIcon className="h-5 w-5" /> Eintrag hinzufügen
+                <PlusIcon className="h-5 w-5" /> Hinzufügen
             </Button>
         </div>
 
         <Card>
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-center items-center gap-2 sm:gap-4 mb-4">
                 <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><ChevronLeftIcon className="h-5 w-5 text-gray-600" /></button>
                 <div ref={monthPickerRef} className="text-center relative">
                     <button onClick={() => setIsMonthPickerOpen(p => !p)} className="hover:bg-gray-100 p-2 rounded-lg">
@@ -632,16 +632,17 @@ const TimeTrackingOverview: React.FC<TimeTrackingManagementProps> = ({
 
   return (
     <div className="space-y-6">
-        <div className="flex justify-end">
-             <Button onClick={() => setIsExportModalOpen(true)} className="bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2">
-                <DocumentArrowDownIcon className="h-5 w-5" />
-                Stundenzettel exportieren
-            </Button>
-        </div>
-
         <Card>
-            <h2 className="text-xl font-bold mb-4">Mitarbeiter-Übersicht</h2>
-            <p className="text-sm text-gray-500 mb-4">Klicken Sie auf einen Mitarbeiter, um die monatliche Detailansicht zu öffnen.</p>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
+                <div>
+                    <h2 className="text-xl font-bold">Mitarbeiter-Übersicht</h2>
+                    <p className="text-sm text-gray-500 mt-1">Klicken Sie auf einen Mitarbeiter, um die monatliche Detailansicht zu öffnen.</p>
+                </div>
+                <Button onClick={() => setIsExportModalOpen(true)} className="bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 flex-shrink-0">
+                    <DocumentArrowDownIcon className="h-5 w-5" />
+                    Stundenzettel exportieren
+                </Button>
+            </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white">
                     <thead className="bg-gray-50">
