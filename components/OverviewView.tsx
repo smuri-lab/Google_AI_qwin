@@ -51,6 +51,7 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
     const [requestToRetract, setRequestToRetract] = useState<AbsenceRequest | null>(null);
     const [isVacationOpen, setIsVacationOpen] = useState(true);
     const [isTimeBalanceOpen, setIsTimeBalanceOpen] = useState(true);
+    const [isRequestsOpen, setIsRequestsOpen] = useState(true);
 
     const timeFormat = companySettings.employeeTimeFormat || 'hoursMinutes';
     
@@ -193,24 +194,6 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
             </div>
 
             <Card>
-                <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsVacationOpen(!isVacationOpen)} aria-expanded={isVacationOpen} aria-controls="vacation-details">
-                    <h2 className="text-xl font-bold">Urlaubsübersicht</h2>
-                    <ChevronDownIcon className={`h-6 w-6 text-gray-400 transition-transform duration-300 ${isVacationOpen ? 'rotate-180' : ''}`} />
-                </div>
-                <div id="vacation-details" className={`transition-all duration-300 ease-in-out overflow-hidden ${isVacationOpen ? 'max-h-[500px] mt-4' : 'max-h-0 mt-0'}`}>
-                    <div className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span className="text-gray-600">Jahresanspruch</span><span className="font-semibold">{monthlyVacationDetails.annualEntitlement} Tage</span></div>
-                        <div className="flex justify-between"><span className="text-gray-600">Resturlaub Vorjahr</span><span className="font-semibold">{monthlyVacationDetails.carryover} Tage</span></div>
-                        <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold">Gesamt verfügbar</span><span className="font-bold">{monthlyVacationDetails.totalAvailable} Tage</span></div>
-                        <div className="flex justify-between"><span className="text-gray-600">Genommen (bis Vormonat)</span><span className="font-semibold">- {monthlyVacationDetails.vacationTakenBeforeThisMonth} Tage</span></div>
-                        <div className="flex justify-between"><span className="text-gray-600">Genommen (diesen Monat)</span><span className="font-semibold">- {monthlyVacationDetails.vacationTakenThisMonth} Tage</span></div>
-                        <div className="flex justify-between"><span className="text-yellow-600">Beantragt (diesen Monat)</span><span className="font-semibold text-yellow-600">- {monthlyVacationDetails.pendingThisMonth} Tage</span></div>
-                        <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold text-green-600">Verbleibend (am Monatsende)</span><span className="font-bold text-green-600">{monthlyVacationDetails.remainingAtEndOfMonth} Tage</span></div>
-                    </div>
-                </div>
-            </Card>
-
-            <Card>
                 <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsTimeBalanceOpen(!isTimeBalanceOpen)} aria-expanded={isTimeBalanceOpen} aria-controls="time-balance-details">
                     <h2 className="text-xl font-bold">Stundenkonto</h2>
                     <ChevronDownIcon className={`h-6 w-6 text-gray-400 transition-transform duration-300 ${isTimeBalanceOpen ? 'rotate-180' : ''}`} />
@@ -249,7 +232,66 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
                     </div>
                 </div>
             </Card>
-            
+
+            <Card>
+                <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsVacationOpen(!isVacationOpen)} aria-expanded={isVacationOpen} aria-controls="vacation-details">
+                    <h2 className="text-xl font-bold">Urlaubsübersicht</h2>
+                    <ChevronDownIcon className={`h-6 w-6 text-gray-400 transition-transform duration-300 ${isVacationOpen ? 'rotate-180' : ''}`} />
+                </div>
+                <div id="vacation-details" className={`transition-all duration-300 ease-in-out overflow-hidden ${isVacationOpen ? 'max-h-[500px] mt-4' : 'max-h-0 mt-0'}`}>
+                    <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-gray-600">Jahresanspruch</span><span className="font-semibold">{monthlyVacationDetails.annualEntitlement} Tage</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Resturlaub Vorjahr</span><span className="font-semibold">{monthlyVacationDetails.carryover} Tage</span></div>
+                        <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold">Gesamt verfügbar</span><span className="font-bold">{monthlyVacationDetails.totalAvailable} Tage</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Genommen (bis Vormonat)</span><span className="font-semibold">{monthlyVacationDetails.vacationTakenBeforeThisMonth > 0 && '- '}{monthlyVacationDetails.vacationTakenBeforeThisMonth} Tage</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Genommen (diesen Monat)</span><span className="font-semibold">{monthlyVacationDetails.vacationTakenThisMonth > 0 && '- '}{monthlyVacationDetails.vacationTakenThisMonth} Tage</span></div>
+                        <div className="flex justify-between"><span className="text-yellow-600">Beantragt (diesen Monat)</span><span className="font-semibold text-yellow-600">{monthlyVacationDetails.pendingThisMonth > 0 && '- '}{monthlyVacationDetails.pendingThisMonth} Tage</span></div>
+                        <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold text-green-600">Verbleibend (am Monatsende)</span><span className="font-bold text-green-600">{monthlyVacationDetails.remainingAtEndOfMonth} Tage</span></div>
+                    </div>
+                </div>
+            </Card>
+
+            <Card>
+                <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsRequestsOpen(!isRequestsOpen)} aria-expanded={isRequestsOpen} aria-controls="requests-details">
+                    <h2 className="text-xl font-bold">Meine Anträge</h2>
+                    <ChevronDownIcon className={`h-6 w-6 text-gray-400 transition-transform duration-300 ${isRequestsOpen ? 'rotate-180' : ''}`} />
+                </div>
+                <div id="requests-details" className={`transition-all duration-300 ease-in-out overflow-hidden ${isRequestsOpen ? 'max-h-[1000px] mt-4' : 'max-h-0 mt-0'}`}>
+                    <div className="space-y-6">
+                      {sortedYears.length > 0 ? sortedYears.map(year => (
+                        <div key={year} className="space-y-4 pt-4 border-t first:border-t-0 first:pt-0">
+                          <h3 className="text-lg font-bold text-gray-800">{year}</h3>
+                          <div className="space-y-3">
+                            {groupedRequests[year].map(req => {
+                              const dayPortionText = req.dayPortion === 'am' ? ' (Vormittags)' : req.dayPortion === 'pm' ? ' (Nachmittags)' : '';
+                              const dateText = req.startDate === req.endDate
+                                  ? `${new Date(req.startDate).toLocaleDateString('de-DE')}${dayPortionText}`
+                                  : `${new Date(req.startDate).toLocaleDateString('de-DE')} - ${new Date(req.endDate).toLocaleDateString('de-DE')}`;
+                              return (
+                                <div key={req.id} className="p-3 bg-gray-50 rounded-lg border">
+                                  <div className="flex justify-between items-start gap-2">
+                                    <div>
+                                      <p className="font-semibold">{getAbsenceStyle(req.type).label}</p>
+                                      <p className="text-sm text-gray-600">{dateText}</p>
+                                    </div>
+                                    <div className="flex items-center gap-3 flex-shrink-0">
+                                      {getStatusChip(req.status)}
+                                      {req.status==='pending' && (<Button onClick={()=>setRequestToRetract(req)} className="text-xs bg-gray-500 hover:bg-gray-600 px-2 py-1">Zurückziehen</Button>)}
+                                    </div>
+                                  </div>
+                                  {req.adminComment && req.status!=='pending' && (<p className="mt-2 pt-2 border-t text-sm italic"><span className="font-medium not-italic text-gray-700">Kommentar:</span> "{req.adminComment}"</p>)}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )) : (
+                        <p className="text-center text-gray-500 py-4">Keine Anträge vorhanden.</p>
+                      )}
+                    </div>
+                </div>
+            </Card>
+
             <Card onClick={() => setIsExportModalOpen(true)} className="cursor-pointer hover:bg-gray-50 transition-colors">
                 <div className="flex justify-between items-center">
                     <div>
@@ -257,42 +299,6 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
                         <p className="text-xs sm:text-sm text-gray-500">Monatsübersicht als Excel-Datei herunterladen</p>
                     </div>
                     <DocumentArrowDownIcon className="h-6 w-6 text-blue-600" />
-                </div>
-            </Card>
-
-            <Card>
-                <h2 className="text-xl font-bold mb-4">Meine Anträge</h2>
-                <div className="space-y-6">
-                  {sortedYears.length > 0 ? sortedYears.map(year => (
-                    <div key={year} className="space-y-4 pt-4 border-t first:border-t-0 first:pt-0">
-                      <h3 className="text-lg font-bold text-gray-800">{year}</h3>
-                      <div className="space-y-3">
-                        {groupedRequests[year].map(req => {
-                          const dayPortionText = req.dayPortion === 'am' ? ' (Vormittags)' : req.dayPortion === 'pm' ? ' (Nachmittags)' : '';
-                          const dateText = req.startDate === req.endDate
-                              ? `${new Date(req.startDate).toLocaleDateString('de-DE')}${dayPortionText}`
-                              : `${new Date(req.startDate).toLocaleDateString('de-DE')} - ${new Date(req.endDate).toLocaleDateString('de-DE')}`;
-                          return (
-                            <div key={req.id} className="p-3 bg-gray-50 rounded-lg border">
-                              <div className="flex justify-between items-start gap-2">
-                                <div>
-                                  <p className="font-semibold">{getAbsenceStyle(req.type).label}</p>
-                                  <p className="text-sm text-gray-600">{dateText}</p>
-                                </div>
-                                <div className="flex items-center gap-3 flex-shrink-0">
-                                  {getStatusChip(req.status)}
-                                  {req.status==='pending' && (<Button onClick={()=>setRequestToRetract(req)} className="text-xs bg-gray-500 hover:bg-gray-600 px-2 py-1">Zurückziehen</Button>)}
-                                </div>
-                              </div>
-                              {req.adminComment && req.status!=='pending' && (<p className="mt-2 pt-2 border-t text-sm italic"><span className="font-medium not-italic text-gray-700">Kommentar:</span> "{req.adminComment}"</p>)}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )) : (
-                    <p className="text-center text-gray-500 py-4">Keine Anträge vorhanden.</p>
-                  )}
                 </div>
             </Card>
 
