@@ -295,7 +295,7 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
             <Card onClick={() => setIsExportModalOpen(true)} className="cursor-pointer hover:bg-gray-50 transition-colors">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h3 className="text-base sm:text-lg font-semibold text-gray-700">Meine Stundenzettel</h3>
+                        <h2 className="text-xl font-bold">Meine Stundenzettel</h2>
                         <p className="text-xs sm:text-sm text-gray-500">Monatsübersicht als Excel-Datei herunterladen</p>
                     </div>
                     <DocumentArrowDownIcon className="h-6 w-6 text-blue-600" />
