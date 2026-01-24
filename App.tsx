@@ -10,7 +10,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { RegistrationScreen } from './components/RegistrationScreen';
 import { LogoutIcon } from './components/icons/LogoutIcon';
 // FIX: Removed unused and unexported 'calculateTargetHours' from import.
-import { getContractDetailsForDate, calculateAnnualVacationTaken, calculateBalance } from './components/utils';
+import { getContractDetailsForDate, calculateAnnualVacationTaken, calculateBalance, calculateMonthlyBreakdown } from './components/utils';
 import { SwitchHorizontalIcon } from './components/icons/SwitchHorizontalIcon';
 import { ActionSheet } from './components/ui/ActionSheet';
 import { AbsenceRequestModal } from './components/AbsenceRequestModal';
@@ -641,64 +641,19 @@ const App: React.FC = () => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
-    const holidaysForCurrentYear = holidaysByYear[currentYear] || [];
-    const startOfMonth = new Date(currentYear, currentMonth, 1);
-    const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
-
-    const holidayDates = new Set(holidaysForCurrentYear.map(h => h.date));
     
-    const workedHoursByDate: { [key: string]: number } = {};
-    timeEntries
-        .filter(entry => {
-            const entryDate = new Date(entry.start);
-            return entry.employeeId === currentUser.id &&
-                   entryDate.getFullYear() === currentYear &&
-                   entryDate.getMonth() === currentMonth;
-        })
-        .forEach(entry => {
-            const dateKey = new Date(entry.start).toLocaleDateString('sv-SE');
-            const durationSeconds = (new Date(entry.end).getTime() - new Date(entry.start).getTime()) / 1000;
-            const durationHours = (durationSeconds - (entry.breakDurationMinutes * 60)) / 3600;
-            workedHoursByDate[dateKey] = (workedHoursByDate[dateKey] || 0) + durationHours;
-        });
-    
-    const approvedAbsences = absenceRequests.filter(req => 
-      req.employeeId === currentUser.id && req.status === 'approved'
+    const breakdown = calculateMonthlyBreakdown(
+        currentUser,
+        currentYear,
+        currentMonth,
+        timeEntries,
+        absenceRequests,
+        timeBalanceAdjustments,
+        holidaysByYear
     );
-    
-    let totalHours = 0;
-    for (let day = new Date(startOfMonth); day <= endOfMonth; day.setDate(day.getDate() + 1)) {
-        const dateKey = day.toLocaleDateString('sv-SE');
-        
-        if (workedHoursByDate[dateKey]) {
-            totalHours += workedHoursByDate[dateKey];
-            continue;
-        }
 
-        const contract = getContractDetailsForDate(currentUser, day);
-        const dayOfWeek = day.getDay();
-        let dailyScheduledHours = 0;
-        if (contract.targetHoursModel === TargetHoursModel.Weekly && contract.weeklySchedule) {
-            const dayKeys: (keyof WeeklySchedule)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-            dailyScheduledHours = contract.weeklySchedule[dayKeys[dayOfWeek]] || 0;
-        } else {
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) { dailyScheduledHours = contract.dailyTargetHours; }
-        }
-
-        if (dailyScheduledHours === 0) continue;
-        
-        const isHoliday = holidayDates.has(dateKey);
-        const absence = approvedAbsences.find(req => dateKey >= req.startDate && dateKey <= req.endDate);
-
-        if (isHoliday) {
-            totalHours += dailyScheduledHours;
-        } else if (absence && (absence.type === AbsenceType.Vacation || absence.type === AbsenceType.SickLeave)) {
-            totalHours += dailyScheduledHours;
-        }
-    }
-
-    return totalHours;
-  }, [timeEntries, currentUser, absenceRequests, holidaysByYear]);
+    return breakdown.totalCredited;
+  }, [currentUser, timeEntries, absenceRequests, timeBalanceAdjustments, holidaysByYear]);
 
   const renderEmployeeView = () => {
     if (!currentUser) return null;

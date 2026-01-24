@@ -127,6 +127,102 @@ export const calculateBalance = (
     return (employee.startingTimeBalanceHours || 0) + totalCredits - totalPayrollTargetHours;
 };
 
+/**
+ * Provides a detailed breakdown of all time balance components for a specific month.
+ * This is the central source of truth for all monthly calculations.
+ * @returns An object with all calculated values for the month.
+ */
+export const calculateMonthlyBreakdown = (
+    employee: Employee,
+    year: number,
+    month: number,
+    allTimeEntries: TimeEntry[],
+    allAbsenceRequests: AbsenceRequest[],
+    allTimeBalanceAdjustments: TimeBalanceAdjustment[],
+    holidaysByYear: HolidaysByYear,
+) => {
+    const holidaysForYear = holidaysByYear[year] || [];
+    const holidayDates = new Set(holidaysForYear.map(h => h.date));
+    
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    monthEnd.setHours(23, 59, 59, 999);
+    
+    const prevMonthEnd = new Date(year, month, 0);
+    prevMonthEnd.setHours(23, 59, 59, 999);
+    
+    const previousBalance = calculateBalance(employee, prevMonthEnd, allTimeEntries, allAbsenceRequests, allTimeBalanceAdjustments, holidaysByYear);
+    
+    const workedHours = allTimeEntries
+        .filter(e => e.employeeId === employee.id && new Date(e.start) >= monthStart && new Date(e.start) <= monthEnd)
+        .reduce((sum, e) => sum + ((new Date(e.end).getTime() - new Date(e.start).getTime()) / 3600000 - (e.breakDurationMinutes / 60)), 0);
+
+    const adjustments = allTimeBalanceAdjustments
+        .filter(adj => {
+            const adjDate = new Date(adj.date);
+            return adj.employeeId === employee.id &&
+                   adjDate.getFullYear() === year &&
+                   adjDate.getMonth() === month;
+        })
+        .reduce((sum, adj) => sum + adj.hours, 0);
+
+    let vacationCreditHours = 0;
+    let sickLeaveCreditHours = 0;
+    let holidayCreditHours = 0;
+    const approvedAbsences = allAbsenceRequests.filter(r => r.employeeId === employee.id && r.status === 'approved');
+
+    for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
+        const contract = getContractDetailsForDate(employee, d);
+        const dayOfWeek = d.getDay();
+        let dailyTarget = 0;
+
+        if (contract.targetHoursModel === TargetHoursModel.Weekly && contract.weeklySchedule) {
+            const dayKeys: (keyof WeeklySchedule)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            dailyTarget = contract.weeklySchedule[dayKeys[dayOfWeek]] || 0;
+        } else if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            dailyTarget = contract.dailyTargetHours;
+        }
+        
+        if (dailyTarget > 0) {
+            const dateString = d.toLocaleDateString('sv-SE');
+            const isHoliday = holidayDates.has(dateString);
+            const absence = approvedAbsences.find(r => dateString >= r.startDate && dateString <= r.endDate);
+
+            if (isHoliday) {
+                holidayCreditHours += dailyTarget;
+            } else if (absence) {
+                 if (absence.type === AbsenceType.Vacation) {
+                    const credit = absence.dayPortion && absence.dayPortion !== 'full' ? dailyTarget / 2 : dailyTarget;
+                    vacationCreditHours += credit;
+                 } else if (absence.type === AbsenceType.SickLeave) {
+                    sickLeaveCreditHours += dailyTarget;
+                 }
+            }
+        }
+    }
+    
+    const absenceHolidayCredit = vacationCreditHours + sickLeaveCreditHours + holidayCreditHours;
+    const totalCredited = workedHours + absenceHolidayCredit + adjustments;
+    const contract = getContractDetailsForDate(employee, monthStart);
+    const targetHours = contract.monthlyTargetHours;
+    const monthlyBalance = totalCredited - targetHours;
+    const endOfMonthBalance = previousBalance + monthlyBalance;
+
+    return {
+        previousBalance,
+        workedHours,
+        adjustments,
+        vacationCreditHours,
+        sickLeaveCreditHours,
+        holidayCreditHours,
+        absenceHolidayCredit,
+        totalCredited,
+        targetHours,
+        monthlyBalance,
+        endOfMonthBalance
+    };
+};
+
 
 /**
  * Formats a decimal number of hours into a string with hours and minutes.
@@ -365,10 +461,9 @@ interface ExportTimesheetParams {
     timeFormat?: 'decimal' | 'hoursMinutes';
 }
 
-export const exportTimesheet = (params: ExportTimesheetParams) => {
+const getTimesheetExportData = (params: ExportTimesheetParams) => {
     const { employee, year, month, allTimeEntries, allAbsenceRequests, customers, activities, selectedState, companySettings, timeFormat = 'hoursMinutes' } = params;
     
-    // --- 1. CALCULATIONS ---
     const holidaysForCalc: HolidaysByYear = {};
     holidaysForCalc[year] = getHolidays(year, selectedState as GermanState);
     if (month === 0) {
@@ -377,71 +472,51 @@ export const exportTimesheet = (params: ExportTimesheetParams) => {
     }
     const yearSpecificHolidays = holidaysForCalc[year] || [];
     
+    const breakdown = calculateMonthlyBreakdown(employee, year, month, allTimeEntries, allAbsenceRequests, [], holidaysForCalc);
+    const {
+        previousBalance,
+        workedHours: actualWorkedHours,
+        vacationCreditHours,
+        sickLeaveCreditHours,
+        holidayCreditHours,
+        totalCredited: totalCreditedHours,
+        targetHours: currentMonthTargetHours,
+        endOfMonthBalance
+    } = breakdown;
+
     const startDate = new Date(year, month, 1);
     const endDate = new Date(year, month + 1, 0);
     endDate.setHours(23, 59, 59, 999);
-    
-    const previousMonthEndDate = new Date(year, month, 0);
-    previousMonthEndDate.setHours(23, 59, 59, 999);
-
-    const currentContract = getContractDetailsForDate(employee, new Date(year, month, 15));
-
-    // For the export, we don't have access to all adjustments, so we pass an empty array.
-    const previousBalance = calculateBalance(employee, previousMonthEndDate, allTimeEntries, allAbsenceRequests, [], holidaysForCalc);
     
     const employeeTimeEntriesCurrentMonth = allTimeEntries.filter(entry => {
         const entryDate = new Date(entry.start);
         return entry.employeeId === employee.id && entryDate >= startDate && entryDate <= endDate;
     }).sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-
-    const actualWorkedHours = employeeTimeEntriesCurrentMonth.reduce((sum, e) => sum + ((new Date(e.end).getTime() - new Date(e.start).getTime()) / 3600000 - (e.breakDurationMinutes / 60)), 0);
     
     const monthlyAbsences = calculateAbsenceDaysInMonth(employee.id, allAbsenceRequests, year, month, yearSpecificHolidays);
     const annualVacationTaken = calculateAnnualVacationTaken(employee.id, allAbsenceRequests, year, yearSpecificHolidays);
+    const currentContract = getContractDetailsForDate(employee, new Date(year, month, 15));
     const remainingVacation = currentContract.vacationDays - annualVacationTaken;
-
-    let holidayCreditHours = 0, vacationCreditHours = 0, sickLeaveCreditHours = 0;
-    const approvedAbsences = allAbsenceRequests.filter(r => r.employeeId === employee.id && r.status === 'approved');
-    const holidayDates = new Set(yearSpecificHolidays.map(h => h.date));
     
-    for(let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const contract = getContractDetailsForDate(employee, d);
-        const dayOfWeek = d.getDay();
-        let dailyTarget = 0;
-
-        if (contract.targetHoursModel === TargetHoursModel.Weekly && contract.weeklySchedule) {
-            const dayKeys: (keyof WeeklySchedule)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-            dailyTarget = contract.weeklySchedule[dayKeys[dayOfWeek]] || 0;
-        } else if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-            dailyTarget = contract.dailyTargetHours;
-        }
-        
-        if (dailyTarget > 0) {
-            const dateString = d.toLocaleDateString('sv-SE');
-            const isHoliday = holidayDates.has(dateString);
-            const absence = approvedAbsences.find(r => dateString >= r.startDate && r.endDate >= dateString);
-
-            if (isHoliday) {
-                holidayCreditHours += dailyTarget;
-            } else if (absence) {
-                if (absence.type === AbsenceType.Vacation) {
-                    vacationCreditHours += absence.dayPortion !== 'full' ? dailyTarget / 2 : dailyTarget;
-                } else if (absence.type === AbsenceType.SickLeave) {
-                    sickLeaveCreditHours += dailyTarget;
-                }
-            }
-        }
-    }
-
-    const totalCreditedHours = actualWorkedHours + vacationCreditHours + sickLeaveCreditHours + holidayCreditHours;
-    const currentMonthTargetHours = currentContract.monthlyTargetHours;
-    const endOfMonthBalance = previousBalance + totalCreditedHours - currentMonthTargetHours;
-    
-    // --- 2. CREATE WORKSHEETS ---
-    const wb = XLSX.utils.book_new();
     const monthName = startDate.toLocaleString('de-DE', { month: 'long' });
 
-    // --- Timesheet Worksheet ---
+    return {
+        employee, year, monthName, customers, activities, companySettings, timeFormat,
+        previousBalance, actualWorkedHours, vacationCreditHours, sickLeaveCreditHours,
+        holidayCreditHours, totalCreditedHours, currentMonthTargetHours, endOfMonthBalance,
+        monthlyAbsences, remainingVacation, employeeTimeEntriesCurrentMonth
+    };
+};
+
+export const exportTimesheet = (params: ExportTimesheetParams) => {
+    const data = getTimesheetExportData(params);
+    const { employee, year, monthName, customers, activities, companySettings, timeFormat,
+            previousBalance, actualWorkedHours, vacationCreditHours, sickLeaveCreditHours, holidayCreditHours,
+            totalCreditedHours, currentMonthTargetHours, endOfMonthBalance, monthlyAbsences, remainingVacation,
+            employeeTimeEntriesCurrentMonth } = data;
+
+    const wb = XLSX.utils.book_new();
+    
     const customerLabel = companySettings.customerLabel || 'Kunde';
     const activityLabel = companySettings.activityLabel || 'Tätigkeit';
     
@@ -473,7 +548,6 @@ export const exportTimesheet = (params: ExportTimesheetParams) => {
     ws_timesheet['!cols'] = [ { wch: 12 }, { wch: 30 }, { wch: 25 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 15 } ];
     XLSX.utils.book_append_sheet(wb, ws_timesheet, `Stundenzettel ${monthName}`);
 
-    // --- Summary Worksheet ---
     const summary_aoa = [
         ['Zusammenfassung Stundenzettel'],
         [],
@@ -504,6 +578,91 @@ export const exportTimesheet = (params: ExportTimesheetParams) => {
     ws_summary['!cols'] = [ { wch: 45 }, { wch: 20 } ];
     XLSX.utils.book_append_sheet(wb, ws_summary, 'Zusammenfassung');
     
-    // --- 3. WRITE FILE ---
     XLSX.writeFile(wb, `Stundenzettel_${employee.lastName}_${year}_${monthName}.xlsx`);
+};
+
+export const exportTimesheetAsPdf = (params: ExportTimesheetParams) => {
+    const data = getTimesheetExportData(params);
+    const { employee, year, monthName, customers, activities, companySettings, timeFormat,
+            previousBalance, actualWorkedHours, vacationCreditHours, sickLeaveCreditHours, holidayCreditHours,
+            totalCreditedHours, currentMonthTargetHours, endOfMonthBalance, monthlyAbsences, remainingVacation,
+            employeeTimeEntriesCurrentMonth } = data;
+
+    const { jsPDF } = (window as any).jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text(`Stundenzettel für ${monthName} ${year}`, 14, 22);
+
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Mitarbeiter: ${employee.firstName} ${employee.lastName}`, 14, 32);
+    doc.text(`Firma: ${companySettings.companyName}`, 14, 38);
+
+    const customerLabel = companySettings.customerLabel || 'Kunde';
+    const activityLabel = companySettings.activityLabel || 'Tätigkeit';
+
+    const tableBody = employeeTimeEntriesCurrentMonth.map(entry => {
+        const duration = (new Date(entry.end).getTime() - new Date(entry.start).getTime()) / 3600000 - (entry.breakDurationMinutes / 60);
+        return [
+            new Date(entry.start).toLocaleDateString('de-DE'),
+            customers.find(c => c.id === entry.customerId)?.name || 'N/A',
+            activities.find(a => a.id === entry.activityId)?.name || 'N/A',
+            new Date(entry.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit'}),
+            new Date(entry.end).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit'}),
+            entry.breakDurationMinutes > 0 ? `${entry.breakDurationMinutes} m` : '0 m',
+            formatHoursAndMinutes(duration, timeFormat),
+        ];
+    });
+
+    const totalRow = ['', '', '', '', '', 'Gesamt:', formatHoursAndMinutes(actualWorkedHours, timeFormat)];
+
+    (doc as any).autoTable({
+        startY: 50,
+        head: [['Datum', customerLabel, activityLabel, 'Start', 'Ende', 'Pause', 'Dauer']],
+        body: tableBody,
+        foot: [totalRow],
+        theme: 'grid',
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        footStyles: { fontStyle: 'bold', fillColor: [241, 241, 241], textColor: 0 },
+    });
+
+    let finalY = (doc as any).lastAutoTable.finalY || 100;
+
+    doc.setFontSize(14);
+    doc.text('Zusammenfassung', 14, finalY + 15);
+
+    (doc as any).autoTable({
+        startY: finalY + 20,
+        body: [
+            ['Übertrag Vormonat:', formatHoursAndMinutes(previousBalance, timeFormat)],
+            ['Gearbeitet (aus Zeiteinträgen):', formatHoursAndMinutes(actualWorkedHours, timeFormat)],
+            [`+ Gutschrift Urlaub (${monthlyAbsences.vacationDays} Tage):`, formatHoursAndMinutes(vacationCreditHours, timeFormat)],
+            [`+ Gutschrift Krankheit (${monthlyAbsences.sickDays} Tage):`, formatHoursAndMinutes(sickLeaveCreditHours, timeFormat)],
+            [`+ Gutschrift Feiertage:`, formatHoursAndMinutes(holidayCreditHours, timeFormat)],
+            ['= Total Ist-Stunden:', formatHoursAndMinutes(totalCreditedHours, timeFormat)],
+            [`- Soll-Stunden (${monthName}):`, formatHoursAndMinutes(currentMonthTargetHours, timeFormat)],
+            ['= Saldo am Monatsende:', formatHoursAndMinutes(endOfMonthBalance, timeFormat)],
+        ],
+        theme: 'striped',
+        styles: { cellPadding: 2.5 },
+        columnStyles: { 0: { fontStyle: 'bold' } }
+    });
+    
+    finalY = (doc as any).lastAutoTable.finalY;
+
+    (doc as any).autoTable({
+        startY: finalY + 10,
+        body: [
+             [`Genommene Urlaubstage (${monthName}):`, `${monthlyAbsences.vacationDays} Tag(e)`],
+             ['Verbliebene Urlaubstage (Jahr):', `${remainingVacation} Tag(e)`],
+             [`Krankheitstage (${monthName}):`, `${monthlyAbsences.sickDays} Tag(e)`],
+             [`Genommener Freizeitausgleich (${monthName}):`, `${monthlyAbsences.timeOffDays} Tag(e)`],
+        ],
+        theme: 'striped',
+        styles: { cellPadding: 2.5 },
+        columnStyles: { 0: { fontStyle: 'bold' } }
+    });
+
+    doc.save(`Stundenzettel_${employee.lastName}_${year}_${monthName}.pdf`);
 };

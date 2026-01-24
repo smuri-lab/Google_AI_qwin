@@ -1,14 +1,14 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import type { TimeEntry, Customer, Activity, UserAccount, Employee, AbsenceRequest, Holiday, CompanySettings, HolidaysByYear, TimeBalanceAdjustment } from '../types';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import type { TimeEntry, Customer, Activity, UserAccount, Employee, AbsenceRequest, Holiday, CompanySettings, HolidaysByYear, TimeBalanceAdjustment, WeeklySchedule } from '../types';
 import { Card } from './ui/Card';
 import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 import { TimesheetExportModal } from './admin/TimesheetExportModal';
-import { formatHoursAndMinutes, exportTimesheet, calculateBalance, getContractDetailsForDate, calculateAbsenceDaysInMonth } from './utils';
+import { formatHoursAndMinutes, exportTimesheet, calculateBalance, getContractDetailsForDate, calculateAbsenceDaysInMonth, exportTimesheetAsPdf, calculateMonthlyBreakdown } from './utils';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { Button } from './ui/Button';
 import { ConfirmModal } from './ui/ConfirmModal';
-import { AbsenceType } from '../types';
+import { AbsenceType, TargetHoursModel } from '../types';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 
 interface OverviewViewProps {
@@ -52,12 +52,65 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
     const [isVacationOpen, setIsVacationOpen] = useState(true);
     const [isTimeBalanceOpen, setIsTimeBalanceOpen] = useState(true);
     const [isRequestsOpen, setIsRequestsOpen] = useState(() => absenceRequests.some(req => req.status === 'pending'));
+    
+    const swipeContainerRef = useRef<HTMLDivElement>(null);
+    const touchStartX = useRef<number | null>(null);
+    const touchStartY = useRef<number | null>(null);
 
     const timeFormat = companySettings.employeeTimeFormat || 'hoursMinutes';
     
-    const changeBalanceMonth = (offset: number) => {
+    const changeBalanceMonth = useCallback((offset: number) => {
         setBalanceDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
-    };
+    }, []);
+    
+     useEffect(() => {
+        const node = swipeContainerRef.current;
+        if (!node) return;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            touchStartX.current = e.touches[0].clientX;
+            touchStartY.current = e.touches[0].clientY;
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            if (touchStartX.current === null || touchStartY.current === null) return;
+            const deltaX = e.touches[0].clientX - touchStartX.current;
+            const deltaY = e.touches[0].clientY - touchStartY.current;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (e.cancelable) e.preventDefault();
+            }
+        };
+
+        const handleTouchEnd = (e: TouchEvent) => {
+            if (touchStartX.current === null || touchStartY.current === null) return;
+            
+            const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+            const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+            const SWIPE_THRESHOLD = 50;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+                if (deltaX > 0) changeBalanceMonth(-1); // Swipe right
+                else changeBalanceMonth(1); // Swipe left
+            }
+
+            touchStartX.current = null;
+            touchStartY.current = null;
+        };
+
+        node.addEventListener('touchstart', handleTouchStart, { passive: true });
+        node.addEventListener('touchmove', handleTouchMove, { passive: false });
+        node.addEventListener('touchend', handleTouchEnd, { passive: true });
+        node.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+        return () => {
+            node.removeEventListener('touchstart', handleTouchStart);
+            node.removeEventListener('touchmove', handleTouchMove);
+            node.removeEventListener('touchend', handleTouchEnd);
+            node.removeEventListener('touchcancel', handleTouchEnd);
+        };
+    }, [changeBalanceMonth]);
+
     
     const monthlyVacationDetails = useMemo(() => {
         const year = balanceDate.getFullYear();
@@ -107,59 +160,20 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
         onEnsureHolidaysForYear(year);
         if (month === 0) onEnsureHolidaysForYear(year - 1);
         
-        const holidaysForYear = holidaysByYear[year] || [];
-        const holidayDates = new Set(holidaysForYear.map(h => h.date));
-        
-        const monthStart = new Date(year, month, 1);
-        const monthEnd = new Date(year, month + 1, 0);
-        const prevMonthEnd = new Date(year, month, 0);
-        
-        const previousBalance = calculateBalance(currentUser, prevMonthEnd, timeEntries, absenceRequests, timeBalanceAdjustments, holidaysByYear);
-        
-        const workedHoursThisMonth = timeEntries
-            .filter(e => new Date(e.start) >= monthStart && new Date(e.start) <= monthEnd)
-            .reduce((sum, e) => sum + ((new Date(e.end).getTime() - new Date(e.start).getTime()) / 3600000 - (e.breakDurationMinutes / 60)), 0);
-
-        let absenceHolidayCreditHoursThisMonth = 0;
-        let timeOffHoursThisMonth = 0;
-
-        for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
-            const contract = getContractDetailsForDate(currentUser, d);
-            const dayOfWeek = d.getDay();
-            if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-
-            const dateString = d.toLocaleDateString('sv-SE');
-            const isHoliday = holidayDates.has(dateString);
-            const absence = absenceRequests.find(r => r.status === 'approved' && dateString >= r.startDate && dateString <= r.endDate);
-
-            if(isHoliday || (absence && (absence.type === AbsenceType.Vacation || absence.type === AbsenceType.SickLeave))) {
-                absenceHolidayCreditHoursThisMonth += contract.dailyTargetHours;
-            } else if (absence && absence.type === AbsenceType.TimeOff) {
-                timeOffHoursThisMonth += contract.dailyTargetHours;
-            }
-        }
-
-        const totalCreditedHours = workedHoursThisMonth + absenceHolidayCreditHoursThisMonth;
-        const contract = getContractDetailsForDate(currentUser, monthStart);
-        const targetHours = contract.monthlyTargetHours;
-        const monthlyBalance = totalCreditedHours - targetHours;
-        const endOfMonthBalance = previousBalance + monthlyBalance;
-
-        return {
-            previousBalance,
-            workedHours: workedHoursThisMonth,
-            absenceHolidayCredit: absenceHolidayCreditHoursThisMonth,
-            timeOffHours: timeOffHoursThisMonth,
-            totalCredited: totalCreditedHours,
-            targetHours,
-            monthlyBalance,
-            endOfMonthBalance
-        };
+        return calculateMonthlyBreakdown(
+            currentUser,
+            year,
+            month,
+            timeEntries,
+            absenceRequests,
+            timeBalanceAdjustments,
+            holidaysByYear
+        );
     }, [balanceDate, currentUser, timeEntries, absenceRequests, timeBalanceAdjustments, holidaysByYear, onEnsureHolidaysForYear]);
 
-    const handleConfirmExport = (selectedEmployees: Employee[], year: number, selectedMonths: number[]) => {
+    const handleConfirmExport = (selectedEmployees: Employee[], year: number, selectedMonths: number[], format: 'excel' | 'pdf') => {
       selectedMonths.forEach(month => {
-          exportTimesheet({
+          const exportParams = {
               employee: currentUser, year, month,
               allTimeEntries: timeEntries,
               allAbsenceRequests: absenceRequests,
@@ -168,7 +182,12 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
               companySettings,
               holidays: holidaysByYear[year] || [],
               timeFormat,
-          });
+          };
+          if (format === 'pdf') {
+            exportTimesheetAsPdf(exportParams);
+          } else {
+            exportTimesheet(exportParams);
+          }
       });
       setIsExportModalOpen(false);
     };
@@ -186,7 +205,7 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
     const sortedYears = Object.keys(groupedRequests).sort((a, b) => Number(b) - Number(a));
 
     return (
-        <div className="space-y-6 max-w-2xl mx-auto">
+        <div ref={swipeContainerRef} className="space-y-6 max-w-2xl mx-auto">
              <div className="flex justify-between items-center bg-white p-2 sm:p-4 rounded-lg shadow-lg">
                 <button onClick={() => changeBalanceMonth(-1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronLeftIcon className="h-5 w-5"/></button>
                 <h2 className="text-xl font-bold text-center">Übersicht {balanceDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h2>
@@ -203,14 +222,12 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
                         {/* --- Monthly Calculation --- */}
                         <div className="flex justify-between"><span className="text-gray-600">Gearbeitete Stunden</span><span>{formatHoursAndMinutes(monthlyBalanceDetails.workedHours, timeFormat)}</span></div>
                         <div className="flex justify-between"><span className="text-gray-600">Gutschrift (Urlaub, Krank, Feiertag)</span><span>{formatHoursAndMinutes(monthlyBalanceDetails.absenceHolidayCredit, timeFormat)}</span></div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-600">Freizeitausgleich (Abzug)</span>
-                            {monthlyBalanceDetails.timeOffHours > 0 ? (
-                                <span className="text-red-600">-{formatHoursAndMinutes(monthlyBalanceDetails.timeOffHours, timeFormat)}</span>
-                            ) : (
-                                <span>{formatHoursAndMinutes(0, timeFormat)}</span>
-                            )}
-                        </div>
+                        {monthlyBalanceDetails.adjustments !== 0 && (
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Korrekturen/Auszahlungen</span>
+                                <span className={`${monthlyBalanceDetails.adjustments > 0 ? 'text-green-600' : 'text-red-600'}`}>{formatHoursAndMinutes(monthlyBalanceDetails.adjustments, timeFormat)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between border-t pt-2 mt-2"><span className="font-semibold">Gesamtstunden (Plus)</span><span className="font-semibold">{formatHoursAndMinutes(monthlyBalanceDetails.totalCredited, timeFormat)}</span></div>
                         <div className="flex justify-between"><span className="text-gray-600">Soll-Stunden</span><span>{formatHoursAndMinutes(monthlyBalanceDetails.targetHours, timeFormat)}</span></div>
                         
@@ -296,7 +313,7 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
                 <div className="flex justify-between items-center">
                     <div>
                         <h2 className="text-xl font-bold">Meine Stundenzettel</h2>
-                        <p className="text-xs sm:text-sm text-gray-500">Monatsübersicht als Excel-Datei herunterladen</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Monatsübersicht als Excel- oder PDF-Datei herunterladen</p>
                     </div>
                     <DocumentArrowDownIcon className="h-6 w-6 text-blue-600" />
                 </div>

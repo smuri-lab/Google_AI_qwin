@@ -9,7 +9,7 @@ import { ChevronLeftIcon } from '../icons/ChevronLeftIcon';
 import { ChevronRightIcon } from '../icons/ChevronRightIcon';
 import { ArrowUturnLeftIcon } from '../icons/ArrowUturnLeftIcon';
 import { PlusIcon } from '../icons/PlusIcon';
-import { calculateBalance, formatHoursAndMinutes, calculateAbsenceDaysInMonth, calculateAnnualVacationTaken, getContractDetailsForDate, calculateAnnualSickDays, exportTimesheet, getAbsenceTypeDetails } from '../utils';
+import { calculateBalance, formatHoursAndMinutes, calculateAbsenceDaysInMonth, calculateAnnualVacationTaken, getContractDetailsForDate, calculateAnnualSickDays, exportTimesheet, getAbsenceTypeDetails, exportTimesheetAsPdf } from '../utils';
 import { TimesheetExportModal } from './TimesheetExportModal';
 import { Select } from '../ui/Select';
 import { ManualEntryFormModal } from './ManualEntryFormModal';
@@ -296,10 +296,10 @@ const TimeTrackingOverview: React.FC<TimeTrackingManagementProps> = ({
     setAddModalState('choice');
   };
 
-  const handleConfirmExport = (selectedEmployees: Employee[], year: number, selectedMonths: number[]) => {
+  const handleConfirmExport = (selectedEmployees: Employee[], year: number, selectedMonths: number[], format: 'excel' | 'pdf') => {
     selectedEmployees.forEach(employee => {
         selectedMonths.forEach(month => {
-            exportTimesheet({
+            const exportParams = {
                 employee, year, month,
                 allTimeEntries: timeEntries,
                 allAbsenceRequests: absenceRequests,
@@ -308,7 +308,12 @@ const TimeTrackingOverview: React.FC<TimeTrackingManagementProps> = ({
                 companySettings,
                 holidays: holidaysByYear[year] || [],
                 timeFormat,
-            });
+            };
+            if (format === 'pdf') {
+                exportTimesheetAsPdf(exportParams);
+            } else {
+                exportTimesheet(exportParams);
+            }
         });
     });
     setIsExportModalOpen(false);

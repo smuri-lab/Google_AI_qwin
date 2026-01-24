@@ -4,13 +4,13 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { XIcon } from '../icons/XIcon';
-import { ToggleSwitch } from '../ui/ToggleSwitch';
+import { RadioGroup } from '../ui/RadioGroup';
 
 interface TimesheetExportModalProps {
   isOpen: boolean;
   isClosing?: boolean;
   onClose: () => void;
-  onConfirm: (employees: Employee[], year: number, months: number[]) => void;
+  onConfirm: (employees: Employee[], year: number, months: number[], format: 'excel' | 'pdf') => void;
   employees: Employee[];
   fixedEmployee?: Employee; 
 }
@@ -36,6 +36,7 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>(fixedEmployee ? [String(fixedEmployee.id)] : []);
   const [selectedMonths, setSelectedMonths] = useState<number[]>([lastMonth.getMonth()]);
   const [selectedYear, setSelectedYear] = useState(lastMonth.getFullYear());
+  const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
   
   useEffect(() => {
     if (isOpen) {
@@ -46,6 +47,7 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
       }
       setSelectedMonths([lastMonth.getMonth()]);
       setSelectedYear(lastMonth.getFullYear());
+      setFormat('excel');
     }
   }, [isOpen, fixedEmployee]);
 
@@ -96,7 +98,7 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
         return;
     }
     
-    onConfirm(employeesToExport, selectedYear, selectedMonths);
+    onConfirm(employeesToExport, selectedYear, selectedMonths, format);
     // onClose is now called by the parent component's onConfirm handler
   };
 
@@ -170,6 +172,34 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
                     ))}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Format</label>
+              <div className="flex gap-4">
+                <label className="flex flex-1 items-center p-3 border rounded-md has-[:checked]:bg-blue-50 has-[:checked]:border-blue-300 cursor-pointer transition-colors">
+                    <input
+                        type="radio"
+                        name="exportFormat"
+                        value="excel"
+                        checked={format === 'excel'}
+                        onChange={() => setFormat('excel')}
+                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-3 text-sm text-gray-700">Excel (.xlsx)</span>
+                </label>
+                <label className="flex flex-1 items-center p-3 border rounded-md has-[:checked]:bg-blue-50 has-[:checked]:border-blue-300 cursor-pointer transition-colors">
+                    <input
+                        type="radio"
+                        name="exportFormat"
+                        value="pdf"
+                        checked={format === 'pdf'}
+                        onChange={() => setFormat('pdf')}
+                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-3 text-sm text-gray-700">PDF (.pdf)</span>
+                </label>
               </div>
             </div>
           </div>
