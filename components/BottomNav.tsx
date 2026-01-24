@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from '../types';
-import { ClockIcon } from './icons/ClockIcon';
+import { HomeIcon } from './icons/HomeIcon';
 import { CalendarIcon } from './icons/CalendarIcon';
 import { DocumentTextIcon } from './icons/DocumentTextIcon';
 import { PlusIcon } from './icons/PlusIcon';
@@ -39,12 +39,21 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, setCurrentVie
      <div className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 shadow-lg z-20">
       <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
         <NavItem 
-          label="Home" 
+          label="Start" 
           isActive={currentView === View.Dashboard} 
           onClick={() => setCurrentView(View.Dashboard)}
         >
-          <ClockIcon className="h-6 w-6 mb-1" />
+          <HomeIcon className="h-6 w-6 mb-1" />
         </NavItem>
+
+        <button
+            onClick={onAddClick}
+            className="flex flex-col items-center justify-center w-full transition-colors duration-200 text-gray-500 hover:text-blue-600"
+            aria-label="Aktion ausführen"
+        >
+            <PlusIcon className="h-6 w-6 mb-1" />
+            <span className="text-xs font-medium">Aktion</span>
+        </button>
         
         <NavItem 
           label="Kalender" 
@@ -62,14 +71,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, setCurrentVie
             <DocumentTextIcon className="h-6 w-6 mb-1" />
         </NavItem>
 
-        <button
-            onClick={onAddClick}
-            className="flex flex-col items-center justify-center w-full transition-colors duration-200 text-gray-500 hover:text-blue-600"
-            aria-label="Aktion ausführen"
-        >
-            <PlusIcon className="h-6 w-6 mb-1" />
-            <span className="text-xs font-medium">Aktion</span>
-        </button>
       </div>
     </div>
   );

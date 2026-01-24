@@ -51,7 +51,7 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
     const [requestToRetract, setRequestToRetract] = useState<AbsenceRequest | null>(null);
     const [isVacationOpen, setIsVacationOpen] = useState(true);
     const [isTimeBalanceOpen, setIsTimeBalanceOpen] = useState(true);
-    const [isRequestsOpen, setIsRequestsOpen] = useState(true);
+    const [isRequestsOpen, setIsRequestsOpen] = useState(() => absenceRequests.some(req => req.status === 'pending'));
 
     const timeFormat = companySettings.employeeTimeFormat || 'hoursMinutes';
     
