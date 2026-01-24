@@ -3,9 +3,7 @@ import type { TimeEntry, Customer, Activity, UserAccount, Employee, AbsenceReque
 import { Stopwatch } from './Stopwatch';
 import { ManualEntryForm } from './ManualEntryForm';
 import { Card } from './ui/Card';
-import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
-import { TimesheetExportModal } from './admin/TimesheetExportModal';
-import { formatHoursAndMinutes, exportTimesheet } from './utils';
+import { formatHoursAndMinutes } from './utils';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { Button } from './ui/Button';
@@ -56,8 +54,6 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
     setStopwatchCustomerId, setStopwatchActivityId, setStopwatchComment
   } = props;
   
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isExportModalClosing, setIsExportModalClosing] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isCarryoverInfoOpen, setIsCarryoverInfoOpen] = useState(false);
   const [isCarryoverClosing, setIsCarryoverClosing] = useState(false);
@@ -72,33 +68,6 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
         return () => clearTimeout(timer);
     }
   }, [showSuccessMessage]);
-
-  const handleExportModalClose = () => {
-    setIsExportModalClosing(true);
-    setTimeout(() => {
-      setIsExportModalOpen(false);
-      setIsExportModalClosing(false);
-    }, 300);
-  };
-  
-  const handleConfirmExport = (selectedEmployees: Employee[], year: number, selectedMonths: number[]) => {
-      if (selectedEmployees.length === 0) return;
-      const employee = selectedEmployees[0]; // In dashboard, it's always the current user
-
-      selectedMonths.forEach(month => {
-          exportTimesheet({
-              employee, year, month,
-              allTimeEntries: timeEntries,
-              allAbsenceRequests: absenceRequests,
-              customers, activities,
-              selectedState,
-              companySettings,
-              holidays,
-              timeFormat: companySettings.employeeTimeFormat,
-          });
-      });
-      handleExportModalClose();
-  };
 
   const handleCarryoverClose = () => {
     setIsCarryoverClosing(true);
@@ -232,32 +201,9 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
 
       <div className="space-y-6 max-w-2xl mx-auto">
         {statsCards}
-        
-        {companySettings.employeeCanExport && (
-          <Card onClick={() => setIsExportModalOpen(true)} className="cursor-pointer hover:bg-gray-50 transition-colors">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-700">Meine Stundenzettel</h3>
-                    <p className="text-xs sm:text-sm text-gray-500">Monatsübersicht als Excel-Datei herunterladen</p>
-                </div>
-                <DocumentArrowDownIcon className="h-6 w-6 text-blue-600" />
-            </div>
-          </Card>
-        )}
 
         {mainContent}
       </div>
-      
-      {isExportModalOpen && (
-        <TimesheetExportModal
-          isOpen={isExportModalOpen}
-          isClosing={isExportModalClosing}
-          onClose={handleExportModalClose}
-          onConfirm={handleConfirmExport}
-          employees={[currentUser]} 
-          fixedEmployee={currentUser} 
-        />
-      )}
     </>
   );
 };
