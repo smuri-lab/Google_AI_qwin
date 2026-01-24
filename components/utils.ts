@@ -260,9 +260,8 @@ export const calculateAbsenceDaysInMonth = (employeeId: number, absenceRequests:
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
 
-    const approvedAbsences = absenceRequests.filter(req => 
+    const relevantAbsences = absenceRequests.filter(req => 
         req.employeeId === employeeId &&
-        req.status === 'approved' &&
         new Date(req.startDate) <= monthEnd && 
         new Date(req.endDate) >= monthStart
     );
@@ -276,7 +275,7 @@ export const calculateAbsenceDaysInMonth = (employeeId: number, absenceRequests:
         const dateString = d.toLocaleDateString('sv-SE');
         if (holidayDates.has(dateString)) continue;
 
-        const absence = approvedAbsences.find(req => dateString >= req.startDate && dateString <= req.endDate);
+        const absence = relevantAbsences.find(req => dateString >= req.startDate && dateString <= req.endDate);
         if (absence) {
             if (absence.type === AbsenceType.Vacation) {
                 if (absence.dayPortion && absence.dayPortion !== 'full') {
@@ -395,7 +394,7 @@ export const exportTimesheet = (params: ExportTimesheetParams) => {
         return entry.employeeId === employee.id && entryDate >= startDate && entryDate <= endDate;
     }).sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
-    const actualWorkedHours = employeeTimeEntriesCurrentMonth.reduce((sum, e) => sum + ((new Date(e.end).getTime() - new Date(e.start).getTime()) / 1000 / 3600 - (e.breakDurationMinutes / 60)), 0);
+    const actualWorkedHours = employeeTimeEntriesCurrentMonth.reduce((sum, e) => sum + ((new Date(e.end).getTime() - new Date(e.start).getTime()) / 3600000 - (e.breakDurationMinutes / 60)), 0);
     
     const monthlyAbsences = calculateAbsenceDaysInMonth(employee.id, allAbsenceRequests, year, month, yearSpecificHolidays);
     const annualVacationTaken = calculateAnnualVacationTaken(employee.id, allAbsenceRequests, year, yearSpecificHolidays);

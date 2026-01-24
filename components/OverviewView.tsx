@@ -3,12 +3,13 @@ import type { TimeEntry, Customer, Activity, UserAccount, Employee, AbsenceReque
 import { Card } from './ui/Card';
 import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 import { TimesheetExportModal } from './admin/TimesheetExportModal';
-import { formatHoursAndMinutes, exportTimesheet, calculateBalance, getContractDetailsForDate } from './utils';
+import { formatHoursAndMinutes, exportTimesheet, calculateBalance, getContractDetailsForDate, calculateAbsenceDaysInMonth } from './utils';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { Button } from './ui/Button';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { AbsenceType } from '../types';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
 
 interface OverviewViewProps {
   currentUser: Employee;
@@ -46,37 +47,58 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
     
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     const [isExportModalClosing, setIsExportModalClosing] = useState(false);
-    const [balanceDate, setBalanceDate] = useState(new Date());
+    const [balanceDate, setBalanceDate] = useState(new Date(2026, 0, 1)); // Start in mock year for consistency
     const [requestToRetract, setRequestToRetract] = useState<AbsenceRequest | null>(null);
+    const [isVacationOpen, setIsVacationOpen] = useState(true);
+    const [isTimeBalanceOpen, setIsTimeBalanceOpen] = useState(true);
 
     const timeFormat = companySettings.employeeTimeFormat || 'hoursMinutes';
-    const currentYear = new Date().getFullYear();
+    
+    const changeBalanceMonth = (offset: number) => {
+        setBalanceDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
+    };
+    
+    const monthlyVacationDetails = useMemo(() => {
+        const year = balanceDate.getFullYear();
+        const month = balanceDate.getMonth();
+        onEnsureHolidaysForYear(year);
 
-    const pendingVacationDays = useMemo(() => {
-        const holidaysForYear = holidaysByYear[currentYear] || [];
-        const holidayDates = new Set(holidaysForYear.map(h => h.date));
+        const holidaysForYear = holidaysByYear[year] || [];
         
-        const pendingRequests = absenceRequests.filter(r => r.type === AbsenceType.Vacation && r.status === 'pending');
-        let totalDays = 0;
+        // Dynamically calculate entitlement and carryover based on the view's current date state
+        const contractForYear = getContractDetailsForDate(currentUser, new Date(year, 6, 1)); // Mid-year for safety
+        const annualEntitlement = contractForYear.vacationDays;
+
+        const previousYear = year - 1;
+        const carryover = currentUser.vacationCarryover?.[previousYear] || 0;
         
-        for (const req of pendingRequests) {
-            const loopDate = new Date(req.startDate);
-            const endDate = new Date(req.endDate);
-            while(loopDate <= endDate) {
-                const dayOfWeek = loopDate.getDay();
-                const dateString = loopDate.toLocaleDateString('sv-SE');
-                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidayDates.has(dateString)) {
-                    if (req.dayPortion && req.dayPortion !== 'full') {
-                        totalDays += 0.5;
-                    } else {
-                        totalDays += 1;
-                    }
-                }
-                loopDate.setDate(loopDate.getDate() + 1);
-            }
+        const totalAvailable = annualEntitlement + carryover;
+
+        let vacationTakenBeforeThisMonth = 0;
+        for (let i = 0; i < month; i++) {
+            const monthAbsences = calculateAbsenceDaysInMonth(currentUser.id, absenceRequests.filter(r => r.type === AbsenceType.Vacation && r.status === 'approved'), year, i, holidaysForYear);
+            vacationTakenBeforeThisMonth += monthAbsences.vacationDays;
         }
-        return totalDays;
-    }, [absenceRequests, holidaysByYear, currentYear]);
+
+        const thisMonthApprovedAbsences = calculateAbsenceDaysInMonth(currentUser.id, absenceRequests.filter(r => r.type === AbsenceType.Vacation && r.status === 'approved'), year, month, holidaysForYear);
+        const vacationTakenThisMonth = thisMonthApprovedAbsences.vacationDays;
+
+        const thisMonthPendingAbsences = calculateAbsenceDaysInMonth(currentUser.id, absenceRequests.filter(r => r.type === AbsenceType.Vacation && r.status === 'pending'), year, month, holidaysForYear);
+        const pendingThisMonth = thisMonthPendingAbsences.vacationDays;
+
+        const remainingAtEndOfMonth = totalAvailable - vacationTakenBeforeThisMonth - vacationTakenThisMonth;
+
+        return {
+            annualEntitlement,
+            carryover,
+            totalAvailable,
+            vacationTakenBeforeThisMonth,
+            vacationTakenThisMonth,
+            pendingThisMonth,
+            remainingAtEndOfMonth,
+        };
+    }, [balanceDate, currentUser, absenceRequests, holidaysByYear, onEnsureHolidaysForYear]);
+
 
     const monthlyBalanceDetails = useMemo(() => {
         const year = balanceDate.getFullYear();
@@ -98,6 +120,8 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
             .reduce((sum, e) => sum + ((new Date(e.end).getTime() - new Date(e.start).getTime()) / 3600000 - (e.breakDurationMinutes / 60)), 0);
 
         let absenceHolidayCreditHoursThisMonth = 0;
+        let timeOffHoursThisMonth = 0;
+
         for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
             const contract = getContractDetailsForDate(currentUser, d);
             const dayOfWeek = d.getDay();
@@ -109,6 +133,8 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
 
             if(isHoliday || (absence && (absence.type === AbsenceType.Vacation || absence.type === AbsenceType.SickLeave))) {
                 absenceHolidayCreditHoursThisMonth += contract.dailyTargetHours;
+            } else if (absence && absence.type === AbsenceType.TimeOff) {
+                timeOffHoursThisMonth += contract.dailyTargetHours;
             }
         }
 
@@ -122,16 +148,13 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
             previousBalance,
             workedHours: workedHoursThisMonth,
             absenceHolidayCredit: absenceHolidayCreditHoursThisMonth,
+            timeOffHours: timeOffHoursThisMonth,
             totalCredited: totalCreditedHours,
             targetHours,
             monthlyBalance,
             endOfMonthBalance
         };
     }, [balanceDate, currentUser, timeEntries, absenceRequests, timeBalanceAdjustments, holidaysByYear, onEnsureHolidaysForYear]);
-    
-    const changeBalanceMonth = (offset: number) => {
-        setBalanceDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
-    };
 
     const handleConfirmExport = (selectedEmployees: Employee[], year: number, selectedMonths: number[]) => {
       selectedMonths.forEach(month => {
@@ -163,35 +186,67 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
 
     return (
         <div className="space-y-6 max-w-2xl mx-auto">
+             <div className="flex justify-between items-center bg-white p-2 sm:p-4 rounded-lg shadow-lg">
+                <button onClick={() => changeBalanceMonth(-1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronLeftIcon className="h-5 w-5"/></button>
+                <h2 className="text-xl font-bold text-center">Übersicht {balanceDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h2>
+                <button onClick={() => changeBalanceMonth(1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronRightIcon className="h-5 w-5"/></button>
+            </div>
+
             <Card>
-                <h2 className="text-xl font-bold mb-4">Urlaubsübersicht {currentYear}</h2>
-                <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-gray-600">Jahresanspruch</span><span className="font-semibold">{userAccount.vacationAnnualEntitlement || 0} Tage</span></div>
-                    <div className="flex justify-between"><span className="text-gray-600">Resturlaub Vorjahr</span><span className="font-semibold">{userAccount.vacationCarryover || 0} Tage</span></div>
-                    <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold">Gesamt verfügbar</span><span className="font-bold">{ (userAccount.vacationAnnualEntitlement || 0) + (userAccount.vacationCarryover || 0) } Tage</span></div>
-                    <div className="flex justify-between"><span className="text-gray-600">Genommen (genehmigt)</span><span className="font-semibold">- { ((userAccount.vacationAnnualEntitlement || 0) + (userAccount.vacationCarryover || 0)) - userAccount.vacationDaysLeft } Tage</span></div>
-                    <div className="flex justify-between"><span className="text-yellow-600">Beantragt (ausstehend)</span><span className="font-semibold text-yellow-600">- {pendingVacationDays} Tage</span></div>
-                    <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold text-green-600">Verbleibend</span><span className="font-bold text-green-600">{userAccount.vacationDaysLeft} Tage</span></div>
+                <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsVacationOpen(!isVacationOpen)} aria-expanded={isVacationOpen} aria-controls="vacation-details">
+                    <h2 className="text-xl font-bold">Urlaubsübersicht</h2>
+                    <ChevronDownIcon className={`h-6 w-6 text-gray-400 transition-transform duration-300 ${isVacationOpen ? 'rotate-180' : ''}`} />
+                </div>
+                <div id="vacation-details" className={`transition-all duration-300 ease-in-out overflow-hidden ${isVacationOpen ? 'max-h-[500px] mt-4' : 'max-h-0 mt-0'}`}>
+                    <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-gray-600">Jahresanspruch</span><span className="font-semibold">{monthlyVacationDetails.annualEntitlement} Tage</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Resturlaub Vorjahr</span><span className="font-semibold">{monthlyVacationDetails.carryover} Tage</span></div>
+                        <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold">Gesamt verfügbar</span><span className="font-bold">{monthlyVacationDetails.totalAvailable} Tage</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Genommen (bis Vormonat)</span><span className="font-semibold">- {monthlyVacationDetails.vacationTakenBeforeThisMonth} Tage</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Genommen (diesen Monat)</span><span className="font-semibold">- {monthlyVacationDetails.vacationTakenThisMonth} Tage</span></div>
+                        <div className="flex justify-between"><span className="text-yellow-600">Beantragt (diesen Monat)</span><span className="font-semibold text-yellow-600">- {monthlyVacationDetails.pendingThisMonth} Tage</span></div>
+                        <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold text-green-600">Verbleibend (am Monatsende)</span><span className="font-bold text-green-600">{monthlyVacationDetails.remainingAtEndOfMonth} Tage</span></div>
+                    </div>
                 </div>
             </Card>
 
             <Card>
-                <div className="flex justify-between items-center mb-4">
-                    <button onClick={() => changeBalanceMonth(-1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronLeftIcon className="h-5 w-5"/></button>
-                    <h2 className="text-xl font-bold text-center">Stundenkonto {balanceDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h2>
-                    <button onClick={() => changeBalanceMonth(1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronRightIcon className="h-5 w-5"/></button>
+                <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsTimeBalanceOpen(!isTimeBalanceOpen)} aria-expanded={isTimeBalanceOpen} aria-controls="time-balance-details">
+                    <h2 className="text-xl font-bold">Stundenkonto</h2>
+                    <ChevronDownIcon className={`h-6 w-6 text-gray-400 transition-transform duration-300 ${isTimeBalanceOpen ? 'rotate-180' : ''}`} />
                 </div>
-                 <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-gray-600">Übertrag Vormonat</span><span className="font-semibold">{formatHoursAndMinutes(monthlyBalanceDetails.previousBalance, timeFormat)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-600">Gearbeitete Stunden</span><span>{formatHoursAndMinutes(monthlyBalanceDetails.workedHours, timeFormat)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-600">Gutschrift (Urlaub, Krank, Feiertag)</span><span>{formatHoursAndMinutes(monthlyBalanceDetails.absenceHolidayCredit, timeFormat)}</span></div>
-                    <div className="flex justify-between border-t pt-2 mt-2"><span className="font-semibold">Gesamtstunden (Plus)</span><span className="font-semibold">{formatHoursAndMinutes(monthlyBalanceDetails.totalCredited, timeFormat)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-600">Soll-Stunden</span><span>{formatHoursAndMinutes(monthlyBalanceDetails.targetHours, timeFormat)}</span></div>
-                    <div className="flex justify-between border-t pt-2 mt-2">
-                        <span className="font-bold">Monatssaldo</span>
-                        <span className={`font-bold ${monthlyBalanceDetails.monthlyBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatHoursAndMinutes(monthlyBalanceDetails.monthlyBalance, timeFormat)}</span>
+                <div id="time-balance-details" className={`transition-all duration-300 ease-in-out overflow-hidden ${isTimeBalanceOpen ? 'max-h-[500px] mt-4' : 'max-h-0 mt-0'}`}>
+                    <div className="space-y-2 text-sm">
+                        {/* --- Monthly Calculation --- */}
+                        <div className="flex justify-between"><span className="text-gray-600">Gearbeitete Stunden</span><span>{formatHoursAndMinutes(monthlyBalanceDetails.workedHours, timeFormat)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Gutschrift (Urlaub, Krank, Feiertag)</span><span>{formatHoursAndMinutes(monthlyBalanceDetails.absenceHolidayCredit, timeFormat)}</span></div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-600">Freizeitausgleich (Abzug)</span>
+                            {monthlyBalanceDetails.timeOffHours > 0 ? (
+                                <span className="text-red-600">-{formatHoursAndMinutes(monthlyBalanceDetails.timeOffHours, timeFormat)}</span>
+                            ) : (
+                                <span>{formatHoursAndMinutes(0, timeFormat)}</span>
+                            )}
+                        </div>
+                        <div className="flex justify-between border-t pt-2 mt-2"><span className="font-semibold">Gesamtstunden (Plus)</span><span className="font-semibold">{formatHoursAndMinutes(monthlyBalanceDetails.totalCredited, timeFormat)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Soll-Stunden</span><span>{formatHoursAndMinutes(monthlyBalanceDetails.targetHours, timeFormat)}</span></div>
+                        
+                        {/* --- Balance Summary --- */}
+                        <div className="flex justify-between border-t pt-2 mt-2">
+                            <span className="font-bold">Monatssaldo</span>
+                            <span className={`font-bold ${monthlyBalanceDetails.monthlyBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatHoursAndMinutes(monthlyBalanceDetails.monthlyBalance, timeFormat)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-600">Übertrag Vormonat</span>
+                            <span className="font-semibold">{formatHoursAndMinutes(monthlyBalanceDetails.previousBalance, timeFormat)}</span>
+                        </div>
+                        <div className="flex justify-between border-t pt-2 mt-2">
+                            <span className="font-bold text-lg">Saldo Monatsende</span>
+                            <span className={`font-bold text-lg ${monthlyBalanceDetails.endOfMonthBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                {formatHoursAndMinutes(monthlyBalanceDetails.endOfMonthBalance, timeFormat)}
+                            </span>
+                        </div>
                     </div>
-                    <div className="flex justify-between"><span className="font-bold">Saldo Monatsende</span><span className="font-bold">{formatHoursAndMinutes(monthlyBalanceDetails.endOfMonthBalance, timeFormat)}</span></div>
                 </div>
             </Card>
             

@@ -28,23 +28,32 @@ const generateDemoData = () => {
     // --- Jan Demo 2025 ---
     const janEmployeeId = 1;
     const janYear = 2025;
-    const vacationStart = new Date(janYear, 6, 1);
-    const vacationEnd = new Date(janYear, 7, 4);
-    const vacationStartDateStr = vacationStart.toLocaleDateString('sv-SE');
-    const vacationEndDateStr = vacationEnd.toLocaleDateString('sv-SE');
     absenceRequests.push({
         id: entryIdCounter++,
         employeeId: janEmployeeId,
         type: AbsenceType.Vacation,
         status: 'approved',
-        startDate: vacationStartDateStr,
-        endDate: vacationEndDateStr,
+        startDate: new Date(janYear, 6, 1).toLocaleDateString('sv-SE'),
+        endDate: new Date(janYear, 7, 4).toLocaleDateString('sv-SE'),
     });
+    absenceRequests.push({
+        id: entryIdCounter++,
+        employeeId: janEmployeeId,
+        type: AbsenceType.TimeOff,
+        status: 'approved',
+        startDate: '2025-02-10', // Monday
+        endDate: '2025-02-11',   // Tuesday
+    });
+
     let currentDateJan = new Date(janYear, 0, 1);
     while(currentDateJan <= new Date(janYear, 11, 31)) {
         const dayOfWeek = currentDateJan.getDay();
         const dateStr = currentDateJan.toLocaleDateString('sv-SE');
-        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !(dateStr >= vacationStartDateStr && dateStr <= vacationEndDateStr)) {
+        const hasAbsence = absenceRequests.some(
+            req => req.employeeId === janEmployeeId && req.status !== 'rejected' && dateStr >= req.startDate && dateStr <= req.endDate
+        );
+
+        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !hasAbsence) {
             const startTime = new Date(currentDateJan);
             startTime.setHours(8, Math.floor(Math.random() * 21) - 10, 0, 0);
             const endTime = new Date(currentDateJan);
@@ -61,16 +70,29 @@ const generateDemoData = () => {
     // --- Tina Teilzeit 2026 ---
     const tinaEmployeeId = 2;
     const tinaYear = 2026;
-    // Assuming no holidays for simplicity in data generation. The app logic will account for them.
+    absenceRequests.push({
+        id: entryIdCounter++,
+        employeeId: tinaEmployeeId,
+        type: AbsenceType.TimeOff,
+        status: 'approved',
+        startDate: '2026-01-12', // This is a Monday
+        endDate: '2026-01-12',
+    });
+
     let currentDateTina = new Date(tinaYear, 0, 1);
     while (currentDateTina <= new Date(tinaYear, 11, 31)) {
         const dayOfWeek = currentDateTina.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed
+        const dateStr = currentDateTina.toLocaleDateString('sv-SE');
+        const hasAbsence = absenceRequests.some(
+            req => req.employeeId === tinaEmployeeId && req.status !== 'rejected' && dateStr >= req.startDate && dateStr <= req.endDate
+        );
+
         let dailyHours = 0;
         if (dayOfWeek === 1) dailyHours = 8; // Monday
         if (dayOfWeek === 2) dailyHours = 8; // Tuesday
         if (dayOfWeek === 3) dailyHours = 4; // Wednesday
         
-        if (dailyHours > 0) {
+        if (dailyHours > 0 && !hasAbsence) {
              const startTime = new Date(currentDateTina);
              startTime.setHours(8, 30, 0, 0); 
              const endTime = new Date(startTime.getTime() + (dailyHours * 3600 * 1000));
