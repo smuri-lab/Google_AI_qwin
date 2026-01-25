@@ -175,7 +175,7 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
               {formData.type === AbsenceType.Vacation && companySettings.allowHalfDayVacations && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Dauer</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {[
                       { value: 'full', label: 'Ganzer Tag' },
                       { value: 'am', label: 'Vormittag' },
