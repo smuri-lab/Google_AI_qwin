@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { TimeEntry, Customer, Activity, CompanySettings, AbsenceRequest } from '../types';
 import { Card } from './ui/Card';
 import { XIcon } from './icons/XIcon';
@@ -14,6 +14,7 @@ interface ManualEntryFormModalProps {
   companySettings: CompanySettings;
   absenceRequests: AbsenceRequest[];
   onSuccess: () => void;
+  initialDate?: string | null;
 }
 
 export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
@@ -26,25 +27,48 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
     companySettings,
     absenceRequests,
     onSuccess,
+    initialDate,
 }) => {
+    const [isClosing, setIsClosing] = useState(false);
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            // Opening animation
+            const timer = setTimeout(() => setIsVisible(true), 10);
+            return () => clearTimeout(timer);
+        } else {
+            // Reset state immediately when closed
+            setIsVisible(false);
+            setIsClosing(false);
+        }
+    }, [isOpen]);
+
     if (!isOpen) return null;
+    
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(onClose, 300);
+    };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-30 p-4">
-            <Card className="w-full max-w-lg relative max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+        <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`}>
+            <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
+                <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
                     <XIcon className="h-6 w-6" />
                 </button>
-                <div className="flex-grow overflow-y-auto">
+                <div className="flex-grow min-h-0">
                     <ManualEntryForm
+                        isModal={true}
                         addTimeEntry={addTimeEntry}
                         timeEntries={timeEntries}
                         customers={customers}
                         activities={activities}
-                        onCancel={onClose}
+                        onCancel={handleClose}
                         companySettings={companySettings}
                         onSuccess={onSuccess}
                         absenceRequests={absenceRequests}
+                        initialDate={initialDate}
                     />
                 </div>
             </Card>

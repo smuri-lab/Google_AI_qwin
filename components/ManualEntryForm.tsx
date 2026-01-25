@@ -21,6 +21,7 @@ interface ManualEntryFormProps {
   initialDate?: string | null;
   companySettings: CompanySettings;
   onSuccess?: () => void;
+  isModal?: boolean;
 }
 
 const isOverlapping = (newStart: Date, newEnd: Date, existingEntries: TimeEntry[]): boolean => {
@@ -49,7 +50,7 @@ const formatDate = (dateString: string) => {
     });
 };
 
-export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, timeEntries, customers, activities, absenceRequests, onCancel, initialDate, companySettings, onSuccess }) => {
+export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, timeEntries, customers, activities, absenceRequests, onCancel, initialDate, companySettings, onSuccess, isModal = false }) => {
   const [date, setDate] = useState(initialDate || new Date().toLocaleDateString('sv-SE'));
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
@@ -189,66 +190,71 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
   const selectedCustomerName = customers.find(c => c.id === customerId)?.name || '';
   const selectedActivityName = activities.find(a => a.id === activityId)?.name || '';
 
-  return (
+  const formContent = (
     <>
-      <form onSubmit={handleSubmit} className="space-y-4 p-4">
-        <h2 className="text-xl font-bold text-center mb-4">Zeit manuell eintragen</h2>
-        
-        <DateSelectorButton 
-            label="Datum"
-            value={formatDate(date)}
-            onClick={() => setIsDatePickerOpen(true)}
-            placeholder="Datum auswählen..."
-        />
-        
-        <div className="grid grid-cols-2 gap-4">
-            <TimeSelectorButton
-                label="Startzeit"
-                value={startTime}
-                onClick={() => setIsStartTimePickerOpen(true)}
-                placeholder="Start"
-            />
-            <TimeSelectorButton
-                label="Endzeit"
-                value={endTime}
-                onClick={() => setIsEndTimePickerOpen(true)}
-                placeholder="Ende"
-                disabled={!startTime}
-            />
-        </div>
-
-        <Input label="Pause (m)" type="number" value={breakDurationMinutes} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBreakDurationMinutes(e.target.value)} min="0" placeholder="z.B. 30" />
-        
-        <SelectorButton
-            label={customerLabel}
-            value={selectedCustomerName}
-            placeholder={`${customerLabel} auswählen...`}
-            onClick={() => setIsCustomerModalOpen(true)}
-        />
-        <SelectorButton
-            label={activityLabel}
-            value={selectedActivityName}
-            placeholder={`${activityLabel} auswählen...`}
-            onClick={() => setIsActivityModalOpen(true)}
-        />
-        <Textarea
-            label="Kommentar (optional)"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            rows={2}
-        />
-        <div className={`pt-4 ${onCancel ? 'grid grid-cols-2 gap-4' : 'flex'}`}>
-          {onCancel && (
-            <Button type="button" onClick={onCancel} className="w-full bg-gray-500 hover:bg-gray-600 text-white">
-              Abbrechen
-            </Button>
-          )}
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-            Speichern
-          </Button>
-        </div>
-      </form>
+      <h2 className="text-xl font-bold text-center mb-4">Zeit manuell eintragen</h2>
       
+      <DateSelectorButton 
+          label="Datum"
+          value={formatDate(date)}
+          onClick={() => setIsDatePickerOpen(true)}
+          placeholder="Datum auswählen..."
+      />
+      
+      <div className="grid grid-cols-2 gap-4">
+          <TimeSelectorButton
+              label="Startzeit"
+              value={startTime}
+              onClick={() => setIsStartTimePickerOpen(true)}
+              placeholder="Start"
+          />
+          <TimeSelectorButton
+              label="Endzeit"
+              value={endTime}
+              onClick={() => setIsEndTimePickerOpen(true)}
+              placeholder="Ende"
+              disabled={!startTime}
+          />
+      </div>
+
+      <Input label="Pause (m)" type="number" value={breakDurationMinutes} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBreakDurationMinutes(e.target.value)} min="0" placeholder="z.B. 30" />
+      
+      <SelectorButton
+          label={customerLabel}
+          value={selectedCustomerName}
+          placeholder={`${customerLabel} auswählen...`}
+          onClick={() => setIsCustomerModalOpen(true)}
+      />
+      <SelectorButton
+          label={activityLabel}
+          value={selectedActivityName}
+          placeholder={`${activityLabel} auswählen...`}
+          onClick={() => setIsActivityModalOpen(true)}
+      />
+      <Textarea
+          label="Kommentar (optional)"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={2}
+      />
+    </>
+  );
+
+  const formButtons = (
+    <>
+      {onCancel && (
+        <Button type="button" onClick={onCancel} className="w-full bg-gray-500 hover:bg-gray-600 text-white">
+          Abbrechen
+        </Button>
+      )}
+      <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+        Speichern
+      </Button>
+    </>
+  );
+
+  const modals = (
+    <>
       <InfoModal
         isOpen={infoModal.isOpen}
         onClose={() => setInfoModal({ isOpen: false, title: '', message: '' })}
@@ -296,6 +302,34 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
           title={`${activityLabel} auswählen`}
           selectedValue={activityId}
       />
+    </>
+  );
+
+  if (isModal) {
+    return (
+        <>
+            <form onSubmit={handleSubmit} className="flex flex-col h-full">
+                <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                    {formContent}
+                </div>
+                <div className={`flex-shrink-0 border-t p-4 ${onCancel ? 'grid grid-cols-2 gap-4' : 'flex'}`}>
+                    {formButtons}
+                </div>
+            </form>
+            {modals}
+        </>
+    );
+  }
+
+  return (
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4 p-4">
+        {formContent}
+        <div className={`pt-4 ${onCancel ? 'grid grid-cols-2 gap-4' : 'flex'}`}>
+          {formButtons}
+        </div>
+      </form>
+      {modals}
     </>
   );
 };

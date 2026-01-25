@@ -57,8 +57,9 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
                 <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
                     <XIcon className="h-6 w-6" />
                 </button>
-                <div className="flex-grow overflow-y-auto">
+                <div className="flex-grow min-h-0">
                     <ManualEntryForm
+                        isModal={true}
                         addTimeEntry={addTimeEntry}
                         timeEntries={timeEntries}
                         customers={customers}
