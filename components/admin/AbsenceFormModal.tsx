@@ -173,17 +173,32 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
               </Select>
 
               {formData.type === AbsenceType.Vacation && companySettings.allowHalfDayVacations && (
-                <RadioGroup
-                    name="dayPortion"
-                    label="Dauer"
-                    options={[
-                        { value: 'full', label: 'Ganzer Tag' },
-                        { value: 'am', label: 'Vormittags (halber Tag)' },
-                        { value: 'pm', label: 'Nachmittags (halber Tag)' },
-                    ]}
-                    selectedValue={formData.dayPortion || 'full'}
-                    onChange={(value) => setFormData(prev => ({...prev, dayPortion: value as 'full' | 'am' | 'pm'}))}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Dauer</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      { value: 'full', label: 'Ganzer Tag' },
+                      { value: 'am', label: 'Vormittag' },
+                      { value: 'pm', label: 'Nachmittag' },
+                    ].map(option => (
+                      <label key={option.value} className={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors text-center text-sm ${
+                        (formData.dayPortion || 'full') === option.value
+                          ? 'bg-blue-50 border-blue-400 ring-1 ring-blue-400 font-semibold'
+                          : 'hover:bg-gray-50'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="dayPortion"
+                          value={option.value}
+                          checked={(formData.dayPortion || 'full') === option.value}
+                          onChange={(e) => setFormData(prev => ({...prev, dayPortion: e.target.value as 'full' | 'am' | 'pm'}))}
+                          className="sr-only"
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               )}
 
               <DateSelectorButton

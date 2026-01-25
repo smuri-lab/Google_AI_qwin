@@ -46,7 +46,7 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({ customer
           <h2 className="text-xl font-bold">{customerLabel}</h2>
           <Button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
             <PlusIcon className="h-5 w-5" />
-            {customerLabel} anlegen
+            Anlegen
           </Button>
         </div>
         

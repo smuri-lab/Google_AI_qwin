@@ -60,7 +60,7 @@ export const ActivityManagement: React.FC<ActivityManagementProps> = ({ activiti
           <h2 className="text-xl font-bold">{activityLabel}</h2>
           <Button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
             <PlusIcon className="h-5 w-5" />
-            {activityLabel} anlegen
+            Anlegen
           </Button>
         </div>
         
