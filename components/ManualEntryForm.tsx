@@ -308,7 +308,7 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
   if (isModal) {
     return (
         <>
-            <form onSubmit={handleSubmit} className="flex flex-col h-full">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
                 <div className="flex-grow min-h-0 overflow-y-auto p-4 space-y-4">
                     {formContent}
                 </div>
