@@ -24,11 +24,13 @@ export const PlannerDisplayOptionsModal: React.FC<PlannerDisplayOptionsModalProp
 }) => {
   const [selectedIds, setSelectedIds] = useState(new Set<number>());
   const [searchTerm, setSearchTerm] = useState('');
+  const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setSelectedIds(new Set(currentOptions.visibleEmployeeIds));
       setSearchTerm(''); // Reset search on open
+      setIsClosing(false);
     }
   }, [isOpen, currentOptions.visibleEmployeeIds]);
 
@@ -38,6 +40,11 @@ export const PlannerDisplayOptionsModal: React.FC<PlannerDisplayOptionsModalProp
         `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [employees, searchTerm]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   if (!isOpen) return null;
 
@@ -74,15 +81,15 @@ export const PlannerDisplayOptionsModal: React.FC<PlannerDisplayOptionsModalProp
     onApply({
       visibleEmployeeIds: Array.from(selectedIds),
     });
-    onClose();
+    handleClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4" onClick={onClose}>
-      <Card className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+      <Card className={`w-full max-w-lg ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Anzeigeoptionen für Planer</h2>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100"><XIcon className="h-6 w-6" /></button>
+          <button onClick={handleClose} className="p-1 rounded-full hover:bg-gray-100"><XIcon className="h-6 w-6" /></button>
         </div>
 
         <div className="space-y-4">
@@ -131,7 +138,7 @@ export const PlannerDisplayOptionsModal: React.FC<PlannerDisplayOptionsModalProp
         </div>
 
         <div className="flex justify-end gap-4 pt-6 mt-6 border-t">
-          <Button onClick={onClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+          <Button onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
           <Button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700">Anwenden</Button>
         </div>
       </Card>

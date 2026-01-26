@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Customer, CompanySettings } from '../../types';
 import { Card } from '../ui/Card';
@@ -32,17 +31,26 @@ const defaultState: Omit<Customer, 'id'> = {
 export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, onClose, onSave, onDelete, initialData, companySettings }) => {
   const [formData, setFormData] = useState<Omit<Customer, 'id'>>(defaultState);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   const customerLabel = companySettings.customerLabel || 'Kunde';
 
   useEffect(() => {
-    if (initialData) {
-      setFormData(initialData);
-    } else {
-      setFormData(defaultState);
+    if (isOpen) {
+        if (initialData) {
+            setFormData(initialData);
+        } else {
+            setFormData(defaultState);
+        }
+        setShowDeleteConfirm(false);
+        setIsClosing(false);
     }
-    setShowDeleteConfirm(false);
   }, [initialData, isOpen]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -62,7 +70,7 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
     if (initialData?.id) {
         onDelete(initialData.id);
         setShowDeleteConfirm(false);
-        onClose();
+        handleClose();
     }
   };
 
@@ -70,9 +78,9 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-30 p-4">
-        <Card className="w-full max-w-2xl relative max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+      <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+        <Card className={`w-full max-w-2xl relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+          <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
             <XIcon className="h-6 w-6" />
           </button>
 
@@ -117,7 +125,7 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
                 )}
               </div>
               <div className="flex gap-4">
-                <Button type="button" onClick={onClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+                <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
                 <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Speichern</Button>
               </div>
             </div>

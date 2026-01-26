@@ -32,6 +32,7 @@ export const TimeBalanceAdjustmentModal: React.FC<TimeBalanceAdjustmentModalProp
   const [hours, setHours] = useState<number | undefined>(undefined);
   const [note, setNote] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   
   const isEditing = !!initialData?.id;
   const timeFormat = companySettings.adminTimeFormat || 'hoursMinutes';
@@ -47,8 +48,14 @@ export const TimeBalanceAdjustmentModal: React.FC<TimeBalanceAdjustmentModalProp
         setHours(initialHoursValue);
 
         setNote(initialData?.note || '');
+        setIsClosing(false);
     }
   }, [initialData, isOpen]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,9 +104,9 @@ export const TimeBalanceAdjustmentModal: React.FC<TimeBalanceAdjustmentModalProp
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-30 p-4">
-        <Card className="w-full max-w-lg relative" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+      <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+        <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+          <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
             <XIcon className="h-6 w-6" />
           </button>
 
@@ -139,7 +146,7 @@ export const TimeBalanceAdjustmentModal: React.FC<TimeBalanceAdjustmentModalProp
                     )}
                 </div>
                 <div className="flex gap-4">
-                    <Button type="button" onClick={onClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+                    <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
                     <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Speichern</Button>
                 </div>
             </div>

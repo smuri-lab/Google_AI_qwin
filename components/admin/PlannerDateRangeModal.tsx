@@ -62,6 +62,7 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -70,8 +71,14 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
       setStartDate(startStr);
       setEndDate(endStr);
       setActivePreset(checkDatesForPreset(currentStartDate, currentEndDate));
+      setIsClosing(false);
     }
   }, [isOpen, currentStartDate, currentEndDate]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   if (!isOpen) return null;
 
@@ -83,7 +90,7 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
       return;
     }
     onApply(start, end, activePreset);
-    onClose();
+    handleClose();
   };
 
   const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,11 +145,11 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4" onClick={onClose}>
-      <Card className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+      <Card className={`w-full max-w-md ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Zeitraum anpassen</h2>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100"><XIcon className="h-6 w-6" /></button>
+          <button onClick={handleClose} className="p-1 rounded-full hover:bg-gray-100"><XIcon className="h-6 w-6" /></button>
         </div>
 
         <div className="space-y-4">
@@ -172,7 +179,7 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
         </div>
 
         <div className="flex justify-end gap-4 pt-6 mt-6 border-t">
-          <Button onClick={onClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+          <Button onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
           <Button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700">Anwenden</Button>
         </div>
       </Card>

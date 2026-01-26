@@ -81,6 +81,7 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
   const [followingYearVacationDays, setFollowingYearVacationDays] = useState('');
   const [futureVacationDays, setFutureVacationDays] = useState<{year: number; days: string}[]>([]);
   const [openDatePicker, setOpenDatePicker] = useState<'firstWorkDay' | 'changesValidFrom' | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
   const timeFormat = companySettings.adminTimeFormat || 'hoursMinutes';
 
   const birthYears = useMemo(() => Array.from({ length: 80 }, (_, i) => new Date().getFullYear() - 18 - i), []);
@@ -101,56 +102,59 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
   const birthDays = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString()), [daysInMonth]);
 
   useEffect(() => {
-    if (initialData) {
-      const changesDate = new Date();
-      changesDate.setHours(0,0,0,0);
-      const currentContract = getContractDetailsForDate(initialData, changesDate);
-      setFormData({
-        ...initialData,
-        ...currentContract,
-        password: '', // Clear password field on edit
-        changesValidFrom: changesDate.toLocaleDateString('sv-SE'),
-      });
-        if (initialData.dateOfBirth) {
-            const [year, month, day] = initialData.dateOfBirth.split('-');
-            setBirthYear(year);
-            setBirthMonth(month);
-            setBirthDay(parseInt(day, 10).toString());
+    if (isOpen) {
+        setIsClosing(false);
+        if (initialData) {
+          const changesDate = new Date();
+          changesDate.setHours(0,0,0,0);
+          const currentContract = getContractDetailsForDate(initialData, changesDate);
+          setFormData({
+            ...initialData,
+            ...currentContract,
+            password: '', // Clear password field on edit
+            changesValidFrom: changesDate.toLocaleDateString('sv-SE'),
+          });
+            if (initialData.dateOfBirth) {
+                const [year, month, day] = initialData.dateOfBirth.split('-');
+                setBirthYear(year);
+                setBirthMonth(month);
+                setBirthDay(parseInt(day, 10).toString());
+            } else {
+                setBirthYear(''); setBirthMonth(''); setBirthDay('');
+            }
+
+          const entryYear = new Date(initialData.firstWorkDay).getFullYear();
+          const entryContract = getContractDetailsForDate(initialData, new Date(initialData.firstWorkDay));
+          setEntryYearVacationDays(String(entryContract.vacationDays));
+          const followingYearContract = getContractDetailsForDate(initialData, new Date(entryYear + 1, 0, 1));
+          setFollowingYearVacationDays(String(followingYearContract.vacationDays));
+          
+          const changesYear = new Date(changesDate).getFullYear();
+          const futureContracts = initialData.contractHistory
+              .filter(c => new Date(c.validFrom).getFullYear() > changesYear && c.validFrom.endsWith('-01-01'))
+              .sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime());
+
+          const futureData = futureContracts.map(c => ({
+              year: new Date(c.validFrom).getFullYear(),
+              days: String(c.vacationDays)
+          }));
+          setFutureVacationDays([{ year: changesYear, days: String(currentContract.vacationDays) }, ...futureData]);
+          
         } else {
-            setBirthYear(''); setBirthMonth(''); setBirthDay('');
+          const newFirstWorkDay = new Date().toLocaleDateString('sv-SE');
+          setFormData({
+            ...defaultState,
+            ...defaultContractState,
+            vacationDays: undefined, // Clear for placeholder
+            firstWorkDay: newFirstWorkDay,
+            validFrom: newFirstWorkDay,
+            weeklySchedule: defaultWeeklySchedule,
+          });
+          setBirthYear(''); setBirthMonth(''); setBirthDay('');
+          setEntryYearVacationDays('');
+          setFollowingYearVacationDays('');
+          setFutureVacationDays([]);
         }
-
-      const entryYear = new Date(initialData.firstWorkDay).getFullYear();
-      const entryContract = getContractDetailsForDate(initialData, new Date(initialData.firstWorkDay));
-      setEntryYearVacationDays(String(entryContract.vacationDays));
-      const followingYearContract = getContractDetailsForDate(initialData, new Date(entryYear + 1, 0, 1));
-      setFollowingYearVacationDays(String(followingYearContract.vacationDays));
-      
-      const changesYear = new Date(changesDate).getFullYear();
-      const futureContracts = initialData.contractHistory
-          .filter(c => new Date(c.validFrom).getFullYear() > changesYear && c.validFrom.endsWith('-01-01'))
-          .sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime());
-
-      const futureData = futureContracts.map(c => ({
-          year: new Date(c.validFrom).getFullYear(),
-          days: String(c.vacationDays)
-      }));
-      setFutureVacationDays([{ year: changesYear, days: String(currentContract.vacationDays) }, ...futureData]);
-      
-    } else {
-      const newFirstWorkDay = new Date().toLocaleDateString('sv-SE');
-      setFormData({
-        ...defaultState,
-        ...defaultContractState,
-        vacationDays: undefined, // Clear for placeholder
-        firstWorkDay: newFirstWorkDay,
-        validFrom: newFirstWorkDay,
-        weeklySchedule: defaultWeeklySchedule,
-      });
-      setBirthYear(''); setBirthMonth(''); setBirthDay('');
-      setEntryYearVacationDays('');
-      setFollowingYearVacationDays('');
-      setFutureVacationDays([]);
     }
   }, [initialData, isOpen]);
 
@@ -244,6 +248,10 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
       setFutureVacationDays(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -368,9 +376,9 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-30 p-4">
-        <Card className="w-full max-w-2xl relative max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+      <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+        <Card className={`w-full max-w-2xl relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+          <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
             <XIcon className="h-6 w-6" />
           </button>
 
@@ -602,7 +610,7 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
 
             <div className="flex justify-end items-center pt-4 border-t">
               <div className="flex gap-4">
-                <Button type="button" onClick={onClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+                <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
                 <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Speichern</Button>
               </div>
             </div>

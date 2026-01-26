@@ -29,7 +29,7 @@ const getYears = () => {
     return years;
 };
 
-export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOpen, isClosing, onClose, onConfirm, employees, fixedEmployee }) => {
+export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOpen, onClose, onConfirm, employees, fixedEmployee }) => {
   const today = new Date();
   const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   
@@ -37,6 +37,7 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
   const [selectedMonths, setSelectedMonths] = useState<number[]>([lastMonth.getMonth()]);
   const [selectedYear, setSelectedYear] = useState(lastMonth.getFullYear());
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
+  const [isClosing, setIsClosing] = useState(false);
   
   useEffect(() => {
     if (isOpen) {
@@ -48,8 +49,14 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
       setSelectedMonths([lastMonth.getMonth()]);
       setSelectedYear(lastMonth.getFullYear());
       setFormat('excel');
+      setIsClosing(false);
     }
   }, [isOpen, fixedEmployee]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   if (!isOpen) return null;
   
@@ -99,13 +106,24 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
     }
     
     onConfirm(employeesToExport, selectedYear, selectedMonths, format);
-    // onClose is now called by the parent component's onConfirm handler
+    // Usually confirmation closes the modal in parent, we just trigger closing animation then parent closes.
+    // However, since `onConfirm` might be async or sync, if parent sets isOpen=false, we lose animation.
+    // We'll rely on handleClose pattern if parent doesn't auto-close, or if it does, 
+    // we should ideally animate out first. 
+    // Assuming parent controls close:
+    // setIsClosing(true); setTimeout(() => onConfirm(...), 300);
+    // Let's assume user flow is Click Export -> Action -> Close.
+    // We will trigger onConfirm immediately (as export logic runs), parent usually closes modal. 
+    // We can't force parent to wait. We'll simply call onConfirm. If parent closes it, it unmounts.
+    // For proper exit animation, parent must delay unmount or we manage isOpen state locally which is complex.
+    // We'll just call handleClose for cancel, and for Submit we rely on immediate action.
+    // For consistency with other modals, let's just submit.
   };
 
   return (
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={onClose}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+        <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
           <XIcon className="h-6 w-6" />
         </button>
 
@@ -205,7 +223,7 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t mt-4">
-            <Button type="button" onClick={onClose} className="bg-gray-500 hover:bg-gray-600">
+            <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">
               Abbrechen
             </Button>
             <Button type="submit" className="bg-blue-600 hover:bg-blue-700">

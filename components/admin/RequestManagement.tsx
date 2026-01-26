@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { AbsenceRequest, Employee } from '../../types';
 import { AbsenceType } from '../../types';
 import { Card } from '../ui/Card';
@@ -17,12 +17,77 @@ interface RequestManagementProps {
   onDeleteAbsenceRequest: (id: number) => void;
 }
 
+const ActionConfirmationModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (comment: string) => void;
+    status: 'approved' | 'rejected';
+}> = ({ isOpen, onClose, onConfirm, status }) => {
+    const [comment, setComment] = useState('');
+    const [isClosing, setIsClosing] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setComment('');
+            setIsClosing(false);
+        }
+    }, [isOpen]);
+
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(onClose, 300);
+    };
+
+    const handleConfirm = () => {
+        onConfirm(comment);
+        handleClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+            <Card className={`w-full max-w-md ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">
+                        Antrag {status === 'approved' ? 'genehmigen' : 'ablehnen'}
+                    </h2>
+                    <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+                        <XIcon className="h-6 w-6" />
+                    </button>
+                </div>
+                <div className="space-y-4">
+                    <label htmlFor="adminComment" className="block text-sm font-medium text-gray-700">
+                        Kommentar hinzufügen (optional)
+                    </label>
+                    <textarea
+                        id="adminComment"
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Grund für die Entscheidung mitteilen..."
+                        autoFocus
+                    />
+                    <div className="flex gap-4 pt-2 justify-end">
+                        <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">
+                            Abbrechen
+                        </Button>
+                        <Button type="button" onClick={handleConfirm} className={` ${status === 'approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
+                            {status === 'approved' ? 'Genehmigen & Senden' : 'Ablehnen & Senden'}
+                        </Button>
+                    </div>
+                </div>
+            </Card>
+        </div>
+    );
+};
+
 export const RequestManagement: React.FC<RequestManagementProps> = ({ absenceRequests, employees, onUpdateRequestStatus, onDeleteAbsenceRequest }) => {
   const [requestToDelete, setRequestToDelete] = useState<AbsenceRequest | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('all');
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [actionTarget, setActionTarget] = useState<{ id: number; status: 'approved' | 'rejected' } | null>(null);
-  const [adminComment, setAdminComment] = useState('');
   
   const getEmployeeName = (employeeId: number) => {
     const employee = employees.find(e => e.id === employeeId);
@@ -56,18 +121,12 @@ export const RequestManagement: React.FC<RequestManagementProps> = ({ absenceReq
     setActionTarget({ id, status });
   };
 
-  const handleConfirmAction = () => {
+  const handleConfirmAction = (comment: string) => {
     if (actionTarget) {
-      onUpdateRequestStatus(actionTarget.id, actionTarget.status, adminComment.trim() || undefined);
-      handleCloseActionModal();
+      onUpdateRequestStatus(actionTarget.id, actionTarget.status, comment.trim() || undefined);
+      setActionTarget(null);
     }
   };
-
-  const handleCloseActionModal = () => {
-    setActionTarget(null);
-    setAdminComment('');
-  };
-
 
   const filteredRequests = useMemo(() => {
     if (selectedEmployeeId === 'all') {
@@ -185,42 +244,12 @@ export const RequestManagement: React.FC<RequestManagementProps> = ({ absenceReq
         </Card>
       </div>
 
-      {actionTarget && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4" onClick={handleCloseActionModal}>
-            <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">
-                        Antrag {actionTarget.status === 'approved' ? 'genehmigen' : 'ablehnen'}
-                    </h2>
-                    <button onClick={handleCloseActionModal} className="text-gray-400 hover:text-gray-600">
-                        <XIcon className="h-6 w-6" />
-                    </button>
-                </div>
-                <div className="space-y-4">
-                    <label htmlFor="adminComment" className="block text-sm font-medium text-gray-700">
-                        Kommentar hinzufügen (optional)
-                    </label>
-                    <textarea
-                        id="adminComment"
-                        rows={4}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        value={adminComment}
-                        onChange={(e) => setAdminComment(e.target.value)}
-                        placeholder="Grund für die Entscheidung mitteilen..."
-                        autoFocus
-                    />
-                    <div className="flex gap-4 pt-2 justify-end">
-                        <Button type="button" onClick={handleCloseActionModal} className="bg-gray-500 hover:bg-gray-600">
-                            Abbrechen
-                        </Button>
-                        <Button type="button" onClick={handleConfirmAction} className={` ${actionTarget.status === 'approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
-                            {actionTarget.status === 'approved' ? 'Genehmigen & Senden' : 'Ablehnen & Senden'}
-                        </Button>
-                    </div>
-                </div>
-            </Card>
-        </div>
-      )}
+      <ActionConfirmationModal 
+        isOpen={!!actionTarget} 
+        onClose={() => setActionTarget(null)} 
+        onConfirm={handleConfirmAction} 
+        status={actionTarget?.status || 'approved'} 
+      />
 
       <ConfirmModal
         isOpen={!!requestToDelete}

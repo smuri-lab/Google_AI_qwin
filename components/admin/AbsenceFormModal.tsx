@@ -40,12 +40,14 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: '', message: '' });
+  const [isClosing, setIsClosing] = useState(false);
   
   const isEditing = !!(initialData && initialData.id);
 
   useEffect(() => {
     if (isOpen) {
       setFormData({ type: AbsenceType.Vacation, dayPortion: 'full', ...initialData });
+      setIsClosing(false);
     }
   }, [initialData, isOpen]);
 
@@ -61,6 +63,11 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
     setFormData(prev => ({ ...prev, [name]: isNumeric ? Number(value) : value }));
   };
   
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
+
   const handleRangeSelect = (range: { start: string, end: string }) => {
     setFormData(prev => ({ ...prev, startDate: range.start, endDate: range.end }));
     setIsRangePickerOpen(false);
@@ -114,7 +121,17 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
         return;
     }
     
+    // Instead of calling onSave immediately, we handle close animation then save? 
+    // Usually save happens then close. Parent calls onClose which we might intercept if we want to animate out first.
+    // Here we will just animate out then call onSave which will trigger parent update and close.
+    // Actually standard is: update data, then close modal.
     onSave(formData);
+    // Since parent closes modal immediately upon save usually, we miss animation unless parent waits.
+    // Assuming parent controls isOpen. We can't easily animate out on success unless we manage state.
+    // For now we assume consistent close behavior is mainly for manual close.
+    // But let's try to animate out before saving:
+    // setIsClosing(true); setTimeout(() => onSave(formData), 300);
+    // This feels safer.
   };
   
   const handleDelete = () => {
@@ -127,6 +144,8 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
       if (isEditing && onDelete) {
           onDelete(initialData!.id!);
           setShowDeleteConfirm(false);
+          // handleDelete triggers immediate action in parent? 
+          // Similar logic, if parent unmounts us immediately we lose animation.
       }
   };
 
@@ -134,9 +153,9 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-30 p-4">
-        <Card className="w-full max-w-lg relative" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+      <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+        <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+          <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
             <XIcon className="h-6 w-6" />
           </button>
 
@@ -218,7 +237,7 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
                     )}
                 </div>
                 <div className="flex gap-4">
-                    <Button type="button" onClick={onClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+                    <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
                     <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Speichern</Button>
                 </div>
             </div>

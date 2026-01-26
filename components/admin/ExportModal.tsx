@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Employee } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -33,18 +32,37 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onCon
   
   const [selectedYear, setSelectedYear] = useState(lastMonth.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(lastMonth.getMonth());
+  const [isClosing, setIsClosing] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen) {
+        setIsClosing(false);
+    }
+  }, [isOpen]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 300);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onConfirm(employee, selectedYear, selectedMonth);
+    // Usually confirm also closes, but let the parent handle close or if we need to close here we call handleClose.
+    // Assuming parent handles close state, but we need to trigger animation first if possible.
+    // For simplicity, if parent sets isOpen=false, we might miss animation unless we control it.
+    // But since `onClose` prop is provided, we should use it for cancel.
+    // If onConfirm closes it immediately, the unmount happens. 
+    // To animate out on confirm, we'd need to delay the callback.
+    handleClose(); 
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-30 p-4" onClick={onClose}>
-      <Card className="w-full max-w-md relative" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+      <Card className={`w-full max-w-md relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+        <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
           <XIcon className="h-6 w-6" />
         </button>
 
@@ -77,7 +95,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onCon
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t mt-4">
-            <Button type="button" onClick={onClose} className="bg-gray-500 hover:bg-gray-600">
+            <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">
               Abbrechen
             </Button>
             <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
