@@ -20,8 +20,12 @@ export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClos
 
   useEffect(() => {
     // Opening animation
-    const timer = setTimeout(() => setIsVisible(true), 10);
-    return () => clearTimeout(timer);
+    const raf = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            setIsVisible(true);
+        });
+    });
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const handleClose = () => {
@@ -35,7 +39,7 @@ export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClos
   };
 
   return ReactDOM.createPortal(
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} onClick={handleClose}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-[100] p-4 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} onClick={handleClose}>
       <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
         <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
           <XIcon className="h-6 w-6" />
