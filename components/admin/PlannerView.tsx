@@ -127,7 +127,7 @@ const AbsencePillWithTooltip: React.FC<{ absence: AbsenceRequest; day: Date; day
                 </div>
             </div>
             {tooltip && ReactDOM.createPortal(
-                <div className="fixed z-50 p-2 text-white bg-gray-800 rounded-md shadow-lg pointer-events-none" style={{ top: tooltip.y + 5, left: tooltip.x }}>
+                <div className="fixed z-[280] p-2 text-white bg-gray-800 rounded-md shadow-lg pointer-events-none" style={{ top: tooltip.y + 5, left: tooltip.x }}>
                     {tooltip.content}
                 </div>,
                 document.body
@@ -552,7 +552,7 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                        {/* Column 1: Pending */}
+                        {/* ... (List view content remains same) ... */}
                         <div className="bg-gray-50 rounded-lg p-4 h-full">
                             <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2 mb-4">
                                 Offen
@@ -672,7 +672,7 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
             />
             
             {approvalTarget && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4" onClick={() => setApprovalTarget(null)}>
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[250] p-4" onClick={() => setApprovalTarget(null)}>
                     <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Antrag prüfen</h2><button onClick={() => setApprovalTarget(null)}><XIcon className="h-6 w-6" /></button></div>
                         <div className="space-y-2 text-sm border-t pt-4">
@@ -689,7 +689,7 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
                 </div>
             )}
             
-            {actionTarget && (<div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4" onClick={() => { setActionTarget(null); setAdminComment(''); }}><Card className="w-full max-w-md" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Antrag {actionTarget.status === 'approved' ? 'genehmigen' : 'ablehnen'}</h2><button onClick={() => { setActionTarget(null); setAdminComment(''); }}><XIcon className="h-6 w-6" /></button></div><div><textarea rows={3} className="w-full p-2 border rounded-md" value={adminComment} onChange={e => setAdminComment(e.target.value)} placeholder="Kommentar (optional)..." /></div><div className="flex gap-4 pt-4 justify-end"><Button onClick={handleListConfirmAction} className={`${actionTarget.status === 'approved' ? 'bg-green-600' : 'bg-red-600'}`}>{actionTarget.status === 'approved' ? 'Genehmigen' : 'Ablehnen'}</Button></div></Card></div>)}
+            {actionTarget && (<div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[250] p-4" onClick={() => { setActionTarget(null); setAdminComment(''); }}><Card className="w-full max-w-md" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Antrag {actionTarget.status === 'approved' ? 'genehmigen' : 'ablehnen'}</h2><button onClick={() => { setActionTarget(null); setAdminComment(''); }}><XIcon className="h-6 w-6" /></button></div><div><textarea rows={3} className="w-full p-2 border rounded-md" value={adminComment} onChange={e => setAdminComment(e.target.value)} placeholder="Kommentar (optional)..." /></div><div className="flex gap-4 pt-4 justify-end"><Button onClick={handleListConfirmAction} className={`${actionTarget.status === 'approved' ? 'bg-green-600' : 'bg-red-600'}`}>{actionTarget.status === 'approved' ? 'Genehmigen' : 'Ablehnen'}</Button></div></Card></div>)}
             <ConfirmModal isOpen={!!requestToDelete} onClose={() => setRequestToDelete(null)} onConfirm={handleConfirmDelete} title="Antrag löschen" message={`Möchten Sie den Antrag von ${getEmployeeName(requestToDelete?.employeeId || 0)} wirklich löschen?`} confirmText="Ja, löschen" />
             <SelectionModal isOpen={isEmployeeModalOpen} onClose={() => setIsEmployeeModalOpen(false)} onSelect={item => setSelectedEmployeeId(item.id)} items={employeeOptions} title="Mitarbeiter auswählen" selectedValue={selectedEmployeeId} />
             <PlannerDisplayOptionsModal

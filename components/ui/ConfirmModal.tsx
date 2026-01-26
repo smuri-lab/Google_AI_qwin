@@ -28,7 +28,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
   };
 
   return (
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-sm ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-center">{title}</h2>

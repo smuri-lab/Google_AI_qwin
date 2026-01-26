@@ -62,7 +62,7 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ onRegist
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex items-start sm:items-center justify-center p-4 pt-16 sm:pt-4">
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 relative z-50">
             <Card className="w-full max-w-2xl">
                 <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">Neues Unternehmen registrieren</h1>
                 <form onSubmit={handleSubmit} className="space-y-6">

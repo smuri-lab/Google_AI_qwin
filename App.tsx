@@ -738,9 +738,9 @@ const App: React.FC = () => {
   };
 
   if (!loggedInUser) {
-    // Only the outer container scrolls for login
+    // Enable scrolling for login/register screens
     return (
-        <div className="h-[100dvh] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
+        <div className="h-[100dvh] w-full overflow-y-auto bg-gray-100">
             {authView === 'login' && employees.some(e => e.role === 'admin') ? (
                 <LoginScreen onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} employees={employees} />
             ) : (

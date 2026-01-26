@@ -111,7 +111,7 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({ is
   const getButtonClass = (preset: Preset) => `px-3 py-2 text-sm font-semibold rounded-md transition-colors ${activePreset === preset ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`;
 
   return ReactDOM.createPortal(
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-md ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Zeitraum anpassen</h2>

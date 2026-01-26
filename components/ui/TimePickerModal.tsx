@@ -93,7 +93,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
 
   return (
     <div 
-      className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} 
+      className={`fixed inset-0 bg-black flex items-center justify-center z-[260] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} 
       onClick={handleClose}
     >
       <Card 
