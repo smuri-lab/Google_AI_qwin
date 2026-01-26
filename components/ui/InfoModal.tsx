@@ -10,9 +10,10 @@ interface InfoModalProps {
   onClose: () => void;
   title: string;
   message: string;
+  isRotated?: boolean;
 }
 
-export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, message }) => {
+export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, message, isRotated = false }) => {
   const [isClosing, setIsClosing] = useState(false);
 
   if (!isOpen) return null;
@@ -22,8 +23,12 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, me
     setTimeout(onClose, 300);
   };
 
+  const containerClass = isRotated
+    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[270] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`
+    : `fixed inset-0 bg-black flex items-center justify-center z-[270] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`;
+
   return ReactDOM.createPortal(
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-[270] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+    <div className={containerClass} onClick={handleClose}>
       <Card className={`w-full max-w-sm relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
           <XIcon className="h-6 w-6" />

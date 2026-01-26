@@ -15,6 +15,7 @@ interface CalendarModalProps {
   initialStartDate?: string;
   initialEndDate?: string;
   minDate?: Date;
+  isRotated?: boolean;
 }
 
 const DayOfWeekHeader: React.FC = () => {
@@ -35,7 +36,8 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
     selectionMode = 'single',
     initialStartDate,
     initialEndDate, 
-    minDate 
+    minDate,
+    isRotated = false
 }) => {
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
   const [range, setRange] = useState<{ start: Date | null, end: Date | null }>({ start: null, end: null });
@@ -124,8 +126,12 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
       handleClose();
   }
 
+  const containerClass = isRotated
+    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[260] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`
+    : `fixed inset-0 bg-black flex items-center justify-center z-[260] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`;
+
   return (
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-[260] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} onClick={handleClose}>
+    <div className={containerClass} onClick={handleClose}>
       <Card className={`w-full max-w-sm ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center pb-4 border-b">
           <h2 className="text-xl font-bold">{title}</h2>

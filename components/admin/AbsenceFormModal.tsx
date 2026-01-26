@@ -24,6 +24,7 @@ interface AbsenceFormModalProps {
   allAbsenceRequests: AbsenceRequest[];
   allTimeEntries: TimeEntry[];
   companySettings: CompanySettings;
+  isRotated?: boolean;
 }
 
 const formatDate = (dateString: string | undefined) => {
@@ -35,7 +36,7 @@ const formatDate = (dateString: string | undefined) => {
     });
 };
 
-export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onClose, onSave, onDelete, employees, initialData, allAbsenceRequests, allTimeEntries, companySettings }) => {
+export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onClose, onSave, onDelete, employees, initialData, allAbsenceRequests, allTimeEntries, companySettings, isRotated = false }) => {
   const [formData, setFormData] = useState<Partial<AbsenceRequest>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
@@ -147,9 +148,13 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
+  const containerClass = isRotated
+    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[250] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`
+    : `fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`;
+
   return ReactDOM.createPortal(
     <>
-      <div className={`fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+      <div className={containerClass} onClick={handleClose}>
         <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
           <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
             <XIcon className="h-6 w-6" />
@@ -245,6 +250,7 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
         onClose={() => setInfoModal({ isOpen: false, title: '', message: '' })}
         title={infoModal.title}
         message={infoModal.message}
+        isRotated={isRotated}
       />
       <ConfirmModal
           isOpen={showDeleteConfirm}
@@ -253,6 +259,7 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
           title="Abwesenheit löschen"
           message="Möchten Sie diesen Abwesenheitseintrag wirklich endgültig löschen?"
           confirmText="Ja, löschen"
+          isRotated={isRotated}
       />
       <CalendarModal
         isOpen={isRangePickerOpen}
@@ -263,6 +270,7 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
         selectionMode={formData.type === AbsenceType.Vacation && formData.dayPortion !== 'full' ? 'single' : 'range'}
         initialStartDate={formData.startDate}
         initialEndDate={formData.endDate}
+        isRotated={isRotated}
       />
     </>,
     document.body

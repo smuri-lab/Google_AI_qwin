@@ -14,9 +14,10 @@ interface PlannerDisplayOptionsModalProps {
   onApply: (options: { visibleEmployeeIds: number[] }) => void;
   employees: Employee[];
   currentOptions: { visibleEmployeeIds: number[] };
+  isRotated?: boolean;
 }
 
-export const PlannerDisplayOptionsModal: React.FC<PlannerDisplayOptionsModalProps> = ({ isOpen, onClose, onApply, employees, currentOptions }) => {
+export const PlannerDisplayOptionsModal: React.FC<PlannerDisplayOptionsModalProps> = ({ isOpen, onClose, onApply, employees, currentOptions, isRotated = false }) => {
   const [selectedIds, setSelectedIds] = useState(new Set<number>());
   const [searchTerm, setSearchTerm] = useState('');
   const [isClosing, setIsClosing] = useState(false);
@@ -63,8 +64,12 @@ export const PlannerDisplayOptionsModal: React.FC<PlannerDisplayOptionsModalProp
     }, 300);
   };
 
+  const containerClass = isRotated
+    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[250] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`
+    : `fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`;
+
   return ReactDOM.createPortal(
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+    <div className={containerClass} onClick={handleClose}>
       <Card className={`w-full max-w-lg ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Anzeigeoptionen für Planer</h2>

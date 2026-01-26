@@ -669,10 +669,15 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
                 allAbsenceRequests={props.absenceRequests}
                 allTimeEntries={props.timeEntries}
                 companySettings={props.companySettings}
+                isRotated={isLandscape}
             />
             
             {approvalTarget && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[250] p-4" onClick={() => setApprovalTarget(null)}>
+                <div className={`fixed z-[250] bg-black bg-opacity-60 flex items-center justify-center p-4 ${
+                    isLandscape 
+                    ? 'top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw]' 
+                    : 'inset-0'
+                }`} onClick={() => setApprovalTarget(null)}>
                     <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Antrag prüfen</h2><button onClick={() => setApprovalTarget(null)}><XIcon className="h-6 w-6" /></button></div>
                         <div className="space-y-2 text-sm border-t pt-4">
@@ -689,15 +694,20 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
                 </div>
             )}
             
-            {actionTarget && (<div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[250] p-4" onClick={() => { setActionTarget(null); setAdminComment(''); }}><Card className="w-full max-w-md" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Antrag {actionTarget.status === 'approved' ? 'genehmigen' : 'ablehnen'}</h2><button onClick={() => { setActionTarget(null); setAdminComment(''); }}><XIcon className="h-6 w-6" /></button></div><div><textarea rows={3} className="w-full p-2 border rounded-md" value={adminComment} onChange={e => setAdminComment(e.target.value)} placeholder="Kommentar (optional)..." /></div><div className="flex gap-4 pt-4 justify-end"><Button onClick={handleListConfirmAction} className={`${actionTarget.status === 'approved' ? 'bg-green-600' : 'bg-red-600'}`}>{actionTarget.status === 'approved' ? 'Genehmigen' : 'Ablehnen'}</Button></div></Card></div>)}
-            <ConfirmModal isOpen={!!requestToDelete} onClose={() => setRequestToDelete(null)} onConfirm={handleConfirmDelete} title="Antrag löschen" message={`Möchten Sie den Antrag von ${getEmployeeName(requestToDelete?.employeeId || 0)} wirklich löschen?`} confirmText="Ja, löschen" />
-            <SelectionModal isOpen={isEmployeeModalOpen} onClose={() => setIsEmployeeModalOpen(false)} onSelect={item => setSelectedEmployeeId(item.id)} items={employeeOptions} title="Mitarbeiter auswählen" selectedValue={selectedEmployeeId} />
+            {actionTarget && (<div className={`fixed z-[250] bg-black bg-opacity-60 flex items-center justify-center p-4 ${
+                    isLandscape 
+                    ? 'top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw]' 
+                    : 'inset-0'
+                }`} onClick={() => { setActionTarget(null); setAdminComment(''); }}><Card className="w-full max-w-md" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Antrag {actionTarget.status === 'approved' ? 'genehmigen' : 'ablehnen'}</h2><button onClick={() => { setActionTarget(null); setAdminComment(''); }}><XIcon className="h-6 w-6" /></button></div><div><textarea rows={3} className="w-full p-2 border rounded-md" value={adminComment} onChange={e => setAdminComment(e.target.value)} placeholder="Kommentar (optional)..." /></div><div className="flex gap-4 pt-4 justify-end"><Button onClick={handleListConfirmAction} className={`${actionTarget.status === 'approved' ? 'bg-green-600' : 'bg-red-600'}`}>{actionTarget.status === 'approved' ? 'Genehmigen' : 'Ablehnen'}</Button></div></Card></div>)}
+            <ConfirmModal isOpen={!!requestToDelete} onClose={() => setRequestToDelete(null)} onConfirm={handleConfirmDelete} title="Antrag löschen" message={`Möchten Sie den Antrag von ${getEmployeeName(requestToDelete?.employeeId || 0)} wirklich löschen?`} confirmText="Ja, löschen" isRotated={isLandscape} />
+            <SelectionModal isOpen={isEmployeeModalOpen} onClose={() => setIsEmployeeModalOpen(false)} onSelect={item => setSelectedEmployeeId(item.id)} items={employeeOptions} title="Mitarbeiter auswählen" selectedValue={selectedEmployeeId} isRotated={isLandscape} />
             <PlannerDisplayOptionsModal
                 isOpen={isDisplayOptionsModalOpen}
                 onClose={() => setIsDisplayOptionsModalOpen(false)}
                 onApply={setDisplayOptions}
                 employees={props.employees}
                 currentOptions={displayOptions}
+                isRotated={isLandscape}
             />
             <PlannerDateRangeModal
                 isOpen={isDateRangeModalOpen}
@@ -709,6 +719,7 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
                 }}
                 currentStartDate={viewStartDate}
                 currentEndDate={viewEndDate}
+                isRotated={isLandscape}
             />
         </div>
     );
