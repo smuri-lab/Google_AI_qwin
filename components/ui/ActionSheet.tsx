@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { PencilIcon } from '../icons/PencilIcon';
 import { VacationSunIcon } from '../icons/VacationSunIcon';
 import { XIcon } from '../icons/XIcon';
@@ -10,13 +11,6 @@ interface ActionSheetProps {
 
 export const ActionSheet: React.FC<ActionSheetProps> = ({ onClose, onSelect }) => {
   const [isClosing, setIsClosing] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    // Opening animation - since ActionSheet is conditionally rendered by parent, this mounts freshly.
-    const timer = setTimeout(() => setIsVisible(true), 10);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleClose = () => {
     setIsClosing(true);
@@ -28,10 +22,10 @@ export const ActionSheet: React.FC<ActionSheetProps> = ({ onClose, onSelect }) =
     setTimeout(() => onSelect(action), 300);
   };
 
-  return (
-    <div className={`fixed inset-0 bg-black flex items-end justify-center z-40 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} onClick={handleClose}>
+  return ReactDOM.createPortal(
+    <div className={`fixed inset-0 bg-black flex items-end justify-center z-[150] ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <div 
-        className={`w-full max-w-md bg-white rounded-t-2xl shadow-lg p-4 ${isClosing ? 'animate-slide-down-sheet' : (isVisible ? 'animate-slide-up' : 'translate-y-full')}`}
+        className={`w-full max-w-md bg-white rounded-t-2xl shadow-lg p-4 ${isClosing ? 'animate-slide-down-sheet' : 'animate-slide-up'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
@@ -63,6 +57,7 @@ export const ActionSheet: React.FC<ActionSheetProps> = ({ onClose, onSelect }) =
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

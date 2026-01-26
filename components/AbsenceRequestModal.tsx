@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import type { AbsenceRequest, Employee, TimeEntry, CompanySettings, HolidaysByYear, Holiday, WeeklySchedule } from '../types';
 import { AbsenceType, TargetHoursModel } from '../types';
 import { Button } from './ui/Button';
@@ -48,25 +49,16 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: '', message: '' });
   const [isClosing, setIsClosing] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
   const [timeOffHours, setTimeOffHours] = useState<number | null>(null);
   
+  // Reset form on open
   useEffect(() => {
     if (isOpen) {
-        // Opening animation
-        const timer = setTimeout(() => setIsVisible(true), 10);
-        
         setType(AbsenceType.Vacation);
         setStartDate('');
         setEndDate('');
         setDayPortion('full');
         setPhoto(undefined);
-        
-        return () => clearTimeout(timer);
-    } else {
-        // Reset state immediately when closed
-        setIsVisible(false);
-        setIsClosing(false);
     }
   }, [isOpen]);
 
@@ -123,12 +115,12 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
 
   }, [type, startDate, endDate, currentUser, holidaysByYear, onEnsureHolidaysForYear]);
   
+  if (!isOpen) return null;
+
   const handleClose = () => {
     setIsClosing(true);
     setTimeout(onClose, 300);
   };
-
-  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,8 +166,11 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
         dayPortion: type === AbsenceType.Vacation ? dayPortion : 'full'
     };
 
-    onSubmit(requestData);
-    handleClose();
+    // Close logic
+    setIsClosing(true);
+    setTimeout(() => {
+        onSubmit(requestData);
+    }, 300);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,10 +199,10 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
   };
   const submitButtonClass = submitButtonColors[type] || 'bg-blue-600 hover:bg-blue-700';
 
-  return (
+  return ReactDOM.createPortal(
     <>
-      <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} onClick={handleClose}>
-        <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`fixed inset-0 bg-black flex items-center justify-center z-[100] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
+        <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
            <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
              <XIcon className="h-6 w-6" />
            </button>
@@ -256,13 +251,13 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
             </div>
             
             {type === AbsenceType.Vacation && (
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 text-center animate-fade-in">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 text-center">
                     Verfügbarer Urlaub: <span className="font-bold text-green-600">{vacationDaysLeft.toLocaleString('de-DE')} Tage</span>
                 </div>
             )}
 
             {type === AbsenceType.TimeOff && (
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 text-center animate-fade-in">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 text-center">
                     Aktuelles Stundenkonto: <span className={`font-bold ${timeBalanceHours >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatHoursAndMinutes(timeBalanceHours, 'hoursMinutes')}</span>
                 </div>
             )}
@@ -304,7 +299,7 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
             />
             
             {type === AbsenceType.TimeOff && timeOffHours !== null && timeOffHours > 0 && (
-                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-start gap-3 text-sm text-blue-800 animate-fade-in">
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-start gap-3 text-sm text-blue-800">
                     <InformationCircleIcon className="h-5 w-5 flex-shrink-0 mt-0.5" />
                     <p>
                         Basierend auf Ihrer Soll-Arbeitszeit entspricht dieser Zeitraum <span className="font-bold">{timeOffHours.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Stunden</span> Freizeitausgleich.
@@ -340,6 +335,7 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
         initialStartDate={startDate}
         initialEndDate={endDate}
       />
-    </>
+    </>,
+    document.body
   );
 };
