@@ -34,14 +34,11 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        // Ensure the component mounts with invisible state first
-        const raf = requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                setIsVisible(true);
-            });
-        });
-        return () => cancelAnimationFrame(raf);
-    }, []); // Run only on mount
+        // Force a small delay to ensure the browser paints the initial 'invisible' state
+        // before applying the animation class. 50ms is robust across browsers.
+        const timer = setTimeout(() => setIsVisible(true), 50);
+        return () => clearTimeout(timer);
+    }, []); // Run only on mount (because component unmounts when isOpen is false)
 
     if (!isOpen) return null;
     

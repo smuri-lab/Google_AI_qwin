@@ -19,13 +19,9 @@ export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClos
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Opening animation
-    const raf = requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            setIsVisible(true);
-        });
-    });
-    return () => cancelAnimationFrame(raf);
+    // Force a small delay to ensure the browser paints the initial 'invisible' state
+    const timer = setTimeout(() => setIsVisible(true), 50);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleClose = () => {

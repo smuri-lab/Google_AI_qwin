@@ -48,12 +48,9 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
 
   // Animation effect
   useEffect(() => {
-      const raf = requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-              setIsVisible(true);
-          });
-      });
-      return () => cancelAnimationFrame(raf);
+      // Force a small delay to ensure the browser paints the initial 'invisible' state
+      const timer = setTimeout(() => setIsVisible(true), 50);
+      return () => clearTimeout(timer);
   }, []);
 
   // Data initialization effect
