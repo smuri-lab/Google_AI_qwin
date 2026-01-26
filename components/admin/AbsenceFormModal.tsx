@@ -150,15 +150,15 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
   return ReactDOM.createPortal(
     <>
       <div className={`fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
-        <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+        <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
           <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
             <XIcon className="h-6 w-6" />
           </button>
 
-          <form onSubmit={handleSubmit}>
-            <h2 className="text-xl font-bold mb-4">{isEditing ? 'Abwesenheit bearbeiten' : 'Abwesenheit eintragen'}</h2>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-grow min-h-0">
+            <h2 className="text-xl font-bold mb-4 flex-shrink-0">{isEditing ? 'Abwesenheit bearbeiten' : 'Abwesenheit eintragen'}</h2>
             
-            <div className="space-y-4 pt-4 border-t">
+            <div className="space-y-4 pt-4 border-t flex-grow overflow-y-auto px-1">
               <Select
                 name="employeeId"
                 label="Mitarbeiter"
@@ -224,7 +224,7 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
               />
             </div>
 
-            <div className="flex justify-between items-center pt-6 border-t mt-6">
+            <div className="flex justify-between items-center pt-6 border-t mt-4 flex-shrink-0">
                 <div>
                     {isEditing && onDelete && (
                         <Button type="button" onClick={handleDelete} className="bg-red-600 hover:bg-red-700 flex items-center gap-2">
