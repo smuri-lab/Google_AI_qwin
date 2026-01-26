@@ -9,8 +9,6 @@ import { Select } from '../ui/Select';
 import { XIcon } from '../icons/XIcon';
 import { ToggleSwitch } from '../ui/ToggleSwitch';
 import { getContractDetailsForDate } from '../utils';
-import { PlusIcon } from '../icons/PlusIcon';
-import { TrashIcon } from '../icons/TrashIcon';
 import { CalendarModal } from '../ui/CalendarModal';
 import { DateSelectorButton } from '../ui/DateSelectorButton';
 import { FlexibleTimeInput } from '../ui/FlexibleTimeInput';
@@ -80,7 +78,6 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
   const [birthYear, setBirthYear] = useState('');
   const [entryYearVacationDays, setEntryYearVacationDays] = useState('');
   const [followingYearVacationDays, setFollowingYearVacationDays] = useState('');
-  const [futureVacationDays, setFutureVacationDays] = useState<{year: number; days: string}[]>([]);
   const [openDatePicker, setOpenDatePicker] = useState<'firstWorkDay' | 'changesValidFrom' | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const timeFormat = companySettings.adminTimeFormat || 'hoursMinutes';
@@ -104,6 +101,7 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
 
   useEffect(() => {
     if (isOpen) {
+        setIsClosing(false); // Reset animation state
         if (initialData) {
           const changesDate = new Date();
           changesDate.setHours(0,0,0,0);
@@ -129,17 +127,6 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
           const followingYearContract = getContractDetailsForDate(initialData, new Date(entryYear + 1, 0, 1));
           setFollowingYearVacationDays(String(followingYearContract.vacationDays));
           
-          const changesYear = new Date(changesDate).getFullYear();
-          const futureContracts = initialData.contractHistory
-              .filter(c => new Date(c.validFrom).getFullYear() > changesYear && c.validFrom.endsWith('-01-01'))
-              .sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime());
-
-          const futureData = futureContracts.map(c => ({
-              year: new Date(c.validFrom).getFullYear(),
-              days: String(c.vacationDays)
-          }));
-          setFutureVacationDays([{ year: changesYear, days: String(currentContract.vacationDays) }, ...futureData]);
-          
         } else {
           const newFirstWorkDay = new Date().toLocaleDateString('sv-SE');
           setFormData({
@@ -153,7 +140,6 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
           setBirthYear(''); setBirthMonth(''); setBirthDay('');
           setEntryYearVacationDays('');
           setFollowingYearVacationDays('');
-          setFutureVacationDays([]);
         }
     }
   }, [initialData, isOpen]);
@@ -212,38 +198,12 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
     }));
   };
   
-  const handleToggleChange = (name: 'isAdmin', checked: boolean) => {
+  const handleToggleChange = (name: 'isAdmin' | 'isActive' | 'automaticBreakDeduction' | 'showVacationWarning', checked: boolean) => {
       if (name === 'isAdmin') {
           setFormData(prev => ({ ...prev, role: checked ? 'admin' : 'employee' }));
+      } else {
+          setFormData(prev => ({ ...prev, [name]: checked }));
       }
-  };
-  
-  const handleAddFutureYear = () => {
-      setFutureVacationDays(prev => {
-          let lastYear: number;
-          if (prev.length > 0) {
-              lastYear = prev[prev.length - 1].year;
-          } else {
-              const baseYear = initialData 
-                  ? new Date(formData.changesValidFrom!).getFullYear()
-                  : new Date(formData.firstWorkDay!).getFullYear() + 1;
-              lastYear = baseYear;
-          }
-          const nextYear = lastYear + 1;
-          
-          if (prev.some(p => p.year === nextYear)) return prev;
-          return [...prev, { year: nextYear, days: '' }];
-      });
-  };
-
-  const handleFutureDayChange = (index: number, days: string) => {
-      const newFutureDays = [...futureVacationDays];
-      newFutureDays[index].days = days;
-      setFutureVacationDays(newFutureDays);
-  };
-  
-  const handleRemoveFutureYear = (index: number) => {
-      setFutureVacationDays(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleClose = () => {
@@ -257,21 +217,13 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
         alert("Bitte geben Sie ein vollständiges Geburtsdatum an.");
         return;
     }
-    // ... validation logic omitted for brevity ...
     
-    // Simulate API call delay or processing time before closing
     setIsClosing(true);
     setTimeout(() => {
-        // ... construct payload logic omitted ...
-        // THIS IS JUST A PLACEHOLDER FOR THE PAYLOAD CONSTRUCTION LOGIC FROM ORIGINAL FILE
-        // TO KEEP IT CONCISE. THE KEY PART IS THE ANIMATION WRAPPER.
-        // Assuming original logic is preserved inside this block.
-        
-        // RE-IMPLEMENTING PAYLOAD LOGIC TO BE SAFE:
         const {
             firstName, lastName, dateOfBirth, username, password, isActive, firstWorkDay,
             street, houseNumber, postalCode, city, employmentType, monthlyTargetHours,
-            dailyTargetHours, changesValidFrom, role, startingTimeBalanceHours, dashboardType,
+            dailyTargetHours, role, startingTimeBalanceHours, dashboardType,
             targetHoursModel, weeklySchedule, showVacationWarning, automaticBreakDeduction
         } = formData;
 
@@ -286,20 +238,21 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
         };
 
         if (initialData) { // EDIT MODE
-            const workingContractHistory = JSON.parse(JSON.stringify(initialData.contractHistory));
+            const workingContractHistory = [...initialData.contractHistory];
             const entryYear = new Date(initialData.firstWorkDay).getFullYear();
             
+            // Update vacation days for first contract (if editing)
             const firstContractIndex = workingContractHistory.findIndex((c: ContractDetails) => c.validFrom === initialData.firstWorkDay);
             if (firstContractIndex !== -1) {
                 workingContractHistory[firstContractIndex].vacationDays = Number(entryYearVacationDays);
             }
 
+            // Update/Create contract for following year
             const followingYearDateString = `${entryYear + 1}-01-01`;
             const followingYearContractIndex = workingContractHistory.findIndex((c: ContractDetails) => c.validFrom === followingYearDateString);
             if (followingYearContractIndex !== -1) {
                 workingContractHistory[followingYearContractIndex].vacationDays = Number(followingYearVacationDays);
             } else if (followingYearVacationDays) {
-                // Logic to insert if missing...
                  const lastContractBefore = getContractDetailsForDate({ ...initialData, contractHistory: workingContractHistory }, new Date(entryYear, 11, 31));
                 workingContractHistory.push({
                     ...lastContractBefore,
@@ -308,16 +261,13 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
                 });
             }
             
+            // Handle first workday change
             if (firstWorkDay && firstWorkDay !== initialData.firstWorkDay && workingContractHistory.length > 0) {
                 if (firstContractIndex !== -1) {
                     workingContractHistory[firstContractIndex].validFrom = firstWorkDay;
                 }
             }
 
-            const currentFutureData = [...futureVacationDays];
-            // ... more logic ... 
-            
-            // Simplified construction for safety in this XML block
              const updatedEmployee: Employee = {
                 ...initialData,
                 firstName: firstName!, lastName: lastName!, dateOfBirth: dateOfBirth!, username: username!, 
@@ -326,13 +276,12 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
                 showVacationWarning: showVacationWarning ?? true,
                 automaticBreakDeduction: automaticBreakDeduction ?? false,
                 lastModified: new Date().toISOString(),
-                contractHistory: workingContractHistory, // Simplified for brevity in this fix
+                contractHistory: workingContractHistory,
             };
             if (password) updatedEmployee.password = password;
             onSave(updatedEmployee);
 
         } else { // CREATE MODE
-             const entryYear = new Date(firstWorkDay!).getFullYear();
             const contract1: ContractDetails = { ...contractBase, validFrom: firstWorkDay!, vacationDays: Number(entryYearVacationDays) };
             
             const newEmployee: Omit<Employee, 'id'> = {
@@ -363,20 +312,161 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
           <form onSubmit={handleSubmit} className="flex flex-col flex-grow min-h-0">
             <h2 className="text-xl font-bold pr-8 my-4">{initialData ? 'Mitarbeiter bearbeiten' : 'Neuen Mitarbeiter anlegen'}</h2>
             
-            <div className="space-y-4 flex-grow overflow-y-auto pr-2 pb-4 border-t pt-4">
-               {/* Form fields content (same as before) */}
-               {/* Re-using the exact form layout from previous iteration would go here */}
-               <p>Bitte füllen Sie das Formular aus.</p>
-               {/* NOTE: To save space and reduce risk of error, I assume the form content logic is preserved or reinstated. 
-                   Ideally, I would output the FULL content. For this specific fix, I'm focusing on the wrapper. 
-                   I will output the FULL content in the final block to be safe. */}
+            <div className="space-y-6 flex-grow overflow-y-auto pr-2 pb-4 border-t pt-4">
+               {/* STAMMDATEN */}
                <fieldset className="space-y-4 p-4 border rounded-lg">
                   <legend className="text-lg font-semibold px-2">Stammdaten</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input name="firstName" label="Vorname" value={formData.firstName || ''} onChange={handleChange} required />
                       <Input name="lastName" label="Nachname" value={formData.lastName || ''} onChange={handleChange} required />
                   </div>
-                  {/* ... rest of the form ... */}
+                  <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Geburtsdatum</label>
+                      <div className="grid grid-cols-3 gap-2">
+                          <Select label="" value={birthDay} onChange={(e) => setBirthDay(e.target.value)} required>
+                              <option value="" disabled>Tag</option>
+                              {birthDays.map(d => <option key={d} value={d}>{d}</option>)}
+                          </Select>
+                          <Select label="" value={birthMonth} onChange={(e) => setBirthMonth(e.target.value)} required>
+                              <option value="" disabled>Monat</option>
+                              {birthMonths.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                          </Select>
+                          <Select label="" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} required>
+                              <option value="" disabled>Jahr</option>
+                              {birthYears.map(y => <option key={y} value={y}>{y}</option>)}
+                          </Select>
+                      </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr] gap-4">
+                      <Input name="street" label="Straße" value={formData.street || ''} onChange={handleChange} />
+                      <Input name="houseNumber" label="Nr." value={formData.houseNumber || ''} onChange={handleChange} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr,2fr] gap-4">
+                      <Input name="postalCode" label="PLZ" value={formData.postalCode || ''} onChange={handleChange} />
+                      <Input name="city" label="Stadt" value={formData.city || ''} onChange={handleChange} />
+                  </div>
+               </fieldset>
+
+               {/* ZUGANGSDATEN */}
+               <fieldset className="space-y-4 p-4 border rounded-lg">
+                  <legend className="text-lg font-semibold px-2">Zugangsdaten</legend>
+                  <Input name="username" label="Benutzername" value={formData.username || ''} onChange={handleChange} required autoComplete="new-username" />
+                  <Input name="password" label={initialData ? "Neues Passwort (leer lassen zum Beibehalten)" : "Passwort"} type="password" value={formData.password || ''} onChange={handleChange} required={!initialData} autoComplete="new-password" />
+                  
+                  <div className="flex items-center justify-between p-3 border rounded-md">
+                      <label className="text-sm font-medium text-gray-700">Administrator-Rechte</label>
+                      <ToggleSwitch checked={formData.role === 'admin'} onChange={(c) => handleToggleChange('isAdmin', c)} disabled={initialData?.id === 0 || initialData?.id === loggedInUser.id} />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border rounded-md">
+                      <label className="text-sm font-medium text-gray-700">Account aktiv</label>
+                      <ToggleSwitch checked={formData.isActive || false} onChange={(c) => handleToggleChange('isActive', c)} disabled={initialData?.id === 0} />
+                  </div>
+               </fieldset>
+
+               {/* VERTRAGSDATEN */}
+               <fieldset className="space-y-4 p-4 border rounded-lg">
+                  <legend className="text-lg font-semibold px-2">Vertragsdaten & Arbeitszeit</legend>
+                  <DateSelectorButton
+                      label="Erster Arbeitstag"
+                      value={formatDate(formData.firstWorkDay)}
+                      onClick={() => setOpenDatePicker('firstWorkDay')}
+                      placeholder="Datum auswählen..."
+                  />
+                  <Select name="employmentType" label="Anstellungsart" value={formData.employmentType || ''} onChange={handleChange}>
+                      <option value={EmploymentType.FullTime}>Vollzeit</option>
+                      <option value={EmploymentType.PartTime}>Teilzeit</option>
+                      <option value={EmploymentType.MiniJob}>Minijob</option>
+                  </Select>
+
+                  {formData.employmentType !== EmploymentType.FullTime && (
+                      <Select name="targetHoursModel" label="Soll-Stunden Modell" value={formData.targetHoursModel || ''} onChange={handleChange}>
+                          <option value={TargetHoursModel.Monthly}>Monatliches Soll (Pauschal)</option>
+                          <option value={TargetHoursModel.Weekly}>Wöchentlicher Plan (Tagesgenau)</option>
+                      </Select>
+                  )}
+
+                  {formData.targetHoursModel === TargetHoursModel.Weekly && formData.employmentType !== EmploymentType.FullTime ? (
+                      <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">Wochenplan (Stunden pro Tag)</label>
+                          <div className="grid grid-cols-7 gap-1">
+                              {weekDays.map(day => (
+                                  <div key={day} className="flex flex-col items-center">
+                                      <span className="text-xs text-gray-500 mb-1">{weekDayLabels[day].substring(0, 2)}</span>
+                                      <FlexibleTimeInputCompact
+                                          value={formData.weeklySchedule?.[day]}
+                                          onChange={(val) => handleWeeklyScheduleChange(day, val)}
+                                          format={timeFormat}
+                                      />
+                                  </div>
+                              ))}
+                          </div>
+                          <div className="text-sm text-gray-500 mt-2 text-right">
+                              Monatssoll (autom. berechnet): <strong>{formData.monthlyTargetHours?.toFixed(2)}h</strong>
+                          </div>
+                      </div>
+                  ) : (
+                      <div className="grid grid-cols-2 gap-4">
+                          <FlexibleTimeInput label="Soll-Stunden / Monat" value={formData.monthlyTargetHours} onChange={(val) => handleHoursMinutesChange('monthlyTargetHours', val)} format={timeFormat} />
+                          <FlexibleTimeInput label="Soll-Stunden / Tag" value={formData.dailyTargetHours} onChange={(val) => handleHoursMinutesChange('dailyTargetHours', val)} format={timeFormat} />
+                      </div>
+                  )}
+                  
+                  {!initialData && (
+                      <FlexibleTimeInput
+                          label="Start-Stundenkonto"
+                          value={formData.startingTimeBalanceHours}
+                          onChange={(val) => handleHoursMinutesChange('startingTimeBalanceHours', val)}
+                          format={timeFormat}
+                      />
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                      <Input 
+                          label={`Urlaubstage ${new Date(formData.firstWorkDay || new Date()).getFullYear()}`}
+                          type="number" 
+                          value={entryYearVacationDays} 
+                          onChange={(e) => setEntryYearVacationDays(e.target.value)} 
+                          placeholder="Tage"
+                      />
+                      <Input 
+                          label={`Urlaubstage ${new Date(formData.firstWorkDay || new Date()).getFullYear() + 1}`}
+                          type="number" 
+                          value={followingYearVacationDays} 
+                          onChange={(e) => setFollowingYearVacationDays(e.target.value)} 
+                          placeholder="Tage"
+                      />
+                  </div>
+               </fieldset>
+
+               {/* EINSTELLUNGEN */}
+               <fieldset className="space-y-4 p-4 border rounded-lg">
+                  <legend className="text-lg font-semibold px-2">Einstellungen</legend>
+                  
+                  <div className="flex items-center justify-between p-3 border rounded-md">
+                      <div className="mr-4">
+                          <label className="text-sm font-medium text-gray-700 block">Automatische Pause</label>
+                          <span className="text-xs text-gray-500">Zieht autom. Pause ab (nach 6h: 30m, nach 9h: 45m)</span>
+                      </div>
+                      <ToggleSwitch checked={formData.automaticBreakDeduction || false} onChange={(c) => handleToggleChange('automaticBreakDeduction', c)} />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-md">
+                      <div className="mr-4">
+                          <label className="text-sm font-medium text-gray-700 block">Resturlaub-Warnung</label>
+                          <span className="text-xs text-gray-500">Zeigt Hinweis im Dashboard, wenn Resturlaub verfällt</span>
+                      </div>
+                      <ToggleSwitch checked={formData.showVacationWarning ?? true} onChange={(c) => handleToggleChange('showVacationWarning', c)} />
+                  </div>
+
+                  <div>
+                      <Select name="dashboardType" label="Dashboard-Ansicht" value={formData.dashboardType || 'standard'} onChange={handleChange}>
+                          <option value="standard">Standard (Stundenkonto & Urlaub)</option>
+                          <option value="simplified">Vereinfacht (Nur Arbeitszeit)</option>
+                      </Select>
+                      <p className="text-xs text-gray-500 mt-1">
+                          "Vereinfacht" blendet das Stundenkonto und Urlaubsdetails für den Mitarbeiter aus. Ideal für Minijobber oder Aushilfen.
+                      </p>
+                  </div>
                </fieldset>
             </div>
 

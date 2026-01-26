@@ -78,7 +78,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ loggedIn
           <h2 className="text-xl font-bold">Mitarbeiter verwalten</h2>
           <Button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
             <PlusIcon className="h-5 w-5" />
-            Mitarbeiter anlegen
+            Anlegen
           </Button>
         </div>
         
