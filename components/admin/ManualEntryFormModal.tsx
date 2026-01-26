@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import type { TimeEntry, Customer, Activity, CompanySettings, AbsenceRequest } from '../../types';
 import { Card } from '../ui/Card';
 import { XIcon } from '../icons/XIcon';
@@ -51,7 +52,7 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
         setTimeout(onClose, 300);
     };
 
-    return (
+    return ReactDOM.createPortal(
         <div className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 pb-20 md:pb-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`}>
             <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
                 <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
@@ -72,6 +73,7 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
                     />
                 </div>
             </Card>
-        </div>
+        </div>,
+        document.body
     );
 };
