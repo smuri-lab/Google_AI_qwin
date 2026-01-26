@@ -15,6 +15,13 @@ interface AddEntryChoiceModalProps {
 
 export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClose, onSelect }) => {
   const [isClosing, setIsClosing] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    // Opening animation
+    const timer = setTimeout(() => setIsVisible(true), 10);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleClose = () => {
     setIsClosing(true);
@@ -22,14 +29,13 @@ export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClos
   };
   
   const handleSelect = (choice: Choice) => {
+    // No closing animation needed here as it transitions immediately to the next modal
     onSelect(choice);
-    // The parent component will close this modal by changing the state,
-    // so we don't need a closing animation here as it's immediately replaced.
   };
 
   return (
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
-      <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} onClick={handleClose}>
+      <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
         <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
           <XIcon className="h-6 w-6" />
         </button>
