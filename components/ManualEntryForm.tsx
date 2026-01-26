@@ -309,7 +309,7 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
     return (
         <>
             <form onSubmit={handleSubmit} className="flex flex-col h-full">
-                <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                <div className="flex-grow min-h-0 overflow-y-auto p-4 space-y-4">
                     {formContent}
                 </div>
                 <div className={`flex-shrink-0 border-t p-4 ${onCancel ? 'grid grid-cols-2 gap-4' : 'flex'}`}>

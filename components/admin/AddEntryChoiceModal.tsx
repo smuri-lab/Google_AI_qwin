@@ -35,7 +35,7 @@ export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClos
         </button>
         <div className="text-center">
           <h2 className="text-xl font-bold mb-6">Was möchten Sie eintragen?</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => handleSelect('time')}
               className="p-6 border rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
