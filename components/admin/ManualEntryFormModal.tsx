@@ -33,7 +33,7 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
     const [isClosing, setIsClosing] = useState(false);
 
     useEffect(() => {
-        if (isOpen) {
+        if (!isOpen) {
             setIsClosing(false);
         }
     }, [isOpen]);
