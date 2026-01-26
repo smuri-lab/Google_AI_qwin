@@ -111,6 +111,7 @@ export interface Employee {
   dateOfBirth: string;
   username: string;
   password?: string;
+  email?: string; // Added email field
   isActive: boolean;
   firstWorkDay: string;
   lastModified: string;
