@@ -227,8 +227,8 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
             <div className="flex justify-between items-center pt-6 border-t mt-4 flex-shrink-0">
                 <div>
                     {isEditing && onDelete && (
-                        <Button type="button" onClick={handleDelete} className="bg-red-600 hover:bg-red-700 flex items-center gap-2">
-                            <TrashIcon className="h-5 w-5" /> Löschen
+                        <Button type="button" onClick={handleDelete} className="bg-red-600 hover:bg-red-700 flex items-center gap-2" title="Löschen">
+                            <TrashIcon className="h-5 w-5" /> <span className="hidden sm:inline">Löschen</span>
                         </Button>
                     )}
                 </div>
