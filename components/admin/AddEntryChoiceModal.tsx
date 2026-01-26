@@ -23,7 +23,12 @@ export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClos
   };
   
   const handleSelect = (choice: Choice) => {
-    onSelect(choice);
+    // Trigger closing animation first
+    setIsClosing(true);
+    // Wait for animation to finish before switching modal state in parent
+    setTimeout(() => {
+        onSelect(choice);
+    }, 300);
   };
 
   return ReactDOM.createPortal(
