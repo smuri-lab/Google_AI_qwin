@@ -23,7 +23,6 @@ export const AddEntryChoiceModal: React.FC<AddEntryChoiceModalProps> = ({ onClos
   };
   
   const handleSelect = (choice: Choice) => {
-    // No closing animation needed here as it transitions immediately to the next modal
     onSelect(choice);
   };
 

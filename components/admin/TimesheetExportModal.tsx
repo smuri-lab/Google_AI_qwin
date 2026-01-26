@@ -1,25 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import type { Employee } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { XIcon } from '../icons/XIcon';
-import { RadioGroup } from '../ui/RadioGroup';
 
 interface TimesheetExportModalProps {
   isOpen: boolean;
-  isClosing?: boolean;
   onClose: () => void;
   onConfirm: (employees: Employee[], year: number, months: number[], format: 'excel' | 'pdf') => void;
   employees: Employee[];
   fixedEmployee?: Employee; 
 }
 
-const months = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni", 
-  "Juli", "August", "September", "Oktober", "November", "Dezember"
-];
-
+const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 const getYears = () => {
     const currentYear = new Date().getFullYear();
     const years = [];
@@ -49,7 +44,6 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
       setSelectedMonths([lastMonth.getMonth()]);
       setSelectedYear(lastMonth.getFullYear());
       setFormat('excel');
-      setIsClosing(false);
     }
   }, [isOpen, fixedEmployee]);
 
@@ -61,35 +55,19 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
   if (!isOpen) return null;
   
   const handleEmployeeToggle = (employeeId: string) => {
-    setSelectedEmployeeIds(prev =>
-      prev.includes(employeeId)
-        ? prev.filter(id => id !== employeeId)
-        : [...prev, employeeId]
-    );
+    setSelectedEmployeeIds(prev => prev.includes(employeeId) ? prev.filter(id => id !== employeeId) : [...prev, employeeId]);
   };
 
   const handleMonthToggle = (monthIndex: number) => {
-    setSelectedMonths(prev =>
-      prev.includes(monthIndex)
-        ? prev.filter(m => m !== monthIndex)
-        : [...prev, monthIndex]
-    );
+    setSelectedMonths(prev => prev.includes(monthIndex) ? prev.filter(m => m !== monthIndex) : [...prev, monthIndex]);
   };
 
   const handleSelectAllEmployees = (select: boolean) => {
-      if (select) {
-          setSelectedEmployeeIds(employees.map(e => String(e.id)));
-      } else {
-          setSelectedEmployeeIds([]);
-      }
+      setSelectedEmployeeIds(select ? employees.map(e => String(e.id)) : []);
   };
 
   const handleSelectAllMonths = (select: boolean) => {
-      if (select) {
-          setSelectedMonths(months.map((_, i) => i));
-      } else {
-          setSelectedMonths([]);
-      }
+      setSelectedMonths(select ? months.map((_, i) => i) : []);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -111,7 +89,7 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
     }, 300);
   };
 
-  return (
+  return ReactDOM.createPortal(
     <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
@@ -146,18 +124,13 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
               </div>
             )}
 
-            <div>
+            {/* ... Date selection & Format UI (same as before) ... */}
+             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Zeitraum</label>
               <div className="space-y-4">
                 <div>
-                    <Select
-                        label="Jahr"
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    >
-                        {getYears().map(year => (
-                        <option key={year} value={year}>{year}</option>
-                        ))}
+                    <Select label="Jahr" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+                        {getYears().map(year => <option key={year} value={year}>{year}</option>)}
                     </Select>
                 </div>
                 <div>
@@ -170,12 +143,7 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 border rounded-md p-2">
                     {months.map((month, index) => (
                       <label key={index} className="flex items-center space-x-2 text-sm p-1 rounded hover:bg-gray-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          checked={selectedMonths.includes(index)}
-                          onChange={() => handleMonthToggle(index)}
-                        />
+                        <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked={selectedMonths.includes(index)} onChange={() => handleMonthToggle(index)} />
                         <span>{month}</span>
                       </label>
                     ))}
@@ -188,25 +156,11 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
               <label className="block text-sm font-medium text-gray-700 mb-2">Format</label>
               <div className="flex gap-4">
                 <label className="flex flex-1 items-center p-3 border rounded-md has-[:checked]:bg-blue-50 has-[:checked]:border-blue-300 cursor-pointer transition-colors">
-                    <input
-                        type="radio"
-                        name="exportFormat"
-                        value="excel"
-                        checked={format === 'excel'}
-                        onChange={() => setFormat('excel')}
-                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
+                    <input type="radio" name="exportFormat" value="excel" checked={format === 'excel'} onChange={() => setFormat('excel')} className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" />
                     <span className="ml-3 text-sm text-gray-700">Excel (.xlsx)</span>
                 </label>
                 <label className="flex flex-1 items-center p-3 border rounded-md has-[:checked]:bg-blue-50 has-[:checked]:border-blue-300 cursor-pointer transition-colors">
-                    <input
-                        type="radio"
-                        name="exportFormat"
-                        value="pdf"
-                        checked={format === 'pdf'}
-                        onChange={() => setFormat('pdf')}
-                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
+                    <input type="radio" name="exportFormat" value="pdf" checked={format === 'pdf'} onChange={() => setFormat('pdf')} className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" />
                     <span className="ml-3 text-sm text-gray-700">PDF (.pdf)</span>
                 </label>
               </div>
@@ -214,15 +168,12 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t mt-4">
-            <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">
-              Abbrechen
-            </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              Exportieren
-            </Button>
+            <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Exportieren</Button>
           </div>
         </form>
       </Card>
-    </div>
+    </div>,
+    document.body
   );
 };

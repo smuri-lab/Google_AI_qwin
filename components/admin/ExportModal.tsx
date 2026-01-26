@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import type { Employee } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -12,11 +13,7 @@ interface ExportModalProps {
   employee: Employee;
 }
 
-const months = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni", 
-  "Juli", "August", "September", "Oktober", "November", "Dezember"
-];
-
+const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 const getYears = () => {
     const currentYear = new Date().getFullYear();
     const years = [];
@@ -55,7 +52,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onCon
 
   if (!isOpen) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-md relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
@@ -69,37 +66,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onCon
           </p>
           
           <div className="grid grid-cols-2 gap-4 pt-2">
-            <Select
-              label="Monat"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            >
-              {months.map((month, index) => (
-                <option key={index} value={index}>{month}</option>
-              ))}
+            <Select label="Monat" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
+              {months.map((month, index) => <option key={index} value={index}>{month}</option>)}
             </Select>
-
-            <Select
-              label="Jahr"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-            >
-              {getYears().map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
+            <Select label="Jahr" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+              {getYears().map(year => <option key={year} value={year}>{year}</option>)}
             </Select>
           </div>
 
           <div className="flex justify-end gap-4 pt-4 border-t mt-4">
-            <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">
-              Abbrechen
-            </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              Exportieren
-            </Button>
+            <Button type="button" onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Exportieren</Button>
           </div>
         </form>
       </Card>
-    </div>
+    </div>,
+    document.body
   );
 };

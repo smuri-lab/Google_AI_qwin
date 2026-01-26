@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -25,40 +26,24 @@ const getStartOfWeek = (date: Date): Date => {
 const checkDatesForPreset = (start: Date, end: Date): Preset | null => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const startStr = start.toLocaleDateString('sv-SE');
     const endStr = end.toLocaleDateString('sv-SE');
-
-    // Check weekly presets
     const startOfWeek = getStartOfWeek(today);
-    const testEnd2w = new Date(startOfWeek); testEnd2w.setDate(startOfWeek.getDate() + 13);
-    const testEnd3w = new Date(startOfWeek); testEnd3w.setDate(startOfWeek.getDate() + 20);
-    const testEnd4w = new Date(startOfWeek); testEnd4w.setDate(startOfWeek.getDate() + 27);
-
     const startOfWeekStr = startOfWeek.toLocaleDateString('sv-SE');
+    
     if (startStr === startOfWeekStr) {
-        if (endStr === testEnd2w.toLocaleDateString('sv-SE')) return '2w';
-        if (endStr === testEnd3w.toLocaleDateString('sv-SE')) return '3w';
-        if (endStr === testEnd4w.toLocaleDateString('sv-SE')) return '4w';
+        const d = new Date(startOfWeek);
+        if (endStr === new Date(d.setDate(startOfWeek.getDate() + 13)).toLocaleDateString('sv-SE')) return '2w';
+        if (endStr === new Date(d.setDate(startOfWeek.getDate() + 20)).toLocaleDateString('sv-SE')) return '3w';
+        if (endStr === new Date(d.setDate(startOfWeek.getDate() + 27)).toLocaleDateString('sv-SE')) return '4w';
     }
-
-    // Check monthly preset
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    if (startStr === startOfMonth.toLocaleDateString('sv-SE') && endStr === endOfMonth.toLocaleDateString('sv-SE')) {
-        return 'month';
-    }
-
+    if (startStr === startOfMonth.toLocaleDateString('sv-SE') && endStr === endOfMonth.toLocaleDateString('sv-SE')) return 'month';
     return null;
 };
 
-export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
-  isOpen,
-  onClose,
-  onApply,
-  currentStartDate,
-  currentEndDate,
-}) => {
+export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({ isOpen, onClose, onApply, currentStartDate, currentEndDate }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
@@ -113,40 +98,19 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
     let end: Date;
 
     switch (preset) {
-        case '2w':
-            start = getStartOfWeek(today);
-            end = new Date(start);
-            end.setDate(start.getDate() + 13);
-            break;
-        case '3w':
-            start = getStartOfWeek(today);
-            end = new Date(start);
-            end.setDate(start.getDate() + 20);
-            break;
-        case '4w':
-            start = getStartOfWeek(today);
-            end = new Date(start);
-            end.setDate(start.getDate() + 27);
-            break;
-        case 'month':
-            start = new Date(today.getFullYear(), today.getMonth(), 1);
-            end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-            break;
+        case '2w': start = getStartOfWeek(today); end = new Date(start); end.setDate(start.getDate() + 13); break;
+        case '3w': start = getStartOfWeek(today); end = new Date(start); end.setDate(start.getDate() + 20); break;
+        case '4w': start = getStartOfWeek(today); end = new Date(start); end.setDate(start.getDate() + 27); break;
+        case 'month': start = new Date(today.getFullYear(), today.getMonth(), 1); end = new Date(today.getFullYear(), today.getMonth() + 1, 0); break;
     }
     setStartDate(start.toLocaleDateString('sv-SE'));
     setEndDate(end.toLocaleDateString('sv-SE'));
     setActivePreset(preset);
   };
 
-  const getButtonClass = (preset: Preset) => {
-    const baseClass = "px-3 py-2 text-sm font-semibold rounded-md transition-colors";
-    if (activePreset === preset) {
-        return `${baseClass} bg-blue-600 text-white hover:bg-blue-700`;
-    }
-    return `${baseClass} bg-gray-100 text-gray-800 hover:bg-gray-200`;
-  };
+  const getButtonClass = (preset: Preset) => `px-3 py-2 text-sm font-semibold rounded-md transition-colors ${activePreset === preset ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`;
 
-  return (
+  return ReactDOM.createPortal(
     <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-md ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
@@ -156,18 +120,8 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Startdatum"
-              type="date"
-              value={startDate}
-              onChange={handleStartDateChange}
-            />
-            <Input
-              label="Enddatum"
-              type="date"
-              value={endDate}
-              onChange={handleEndDateChange}
-            />
+            <Input label="Startdatum" type="date" value={startDate} onChange={handleStartDateChange} />
+            <Input label="Enddatum" type="date" value={endDate} onChange={handleEndDateChange} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Schnellauswahl</label>
@@ -185,6 +139,7 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
           <Button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700">Anwenden</Button>
         </div>
       </Card>
-    </div>
+    </div>,
+    document.body
   );
 };

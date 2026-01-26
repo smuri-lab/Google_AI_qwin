@@ -9,7 +9,6 @@ import { ConfirmModal } from '../ui/ConfirmModal';
 import { TrashIcon } from '../icons/TrashIcon';
 import { FlexibleTimeInput } from '../ui/FlexibleTimeInput';
 
-// FIX: Define and export a specific type for form data to resolve type conflicts.
 export interface TimeBalanceAdjustmentFormData {
   date: string;
   type: TimeBalanceAdjustmentType;
@@ -20,7 +19,6 @@ export interface TimeBalanceAdjustmentFormData {
 interface TimeBalanceAdjustmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // FIX: Update onSave prop to use the more specific FormData type for new entries.
   onSave: (data: TimeBalanceAdjustmentFormData | TimeBalanceAdjustment) => void;
   onDelete?: (id: number) => void;
   type: 'payout' | 'correction';
@@ -38,7 +36,6 @@ export const TimeBalanceAdjustmentModal: React.FC<TimeBalanceAdjustmentModalProp
   const isEditing = !!initialData?.id;
   const timeFormat = companySettings.adminTimeFormat || 'hoursMinutes';
 
-  // Data initialization effect
   useEffect(() => {
     if (isOpen) {
         setDate(initialData?.date || new Date().toLocaleDateString('sv-SE'));

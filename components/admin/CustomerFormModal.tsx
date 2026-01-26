@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import type { Customer, CompanySettings } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -43,7 +44,6 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
             setFormData(defaultState);
         }
         setShowDeleteConfirm(false);
-        setIsClosing(false);
     }
   }, [initialData, isOpen]);
 
@@ -81,7 +81,7 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
 
   if (!isOpen) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <>
       <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
         <Card className={`w-full max-w-2xl relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
@@ -147,6 +147,7 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
             confirmText="Ja, löschen"
         />
       )}
-    </>
+    </>,
+    document.body
   );
 };

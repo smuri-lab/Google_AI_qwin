@@ -46,7 +46,6 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
     const { currentUser, userAccount, absenceRequests, timeEntries, timeBalanceAdjustments, holidaysByYear, companySettings, onRetractAbsenceRequest, onEnsureHolidaysForYear, customers, activities, selectedState } = props;
     
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-    const [isExportModalClosing, setIsExportModalClosing] = useState(false);
     const [balanceDate, setBalanceDate] = useState(new Date(2026, 0, 1)); // Start in mock year for consistency
     const [requestToRetract, setRequestToRetract] = useState<AbsenceRequest | null>(null);
     const [isVacationOpen, setIsVacationOpen] = useState(true);
@@ -319,7 +318,7 @@ export const OverviewView: React.FC<OverviewViewProps> = (props) => {
                 </div>
             </Card>
 
-            <TimesheetExportModal isOpen={isExportModalOpen} isClosing={isExportModalClosing} onClose={() => setIsExportModalOpen(false)} onConfirm={handleConfirmExport} employees={[currentUser]} fixedEmployee={currentUser} />
+            <TimesheetExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} onConfirm={handleConfirmExport} employees={[currentUser]} fixedEmployee={currentUser} />
             <ConfirmModal isOpen={!!requestToRetract} onClose={() => setRequestToRetract(null)} onConfirm={() => { if(requestToRetract) { onRetractAbsenceRequest(requestToRetract.id); setRequestToRetract(null); }}} title="Antrag zurückziehen" message="Möchten Sie diesen Antrag wirklich zurückziehen?" confirmText="Ja, zurückziehen" />
         </div>
     );

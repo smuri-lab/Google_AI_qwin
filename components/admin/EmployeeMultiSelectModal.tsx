@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import type { Employee } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -22,30 +23,14 @@ interface MultiSelectModalProps {
   title?: string;
 }
 
-export const EmployeeMultiSelectModal: React.FC<MultiSelectModalProps> = ({
-  isOpen,
-  onClose,
-  onApply,
-  employees,
-  items,
-  selectedEmployeeIds,
-  selectedItemIds,
-  title = "Mitarbeiter auswählen",
-}) => {
+export const EmployeeMultiSelectModal: React.FC<MultiSelectModalProps> = ({ isOpen, onClose, onApply, employees, items, selectedEmployeeIds, selectedItemIds, title = "Mitarbeiter auswählen" }) => {
   const [currentSelectedIds, setCurrentSelectedIds] = useState(new Set<string|number>());
   const [searchTerm, setSearchTerm] = useState('');
   const [isClosing, setIsClosing] = useState(false);
 
   const dataItems = useMemo(() => {
-    if (employees) {
-      return employees
-        .filter(e => e.isActive)
-        .map(e => ({id: e.id, name: `${e.firstName} ${e.lastName}`}));
-    }
-    if (items) {
-      // items might have isActive prop, but we will assume they are all selectable
-      return items;
-    }
+    if (employees) return employees.filter(e => e.isActive).map(e => ({id: e.id, name: `${e.firstName} ${e.lastName}`}));
+    if (items) return items;
     return [];
   }, [employees, items]);
 
@@ -60,9 +45,7 @@ export const EmployeeMultiSelectModal: React.FC<MultiSelectModalProps> = ({
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return dataItems;
-    return dataItems.filter(item =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return dataItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [dataItems, searchTerm]);
 
   const handleClose = () => {
@@ -74,21 +57,12 @@ export const EmployeeMultiSelectModal: React.FC<MultiSelectModalProps> = ({
 
   const handleSelectionChange = (itemId: string | number) => {
     const newIds = new Set(currentSelectedIds);
-    if (newIds.has(itemId)) {
-      newIds.delete(itemId);
-    } else {
-      newIds.add(itemId);
-    }
+    if (newIds.has(itemId)) newIds.delete(itemId); else newIds.add(itemId);
     setCurrentSelectedIds(newIds);
   };
 
-  const handleSelectAll = () => {
-    setCurrentSelectedIds(new Set(dataItems.map(i => i.id)));
-  };
-
-  const handleDeselectAll = () => {
-    setCurrentSelectedIds(new Set());
-  };
+  const handleSelectAll = () => setCurrentSelectedIds(new Set(dataItems.map(i => i.id)));
+  const handleDeselectAll = () => setCurrentSelectedIds(new Set());
 
   const handleApply = () => {
     setIsClosing(true);
@@ -97,7 +71,7 @@ export const EmployeeMultiSelectModal: React.FC<MultiSelectModalProps> = ({
     }, 300);
   };
 
-  return (
+  return ReactDOM.createPortal(
     <div className={`fixed inset-0 bg-black flex items-center justify-center z-40 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-lg ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
@@ -106,13 +80,7 @@ export const EmployeeMultiSelectModal: React.FC<MultiSelectModalProps> = ({
         </div>
 
         <div className="space-y-4">
-          <Input
-            label="Suchen"
-            type="text"
-            placeholder="Name eingeben..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <Input label="Suchen" type="text" placeholder="Name eingeben..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
 
           <fieldset>
             <div className="flex justify-between items-center mb-2">
@@ -126,17 +94,10 @@ export const EmployeeMultiSelectModal: React.FC<MultiSelectModalProps> = ({
             <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-1">
               {filteredItems.length > 0 ? filteredItems.map((item) => (
                   <label key={item.id} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      checked={currentSelectedIds.has(item.id)}
-                      onChange={() => handleSelectionChange(item.id)}
-                    />
+                    <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked={currentSelectedIds.has(item.id)} onChange={() => handleSelectionChange(item.id)} />
                     <span>{item.name}</span>
                   </label>
-              )) : (
-                <p className="text-center text-gray-500 py-4">Keine Elemente gefunden.</p>
-              )}
+              )) : <p className="text-center text-gray-500 py-4">Keine Elemente gefunden.</p>}
             </div>
           </fieldset>
         </div>
@@ -146,6 +107,7 @@ export const EmployeeMultiSelectModal: React.FC<MultiSelectModalProps> = ({
           <Button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700">Anwenden</Button>
         </div>
       </Card>
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import type { Activity, CompanySettings } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -26,7 +27,6 @@ export const ActivityFormModal: React.FC<ActivityFormModalProps> = ({ isOpen, on
       } else {
         setName('');
       }
-      setIsClosing(false);
     }
   }, [initialData, isOpen]);
 
@@ -53,7 +53,7 @@ export const ActivityFormModal: React.FC<ActivityFormModalProps> = ({ isOpen, on
 
   if (!isOpen) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
         <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
@@ -82,6 +82,7 @@ export const ActivityFormModal: React.FC<ActivityFormModalProps> = ({ isOpen, on
           </div>
         </form>
       </Card>
-    </div>
+    </div>,
+    document.body
   );
 };

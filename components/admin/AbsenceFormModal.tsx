@@ -11,7 +11,6 @@ import { TrashIcon } from '../icons/TrashIcon';
 import { DateSelectorButton } from '../ui/DateSelectorButton';
 import { CalendarModal } from '../ui/CalendarModal';
 import { InfoModal } from '../ui/InfoModal';
-import { RadioGroup } from '../ui/RadioGroup';
 
 export type AbsenceFormData = Partial<AbsenceRequest>;
 
@@ -45,7 +44,6 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
   
   const isEditing = !!(initialData && initialData.id);
 
-  // Data initialization effect
   useEffect(() => {
     if (isOpen) {
       setFormData({ type: AbsenceType.Vacation, dayPortion: 'full', ...initialData });
@@ -97,7 +95,7 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
 
     const existingAbsencesForEmployee = allAbsenceRequests.filter(req => 
         req.employeeId === formData.employeeId && 
-        req.id !== formData.id // Exclude the current request if editing
+        req.id !== formData.id 
     );
 
     const overlap = existingAbsencesForEmployee.find(req => {
