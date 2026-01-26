@@ -547,6 +547,16 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
                        {/* EINSTELLUNGEN (Moved Top) */}
                        <fieldset className="space-y-4 p-4 border rounded-lg">
                           <legend className="text-lg font-semibold px-2">Einstellungen</legend>
+
+                          <div>
+                              <Select name="dashboardType" label="Dashboard-Ansicht" value={formData.dashboardType || 'standard'} onChange={handleChange}>
+                                  <option value="standard">Standard (Stundenkonto & Urlaub)</option>
+                                  <option value="simplified">Vereinfacht (Nur Arbeitszeit)</option>
+                              </Select>
+                              <p className="text-xs text-gray-500 mt-1">
+                                  "Vereinfacht" blendet das Stundenkonto und Urlaubsdetails für den Mitarbeiter aus. Ideal für Minijobber oder Aushilfen.
+                              </p>
+                          </div>
                           
                           <div className="flex items-center justify-between p-3 border rounded-md">
                               <div className="mr-4">
@@ -562,16 +572,6 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
                                   <span className="text-xs text-gray-500">Zeigt Hinweis im Dashboard, wenn Resturlaub verfällt</span>
                               </div>
                               <ToggleSwitch checked={formData.showVacationWarning ?? true} onChange={(c) => handleToggleChange('showVacationWarning', c)} />
-                          </div>
-
-                          <div>
-                              <Select name="dashboardType" label="Dashboard-Ansicht" value={formData.dashboardType || 'standard'} onChange={handleChange}>
-                                  <option value="standard">Standard (Stundenkonto & Urlaub)</option>
-                                  <option value="simplified">Vereinfacht (Nur Arbeitszeit)</option>
-                              </Select>
-                              <p className="text-xs text-gray-500 mt-1">
-                                  "Vereinfacht" blendet das Stundenkonto und Urlaubsdetails für den Mitarbeiter aus. Ideal für Minijobber oder Aushilfen.
-                              </p>
                           </div>
                        </fieldset>
 
