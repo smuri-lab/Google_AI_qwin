@@ -22,6 +22,9 @@ import { getContractDetailsForDate } from '../utils';
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import { CalendarDaysIcon } from '../icons/CalendarDaysIcon';
 import { PlannerDateRangeModal, type Preset } from './PlannerDateRangeModal';
+import { ArrowsPointingOutIcon } from '../icons/ArrowsPointingOutIcon';
+import { ArrowsPointingInIcon } from '../icons/ArrowsPointingInIcon';
+import { DevicePhoneMobileIcon } from '../icons/DevicePhoneMobileIcon';
 
 interface PlannerViewProps {
   employees: Employee[];
@@ -161,6 +164,10 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
     }>({
         visibleEmployeeIds: props.employees.map(e => e.id)
     });
+    
+    // Fullscreen & Landscape Logic
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isLandscape, setIsLandscape] = useState(false);
     
     // For List View
     const [requestToDelete, setRequestToDelete] = useState<AbsenceRequest | null>(null);
@@ -351,6 +358,154 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
         </div>
     );
 
+    const renderPlannerTable = (isFullscreenContext = false) => (
+        <>
+            <div className={`flex justify-center items-center gap-2 sm:gap-4 mb-4 sticky left-0 right-0 ${isFullscreenContext ? 'pt-4' : ''}`}>
+                <button onClick={() => changePeriod(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Vorheriger Zeitraum">
+                    <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
+                </button>
+                <button onClick={() => setIsDateRangeModalOpen(true)} className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors" title="Zeitraum anpassen">
+                    <h2 className="text-lg font-bold text-gray-800 text-center">{formatHeaderDate()}</h2>
+                    <CalendarDaysIcon className="h-5 w-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                </button>
+                <button onClick={() => changePeriod(1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Nächster Zeitraum">
+                    <ChevronRightIcon className="h-5 w-5 text-gray-600" />
+                </button>
+                {!isFullscreenContext && (
+                    <button onClick={() => setIsFullscreen(true)} className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600" title="Vollbild">
+                        <ArrowsPointingOutIcon className="h-5 w-5" />
+                    </button>
+                )}
+            </div>
+            <div className="overflow-x-auto min-h-[300px]">
+                <table className="min-w-full border-collapse table-fixed">
+                    <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                            <tr>
+                            <th rowSpan={2} className="sticky left-0 bg-white border-b border-r border-gray-200 w-48 z-20 align-middle">
+                                <button onClick={() => setIsDisplayOptionsModalOpen(true)} className="w-full flex items-center justify-between text-left text-base font-semibold group py-3 px-2 hover:bg-gray-50 transition-colors">
+                                    <span>Mitarbeiter</span>
+                                    <AdjustmentsHorizontalIcon className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                                </button>
+                            </th>
+                            {weeks.map(week => (
+                                <th key={`${week.year}-${week.week}`} colSpan={week.days.length} className="py-2 px-1 border-b border-l border-gray-200 text-center text-sm font-semibold text-gray-700">
+                                    KW {week.week}
+                                </th>
+                            ))}
+                        </tr>
+                        <tr>
+                            {visibleDays.map(day => {
+                                const dayStr = formatDateForComparison(day);
+                                const holiday = props.holidaysByYear[day.getFullYear()]?.find(h => h.date === dayStr);
+                                const dayOfWeek = day.getDay();
+                                const isSaturday = dayOfWeek === 6;
+                                const isSundayOrHoliday = holiday || dayOfWeek === 0;
+                                const isToday = day.toDateString() === today.toDateString();
+                                return (
+                                    <th key={day.toISOString()} className={`w-16 py-2 px-1 border-b border-l border-gray-200 text-center text-xs relative ${isToday ? 'bg-blue-50' : isSundayOrHoliday ? 'bg-red-50' : isSaturday ? 'bg-gray-100' : 'bg-white'}`} title={holiday?.name}>
+                                        <div className={`font-normal ${isToday ? 'text-blue-600' : isSundayOrHoliday ? 'text-red-500' : 'text-gray-500'}`}>{day.toLocaleString('de-DE', { weekday: 'short' }).slice(0, 2)}</div>
+                                        <div className={`font-semibold text-base mt-1 ${isToday ? 'text-blue-700' : isSundayOrHoliday ? 'text-red-600' : 'text-gray-600'}`}>{day.getDate()}</div>
+                                    </th>
+                                );
+                            })}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {displayedEmployees.map(employee => {
+                            const absenceSpans: { day: Date, absence: AbsenceRequest, span: number }[] = [];
+                            const processedAbsenceDays = new Set<string>();
+
+                            visibleDays.forEach((day, index) => {
+                                const dayString = formatDateForComparison(day);
+                                if (processedAbsenceDays.has(dayString)) return;
+
+                                const absence = getAbsenceForDay(employee.id, day);
+                                if (absence) {
+                                    let span = 1;
+                                    processedAbsenceDays.add(dayString);
+                                    for (let i = index + 1; i < visibleDays.length; i++) {
+                                        const nextDay = visibleDays[i];
+                                        if (formatDateForComparison(nextDay) > absence.endDate) break;
+                                        
+                                        const nextDayAbsence = getAbsenceForDay(employee.id, nextDay);
+                                        if (nextDayAbsence && nextDayAbsence.id === absence.id) {
+                                            span++;
+                                            processedAbsenceDays.add(formatDateForComparison(nextDay));
+                                        } else {
+                                            break;
+                                        }
+                                    }
+                                    absenceSpans.push({ day, absence, span });
+                                }
+                            });
+
+                            return (
+                                <tr key={employee.id} className="border-b border-gray-200 last:border-b-0">
+                                    <td className="sticky left-0 bg-white py-2 px-2 border-r border-gray-200 text-base font-normal whitespace-nowrap w-48 z-10">{employee.firstName} {employee.lastName}</td>
+                                    {visibleDays.map(day => {
+                                        const absenceSpan = absenceSpans.find(s => formatDateForComparison(s.day) === formatDateForComparison(day));
+                                        const absence = getAbsenceForDay(employee.id, day);
+                                        
+                                        const dayOfWeek = day.getDay();
+                                        const isSaturday = dayOfWeek === 6;
+                                        const isSundayOrHoliday = props.holidaysByYear[day.getFullYear()]?.find(h => h.date === formatDateForComparison(day)) || dayOfWeek === 0;
+                                        const isToday = day.toDateString() === today.toDateString();
+                                        return (
+                                            <td 
+                                                key={day.toISOString()} 
+                                                className={`border-l border-gray-200 h-16 relative p-0 cursor-pointer ${!absence ? 'hover:bg-blue-50/30 group' : ''} ${isToday ? 'bg-blue-50' : isSundayOrHoliday ? 'bg-red-50' : isSaturday ? 'bg-gray-100' : 'bg-white'}`} 
+                                                onClick={() => handleCellClick(employee.id, day)}
+                                            >
+                                                {absenceSpan && <AbsencePillWithTooltip absence={absenceSpan.absence} day={absenceSpan.day} daySpan={absenceSpan.span} />}
+                                                {!absence && (
+                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                                        <PlusIcon className="h-4 w-4 text-gray-500" />
+                                                    </div>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+                {displayedEmployees.length === 0 && <div className="text-center py-10 text-gray-500">Keine Mitarbeiter für die ausgewählten Filter gefunden.</div>}
+            </div>
+        </>
+    );
+
+    const FullscreenPlanner = () => ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[200] bg-white flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center p-2 border-b bg-gray-50 shrink-0 z-50 shadow-sm">
+                <h2 className="text-sm font-bold text-gray-700 pl-2">Vollbild-Planer</h2>
+                <div className="flex gap-2">
+                    <Button onClick={() => setIsLandscape(!isLandscape)} className={`text-xs px-3 py-1 flex items-center gap-1 ${isLandscape ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-700 border border-gray-300'}`}>
+                        <DevicePhoneMobileIcon className={`h-4 w-4 ${isLandscape ? 'rotate-90' : ''}`} />
+                        <span>{isLandscape ? 'Zurückdrehen' : 'Drehen'}</span>
+                    </Button>
+                    <Button onClick={() => { setIsFullscreen(false); setIsLandscape(false); }} className="text-xs px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-1">
+                        <ArrowsPointingInIcon className="h-4 w-4" />
+                        <span>Schließen</span>
+                    </Button>
+                </div>
+            </div>
+            
+            <div className="relative flex-grow w-full h-full bg-gray-100 overflow-hidden">
+                <div className={`
+                    bg-white shadow-lg p-2 transition-all duration-300
+                    ${isLandscape
+                        ? 'absolute top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] overflow-auto'
+                        : 'w-full h-full overflow-auto'
+                    }
+                `}>
+                    {renderPlannerTable(true)}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+
     return (
         <div className="space-y-6">
             <div className="border-b border-gray-200">
@@ -380,116 +535,12 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
             {activeTab === 'planner' && (
                 <div className="animate-fade-in">
                     <Card>
-                        <div className="flex justify-center items-center gap-2 sm:gap-4 mb-4">
-                            <button onClick={() => changePeriod(-1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Vorheriger Zeitraum">
-                                <ChevronLeftIcon className="h-5 w-5 text-gray-600" />
-                            </button>
-                            <button onClick={() => setIsDateRangeModalOpen(true)} className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors" title="Zeitraum anpassen">
-                                <h2 className="text-lg font-bold text-gray-800 text-center">{formatHeaderDate()}</h2>
-                                <CalendarDaysIcon className="h-5 w-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
-                            </button>
-                            <button onClick={() => changePeriod(1)} className="p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="Nächster Zeitraum">
-                                <ChevronRightIcon className="h-5 w-5 text-gray-600" />
-                            </button>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full border-collapse table-fixed">
-                                <thead className="sticky top-0 bg-white z-10">
-                                     <tr>
-                                        <th rowSpan={2} className="sticky left-0 bg-white border-b border-r border-gray-200 w-48 z-20 align-middle">
-                                            <button onClick={() => setIsDisplayOptionsModalOpen(true)} className="w-full flex items-center justify-between text-left text-base font-semibold group py-3 px-2 hover:bg-gray-50 transition-colors">
-                                                <span>Mitarbeiter</span>
-                                                <AdjustmentsHorizontalIcon className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                                            </button>
-                                        </th>
-                                        {weeks.map(week => (
-                                            <th key={`${week.year}-${week.week}`} colSpan={week.days.length} className="py-2 px-1 border-b border-l border-gray-200 text-center text-sm font-semibold text-gray-700">
-                                                KW {week.week}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                    <tr>
-                                        {visibleDays.map(day => {
-                                            const dayStr = formatDateForComparison(day);
-                                            const holiday = props.holidaysByYear[day.getFullYear()]?.find(h => h.date === dayStr);
-                                            const dayOfWeek = day.getDay();
-                                            const isSaturday = dayOfWeek === 6;
-                                            const isSundayOrHoliday = holiday || dayOfWeek === 0;
-                                            const isToday = day.toDateString() === today.toDateString();
-                                            return (
-                                                <th key={day.toISOString()} className={`w-16 py-2 px-1 border-b border-l border-gray-200 text-center text-xs relative ${isToday ? 'bg-blue-50' : isSundayOrHoliday ? 'bg-red-50' : isSaturday ? 'bg-gray-100' : 'bg-white'}`} title={holiday?.name}>
-                                                    <div className={`font-normal ${isToday ? 'text-blue-600' : isSundayOrHoliday ? 'text-red-500' : 'text-gray-500'}`}>{day.toLocaleString('de-DE', { weekday: 'short' }).slice(0, 2)}</div>
-                                                    <div className={`font-semibold text-base mt-1 ${isToday ? 'text-blue-700' : isSundayOrHoliday ? 'text-red-600' : 'text-gray-600'}`}>{day.getDate()}</div>
-                                                </th>
-                                            );
-                                        })}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {displayedEmployees.map(employee => {
-                                        const absenceSpans: { day: Date, absence: AbsenceRequest, span: number }[] = [];
-                                        const processedAbsenceDays = new Set<string>();
-
-                                        visibleDays.forEach((day, index) => {
-                                            const dayString = formatDateForComparison(day);
-                                            if (processedAbsenceDays.has(dayString)) return;
-
-                                            const absence = getAbsenceForDay(employee.id, day);
-                                            if (absence) {
-                                                let span = 1;
-                                                processedAbsenceDays.add(dayString);
-                                                for (let i = index + 1; i < visibleDays.length; i++) {
-                                                    const nextDay = visibleDays[i];
-                                                    if (formatDateForComparison(nextDay) > absence.endDate) break;
-                                                    
-                                                    const nextDayAbsence = getAbsenceForDay(employee.id, nextDay);
-                                                    if (nextDayAbsence && nextDayAbsence.id === absence.id) {
-                                                        span++;
-                                                        processedAbsenceDays.add(formatDateForComparison(nextDay));
-                                                    } else {
-                                                        break;
-                                                    }
-                                                }
-                                                absenceSpans.push({ day, absence, span });
-                                            }
-                                        });
-
-                                        return (
-                                            <tr key={employee.id} className="border-b border-gray-200 last:border-b-0">
-                                                <td className="sticky left-0 bg-white py-2 px-2 border-r border-gray-200 text-base font-normal whitespace-nowrap w-48 z-10">{employee.firstName} {employee.lastName}</td>
-                                                {visibleDays.map(day => {
-                                                    const absenceSpan = absenceSpans.find(s => formatDateForComparison(s.day) === formatDateForComparison(day));
-                                                    const absence = getAbsenceForDay(employee.id, day);
-                                                    
-                                                    const dayOfWeek = day.getDay();
-                                                    const isSaturday = dayOfWeek === 6;
-                                                    const isSundayOrHoliday = props.holidaysByYear[day.getFullYear()]?.find(h => h.date === formatDateForComparison(day)) || dayOfWeek === 0;
-                                                    const isToday = day.toDateString() === today.toDateString();
-                                                    return (
-                                                        <td 
-                                                            key={day.toISOString()} 
-                                                            className={`border-l border-gray-200 h-16 relative p-0 cursor-pointer ${!absence ? 'hover:bg-blue-50/30 group' : ''} ${isToday ? 'bg-blue-50' : isSundayOrHoliday ? 'bg-red-50' : isSaturday ? 'bg-gray-100' : 'bg-white'}`} 
-                                                            onClick={() => handleCellClick(employee.id, day)}
-                                                        >
-                                                            {absenceSpan && <AbsencePillWithTooltip absence={absenceSpan.absence} day={absenceSpan.day} daySpan={absenceSpan.span} />}
-                                                            {!absence && (
-                                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                                                                    <PlusIcon className="h-4 w-4 text-gray-500" />
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                            {displayedEmployees.length === 0 && <div className="text-center py-10 text-gray-500">Keine Mitarbeiter für die ausgewählten Filter gefunden.</div>}
-                        </div>
+                        {renderPlannerTable(false)}
                     </Card>
                 </div>
             )}
+
+            {isFullscreen && <FullscreenPlanner />}
 
             {activeTab === 'list' && (
                 <div className="animate-fade-in">
