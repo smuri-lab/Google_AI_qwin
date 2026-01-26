@@ -91,8 +91,10 @@ export const EmployeeMultiSelectModal: React.FC<MultiSelectModalProps> = ({
   };
 
   const handleApply = () => {
-    onApply(Array.from(currentSelectedIds));
-    handleClose();
+    setIsClosing(true);
+    setTimeout(() => {
+        onApply(Array.from(currentSelectedIds));
+    }, 300);
   };
 
   return (

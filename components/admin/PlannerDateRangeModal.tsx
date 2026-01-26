@@ -89,8 +89,10 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({
       alert('Das Startdatum darf nicht nach dem Enddatum liegen.');
       return;
     }
-    onApply(start, end, activePreset);
-    handleClose();
+    setIsClosing(true);
+    setTimeout(() => {
+        onApply(start, end, activePreset);
+    }, 300);
   };
 
   const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -78,10 +78,12 @@ export const PlannerDisplayOptionsModal: React.FC<PlannerDisplayOptionsModalProp
   };
 
   const handleApply = () => {
-    onApply({
-      visibleEmployeeIds: Array.from(selectedIds),
-    });
-    handleClose();
+    setIsClosing(true);
+    setTimeout(() => {
+        onApply({
+          visibleEmployeeIds: Array.from(selectedIds),
+        });
+    }, 300);
   };
 
   return (

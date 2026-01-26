@@ -47,14 +47,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onCon
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onConfirm(employee, selectedYear, selectedMonth);
-    // Usually confirm also closes, but let the parent handle close or if we need to close here we call handleClose.
-    // Assuming parent handles close state, but we need to trigger animation first if possible.
-    // For simplicity, if parent sets isOpen=false, we might miss animation unless we control it.
-    // But since `onClose` prop is provided, we should use it for cancel.
-    // If onConfirm closes it immediately, the unmount happens. 
-    // To animate out on confirm, we'd need to delay the callback.
-    handleClose(); 
+    setIsClosing(true);
+    setTimeout(() => {
+        onConfirm(employee, selectedYear, selectedMonth);
+    }, 300);
   };
 
   if (!isOpen) return null;

@@ -105,19 +105,10 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
         return;
     }
     
-    onConfirm(employeesToExport, selectedYear, selectedMonths, format);
-    // Usually confirmation closes the modal in parent, we just trigger closing animation then parent closes.
-    // However, since `onConfirm` might be async or sync, if parent sets isOpen=false, we lose animation.
-    // We'll rely on handleClose pattern if parent doesn't auto-close, or if it does, 
-    // we should ideally animate out first. 
-    // Assuming parent controls close:
-    // setIsClosing(true); setTimeout(() => onConfirm(...), 300);
-    // Let's assume user flow is Click Export -> Action -> Close.
-    // We will trigger onConfirm immediately (as export logic runs), parent usually closes modal. 
-    // We can't force parent to wait. We'll simply call onConfirm. If parent closes it, it unmounts.
-    // For proper exit animation, parent must delay unmount or we manage isOpen state locally which is complex.
-    // We'll just call handleClose for cancel, and for Submit we rely on immediate action.
-    // For consistency with other modals, let's just submit.
+    setIsClosing(true);
+    setTimeout(() => {
+        onConfirm(employeesToExport, selectedYear, selectedMonths, format);
+    }, 300);
   };
 
   return (

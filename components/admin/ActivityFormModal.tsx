@@ -41,11 +41,14 @@ export const ActivityFormModal: React.FC<ActivityFormModalProps> = ({ isOpen, on
         alert(`Der Name für ${activityLabel} darf nicht leer sein.`);
         return;
     }
-    if (initialData) {
-        onSave({ ...initialData, name });
-    } else {
-        onSave({ name });
-    }
+    setIsClosing(true);
+    setTimeout(() => {
+        if (initialData) {
+            onSave({ ...initialData, name });
+        } else {
+            onSave({ name });
+        }
+    }, 300);
   };
 
   if (!isOpen) return null;

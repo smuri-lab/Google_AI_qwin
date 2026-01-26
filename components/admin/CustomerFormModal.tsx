@@ -59,18 +59,23 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (initialData) {
-        onSave({ ...initialData, ...formData });
-    } else {
-        onSave(formData);
-    }
+    setIsClosing(true);
+    setTimeout(() => {
+        if (initialData) {
+            onSave({ ...initialData, ...formData });
+        } else {
+            onSave(formData);
+        }
+    }, 300);
   };
 
   const handleConfirmDelete = () => {
     if (initialData?.id) {
-        onDelete(initialData.id);
+        setIsClosing(true);
+        setTimeout(() => {
+            onDelete(initialData.id);
+        }, 300);
         setShowDeleteConfirm(false);
-        handleClose();
     }
   };
 

@@ -278,92 +278,95 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
         weeklySchedule: isWeekly ? weeklySchedule : undefined,
     };
 
-    if (initialData) { // EDIT MODE
-        const workingContractHistory = JSON.parse(JSON.stringify(initialData.contractHistory));
-        const entryYear = new Date(initialData.firstWorkDay).getFullYear();
-        
-        const firstContractIndex = workingContractHistory.findIndex((c: ContractDetails) => c.validFrom === initialData.firstWorkDay);
-        if (firstContractIndex !== -1) {
-            workingContractHistory[firstContractIndex].vacationDays = Number(entryYearVacationDays);
-        }
-
-        const followingYearDateString = `${entryYear + 1}-01-01`;
-        const followingYearContractIndex = workingContractHistory.findIndex((c: ContractDetails) => c.validFrom === followingYearDateString);
-        if (followingYearContractIndex !== -1) {
-            workingContractHistory[followingYearContractIndex].vacationDays = Number(followingYearVacationDays);
-        } else if (followingYearVacationDays) {
-             const lastContractBefore = getContractDetailsForDate({ ...initialData, contractHistory: workingContractHistory }, new Date(entryYear, 11, 31));
-             workingContractHistory.push({
-                 ...lastContractBefore,
-                 validFrom: followingYearDateString,
-                 vacationDays: Number(followingYearVacationDays)
-             });
-        }
-        
-        if (firstWorkDay && firstWorkDay !== initialData.firstWorkDay && workingContractHistory.length > 0) {
+    setIsClosing(true);
+    setTimeout(() => {
+        if (initialData) { // EDIT MODE
+            const workingContractHistory = JSON.parse(JSON.stringify(initialData.contractHistory));
+            const entryYear = new Date(initialData.firstWorkDay).getFullYear();
+            
+            const firstContractIndex = workingContractHistory.findIndex((c: ContractDetails) => c.validFrom === initialData.firstWorkDay);
             if (firstContractIndex !== -1) {
-                workingContractHistory[firstContractIndex].validFrom = firstWorkDay;
+                workingContractHistory[firstContractIndex].vacationDays = Number(entryYearVacationDays);
             }
+
+            const followingYearDateString = `${entryYear + 1}-01-01`;
+            const followingYearContractIndex = workingContractHistory.findIndex((c: ContractDetails) => c.validFrom === followingYearDateString);
+            if (followingYearContractIndex !== -1) {
+                workingContractHistory[followingYearContractIndex].vacationDays = Number(followingYearVacationDays);
+            } else if (followingYearVacationDays) {
+                const lastContractBefore = getContractDetailsForDate({ ...initialData, contractHistory: workingContractHistory }, new Date(entryYear, 11, 31));
+                workingContractHistory.push({
+                    ...lastContractBefore,
+                    validFrom: followingYearDateString,
+                    vacationDays: Number(followingYearVacationDays)
+                });
+            }
+            
+            if (firstWorkDay && firstWorkDay !== initialData.firstWorkDay && workingContractHistory.length > 0) {
+                if (firstContractIndex !== -1) {
+                    workingContractHistory[firstContractIndex].validFrom = firstWorkDay;
+                }
+            }
+
+            const currentFutureData = [...futureVacationDays];
+            const changesYear = new Date(changesValidFrom!).getFullYear();
+            if (changesYear === entryYear && currentFutureData[0]) {
+                currentFutureData[0].days = entryYearVacationDays;
+            }
+            if (changesYear === entryYear + 1 && currentFutureData[0]) {
+                currentFutureData[0].days = followingYearVacationDays;
+            }
+
+            const [currentPeriodData, ...actualFutureData] = currentFutureData;
+            const newContractVersion: ContractDetails = {
+                ...contractBase,
+                validFrom: changesValidFrom!,
+                vacationDays: Number(currentPeriodData.days)
+            };
+            
+            const relevantHistory = workingContractHistory.filter((c: ContractDetails) => new Date(c.validFrom) < new Date(changesValidFrom!));
+            const futureContracts = actualFutureData
+                .filter(f => f.days && Number(f.days) >= 0)
+                .map(future => ({ ...newContractVersion, validFrom: `${future.year}-01-01`, vacationDays: Number(future.days) }));
+            
+            const contractMap = new Map<string, ContractDetails>();
+            [...relevantHistory, newContractVersion, ...futureContracts].forEach(c => contractMap.set(c.validFrom, c));
+            const finalHistory = Array.from(contractMap.values()).sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime());
+
+            const updatedEmployee: Employee = {
+                ...initialData,
+                firstName: firstName!, lastName: lastName!, dateOfBirth: dateOfBirth!, username: username!, 
+                isActive: isActive!, firstWorkDay: firstWorkDay!, role: role!,
+                dashboardType: dashboardType || 'standard',
+                showVacationWarning: showVacationWarning ?? true,
+                automaticBreakDeduction: automaticBreakDeduction ?? false,
+                lastModified: new Date().toISOString(),
+                contractHistory: finalHistory,
+            };
+            if (password) updatedEmployee.password = password;
+            onSave(updatedEmployee);
+
+        } else { // CREATE MODE
+            const entryYear = new Date(firstWorkDay!).getFullYear();
+            const contract1: ContractDetails = { ...contractBase, validFrom: firstWorkDay!, vacationDays: Number(entryYearVacationDays) };
+            const contract2: ContractDetails = { ...contractBase, validFrom: `${entryYear + 1}-01-01`, vacationDays: Number(followingYearVacationDays) };
+            const futureContracts = futureVacationDays
+                .filter(f => f.days && Number(f.days) >= 0)
+                .map(future => ({ ...contractBase, validFrom: `${future.year}-01-01`, vacationDays: Number(future.days) }));
+            
+            const newEmployee: Omit<Employee, 'id'> = {
+                firstName: firstName!, lastName: lastName!, dateOfBirth: dateOfBirth!, username: username!, 
+                password: password!, isActive: isActive!, firstWorkDay: firstWorkDay!, role: role!,
+                dashboardType: dashboardType || 'standard',
+                showVacationWarning: showVacationWarning ?? true,
+                automaticBreakDeduction: automaticBreakDeduction ?? false,
+                lastModified: new Date().toISOString(),
+                contractHistory: [contract1, contract2, ...futureContracts],
+                startingTimeBalanceHours: Number(startingTimeBalanceHours) || 0,
+            };
+            onSave(newEmployee);
         }
-
-        const currentFutureData = [...futureVacationDays];
-        const changesYear = new Date(changesValidFrom!).getFullYear();
-        if (changesYear === entryYear && currentFutureData[0]) {
-            currentFutureData[0].days = entryYearVacationDays;
-        }
-        if (changesYear === entryYear + 1 && currentFutureData[0]) {
-            currentFutureData[0].days = followingYearVacationDays;
-        }
-
-        const [currentPeriodData, ...actualFutureData] = currentFutureData;
-        const newContractVersion: ContractDetails = {
-            ...contractBase,
-            validFrom: changesValidFrom!,
-            vacationDays: Number(currentPeriodData.days)
-        };
-        
-        const relevantHistory = workingContractHistory.filter((c: ContractDetails) => new Date(c.validFrom) < new Date(changesValidFrom!));
-        const futureContracts = actualFutureData
-            .filter(f => f.days && Number(f.days) >= 0)
-            .map(future => ({ ...newContractVersion, validFrom: `${future.year}-01-01`, vacationDays: Number(future.days) }));
-        
-        const contractMap = new Map<string, ContractDetails>();
-        [...relevantHistory, newContractVersion, ...futureContracts].forEach(c => contractMap.set(c.validFrom, c));
-        const finalHistory = Array.from(contractMap.values()).sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime());
-
-        const updatedEmployee: Employee = {
-            ...initialData,
-            firstName: firstName!, lastName: lastName!, dateOfBirth: dateOfBirth!, username: username!, 
-            isActive: isActive!, firstWorkDay: firstWorkDay!, role: role!,
-            dashboardType: dashboardType || 'standard',
-            showVacationWarning: showVacationWarning ?? true,
-            automaticBreakDeduction: automaticBreakDeduction ?? false,
-            lastModified: new Date().toISOString(),
-            contractHistory: finalHistory,
-        };
-        if (password) updatedEmployee.password = password;
-        onSave(updatedEmployee);
-
-    } else { // CREATE MODE
-        const entryYear = new Date(firstWorkDay!).getFullYear();
-        const contract1: ContractDetails = { ...contractBase, validFrom: firstWorkDay!, vacationDays: Number(entryYearVacationDays) };
-        const contract2: ContractDetails = { ...contractBase, validFrom: `${entryYear + 1}-01-01`, vacationDays: Number(followingYearVacationDays) };
-        const futureContracts = futureVacationDays
-            .filter(f => f.days && Number(f.days) >= 0)
-            .map(future => ({ ...contractBase, validFrom: `${future.year}-01-01`, vacationDays: Number(future.days) }));
-        
-        const newEmployee: Omit<Employee, 'id'> = {
-            firstName: firstName!, lastName: lastName!, dateOfBirth: dateOfBirth!, username: username!, 
-            password: password!, isActive: isActive!, firstWorkDay: firstWorkDay!, role: role!,
-            dashboardType: dashboardType || 'standard',
-            showVacationWarning: showVacationWarning ?? true,
-            automaticBreakDeduction: automaticBreakDeduction ?? false,
-            lastModified: new Date().toISOString(),
-            contractHistory: [contract1, contract2, ...futureContracts],
-            startingTimeBalanceHours: Number(startingTimeBalanceHours) || 0,
-        };
-        onSave(newEmployee);
-    }
+    }, 300);
   };
 
   if (!isOpen) return null;

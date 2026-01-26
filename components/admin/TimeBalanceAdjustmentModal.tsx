@@ -74,11 +74,14 @@ export const TimeBalanceAdjustmentModal: React.FC<TimeBalanceAdjustmentModalProp
         note
     };
 
-    if (isEditing) {
-        onSave({ ...(initialData as TimeBalanceAdjustment), ...dataToSave });
-    } else {
-        onSave(dataToSave);
-    }
+    setIsClosing(true);
+    setTimeout(() => {
+        if (isEditing) {
+            onSave({ ...(initialData as TimeBalanceAdjustment), ...dataToSave });
+        } else {
+            onSave(dataToSave);
+        }
+    }, 300);
   };
 
   const handleDelete = () => {
@@ -89,7 +92,10 @@ export const TimeBalanceAdjustmentModal: React.FC<TimeBalanceAdjustmentModalProp
 
   const handleConfirmDelete = () => {
       if (isEditing && onDelete) {
-          onDelete(initialData!.id!);
+          setIsClosing(true);
+          setTimeout(() => {
+              onDelete(initialData!.id!);
+          }, 300);
           setShowDeleteConfirm(false);
       }
   };

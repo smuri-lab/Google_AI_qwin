@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import type { AbsenceRequest, Employee } from '../../types';
 import { AbsenceType } from '../../types';
@@ -39,8 +38,10 @@ const ActionConfirmationModal: React.FC<{
     };
 
     const handleConfirm = () => {
-        onConfirm(comment);
-        handleClose();
+        setIsClosing(true);
+        setTimeout(() => {
+            onConfirm(comment);
+        }, 300);
     };
 
     if (!isOpen) return null;

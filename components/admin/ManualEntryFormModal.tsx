@@ -52,6 +52,13 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
         setTimeout(onClose, 300);
     };
 
+    const handleAddTimeEntry = (entry: Omit<TimeEntry, 'id' | 'employeeId'>) => {
+        setIsClosing(true);
+        setTimeout(() => {
+            addTimeEntry(entry);
+        }, 300);
+    };
+
     return ReactDOM.createPortal(
         <div className={`fixed inset-0 flex items-center justify-center z-[9999] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`}>
             <Card className={`w-full max-w-lg mx-auto relative max-h-[90vh] flex flex-col shadow-2xl ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
@@ -61,7 +68,7 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
                 <div className="flex-grow min-h-0 flex flex-col">
                     <ManualEntryForm
                         isModal={true}
-                        addTimeEntry={addTimeEntry}
+                        addTimeEntry={handleAddTimeEntry}
                         timeEntries={timeEntries}
                         customers={customers}
                         activities={activities}

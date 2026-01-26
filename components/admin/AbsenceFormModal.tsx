@@ -121,17 +121,10 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
         return;
     }
     
-    // Instead of calling onSave immediately, we handle close animation then save? 
-    // Usually save happens then close. Parent calls onClose which we might intercept if we want to animate out first.
-    // Here we will just animate out then call onSave which will trigger parent update and close.
-    // Actually standard is: update data, then close modal.
-    onSave(formData);
-    // Since parent closes modal immediately upon save usually, we miss animation unless parent waits.
-    // Assuming parent controls isOpen. We can't easily animate out on success unless we manage state.
-    // For now we assume consistent close behavior is mainly for manual close.
-    // But let's try to animate out before saving:
-    // setIsClosing(true); setTimeout(() => onSave(formData), 300);
-    // This feels safer.
+    setIsClosing(true);
+    setTimeout(() => {
+        onSave(formData);
+    }, 300);
   };
   
   const handleDelete = () => {
@@ -142,10 +135,11 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
 
   const handleConfirmDelete = () => {
       if (isEditing && onDelete) {
-          onDelete(initialData!.id!);
+          setIsClosing(true);
+          setTimeout(() => {
+             onDelete(initialData!.id!);
+          }, 300);
           setShowDeleteConfirm(false);
-          // handleDelete triggers immediate action in parent? 
-          // Similar logic, if parent unmounts us immediately we lose animation.
       }
   };
 
