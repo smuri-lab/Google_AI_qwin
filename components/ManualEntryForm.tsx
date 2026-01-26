@@ -5,9 +5,7 @@ import { Input } from './ui/Input';
 import { SelectionModal } from './ui/SelectionModal';
 import { SelectorButton } from './ui/SelectorButton';
 import { CalendarModal } from './ui/CalendarModal';
-import { TimePickerModal } from './ui/TimePickerModal';
 import { DateSelectorButton } from './ui/DateSelectorButton';
-import { TimeSelectorButton } from './ui/TimeSelectorButton';
 import { Textarea } from './ui/Textarea';
 import { InfoModal } from './ui/InfoModal';
 
@@ -60,8 +58,6 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
   const [comment, setComment] = useState('');
   
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [isStartTimePickerOpen, setIsStartTimePickerOpen] = useState(false);
-  const [isEndTimePickerOpen, setIsEndTimePickerOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: '', message: '' });
@@ -174,17 +170,16 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
     setIsDatePickerOpen(false);
   };
 
-  const handleStartTimeSelect = (time: string) => {
-    setStartTime(time);
-    if (endTime && time >= endTime) {
+  const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value;
+    setStartTime(newTime);
+    if (endTime && newTime >= endTime) {
       setEndTime('');
     }
-    setIsStartTimePickerOpen(false);
   };
 
-  const handleEndTimeSelect = (time: string) => {
-    setEndTime(time);
-    setIsEndTimePickerOpen(false);
+  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEndTime(e.target.value);
   };
   
   const selectedCustomerName = customers.find(c => c.id === customerId)?.name || '';
@@ -202,17 +197,19 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
       />
       
       <div className="grid grid-cols-2 gap-4">
-          <TimeSelectorButton
-              label="Startzeit"
-              value={startTime}
-              onClick={() => setIsStartTimePickerOpen(true)}
-              placeholder="Start"
+          <Input 
+              label="Startzeit" 
+              type="time" 
+              value={startTime} 
+              onChange={handleStartTimeChange} 
+              required 
           />
-          <TimeSelectorButton
-              label="Endzeit"
-              value={endTime}
-              onClick={() => setIsEndTimePickerOpen(true)}
-              placeholder="Ende"
+          <Input 
+              label="Endzeit" 
+              type="time" 
+              value={endTime} 
+              onChange={handleEndTimeChange} 
+              required 
               disabled={!startTime}
           />
       </div>
@@ -269,21 +266,6 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
         title="Datum auswählen"
         initialStartDate={date}
         selectionMode="single"
-      />
-      <TimePickerModal
-        isOpen={isStartTimePickerOpen}
-        onClose={() => setIsStartTimePickerOpen(false)}
-        onSelect={handleStartTimeSelect}
-        title="Startzeit auswählen"
-        initialTime={startTime}
-      />
-       <TimePickerModal
-        isOpen={isEndTimePickerOpen}
-        onClose={() => setIsEndTimePickerOpen(false)}
-        onSelect={handleEndTimeSelect}
-        title="Endzeit auswählen"
-        initialTime={endTime || startTime}
-        minTime={startTime}
       />
       
       <SelectionModal
