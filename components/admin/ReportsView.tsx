@@ -293,21 +293,21 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ timeEntries, customers
                         </div>
                     </div>
                      {filteredEntries.length > 0 ? (
-                        <div className="max-h-[70vh] overflow-auto">
+                        <div className="overflow-x-auto">
                             <table className="min-w-full text-sm">
-                                <thead className="sticky top-0 bg-white z-10 shadow-sm">
-                                    <tr className="border-b">
-                                        <th className="py-2 px-3 text-left font-semibold text-gray-600">Mitarbeiter</th>
-                                        <th className="py-2 px-3 text-left font-semibold text-gray-600">Tag, Datum</th>
+                                <thead className="text-left bg-gray-50 border-b">
+                                    <tr>
+                                        <th className="py-2 px-3 font-semibold text-gray-600">Mitarbeiter</th>
+                                        <th className="py-2 px-3 font-semibold text-gray-600">Tag, Datum</th>
                                         {primaryCategory === 'customer' ? (
-                                            <th className="py-2 px-3 text-left font-semibold text-gray-600">{activityLabel}</th>
+                                            <th className="py-2 px-3 font-semibold text-gray-600">{activityLabel}</th>
                                         ) : (
-                                            <th className="py-2 px-3 text-left font-semibold text-gray-600">{customerLabel}</th>
+                                            <th className="py-2 px-3 font-semibold text-gray-600">{customerLabel}</th>
                                         )}
-                                        <th className="py-2 px-3 text-left font-semibold text-gray-600">Start - Ende</th>
+                                        <th className="py-2 px-3 font-semibold text-gray-600">Start - Ende</th>
                                         <th className="py-2 px-3 text-right font-semibold text-gray-600">Pause</th>
                                         <th className="py-2 px-3 text-right font-semibold text-gray-600">Gesamt</th>
-                                        <th className="py-2 px-3 text-left font-semibold text-gray-600">Kommentar</th>
+                                        <th className="py-2 px-3 font-semibold text-gray-600">Kommentar</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
