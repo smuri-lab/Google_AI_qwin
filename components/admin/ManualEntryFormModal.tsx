@@ -60,7 +60,7 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
     };
 
     return ReactDOM.createPortal(
-        <div className={`fixed inset-0 flex items-center justify-center z-[9999] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`}>
+        <div className={`fixed inset-0 flex items-center justify-center z-50 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`} onClick={handleClose}>
             <Card className={`w-full max-w-lg mx-auto relative max-h-[90vh] flex flex-col shadow-2xl ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
                 <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
                     <XIcon className="h-6 w-6" />
