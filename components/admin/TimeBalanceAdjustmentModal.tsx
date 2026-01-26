@@ -38,6 +38,7 @@ export const TimeBalanceAdjustmentModal: React.FC<TimeBalanceAdjustmentModalProp
 
   useEffect(() => {
     if (isOpen) {
+        setIsClosing(false); // Reset animation state
         setDate(initialData?.date || new Date().toLocaleDateString('sv-SE'));
         
         let initialHoursValue: number | undefined = initialData?.hours;

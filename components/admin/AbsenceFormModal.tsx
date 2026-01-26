@@ -46,6 +46,7 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (isOpen) {
+      setIsClosing(false); // Reset animation state
       setFormData({ type: AbsenceType.Vacation, dayPortion: 'full', ...initialData });
     }
   }, [initialData, isOpen]);

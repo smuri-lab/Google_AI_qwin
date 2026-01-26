@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import type { TimeEntry, Customer, Activity, CompanySettings, AbsenceRequest } from '../../types';
 import { Card } from '../ui/Card';
@@ -31,6 +31,12 @@ export const ManualEntryFormModal: React.FC<ManualEntryFormModalProps> = ({
     initialDate,
 }) => {
     const [isClosing, setIsClosing] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setIsClosing(false);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
     
