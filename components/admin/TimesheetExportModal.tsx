@@ -5,6 +5,8 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { XIcon } from '../icons/XIcon';
+import { SelectorButton } from '../ui/SelectorButton';
+import { EmployeeMultiSelectModal } from './EmployeeMultiSelectModal';
 
 interface TimesheetExportModalProps {
   isOpen: boolean;
@@ -15,6 +17,8 @@ interface TimesheetExportModalProps {
 }
 
 const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+const monthItems = months.map((m, i) => ({ id: i, name: m }));
+
 const getYears = () => {
     const currentYear = new Date().getFullYear();
     const years = [];
@@ -34,6 +38,9 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
   const [isClosing, setIsClosing] = useState(false);
   
+  const [isEmployeeSelectOpen, setIsEmployeeSelectOpen] = useState(false);
+  const [isMonthSelectOpen, setIsMonthSelectOpen] = useState(false);
+  
   useEffect(() => {
     if (isOpen) {
       if (fixedEmployee) {
@@ -44,6 +51,7 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
       setSelectedMonths([lastMonth.getMonth()]);
       setSelectedYear(lastMonth.getFullYear());
       setFormat('excel');
+      setIsClosing(false);
     }
   }, [isOpen, fixedEmployee]);
 
@@ -54,22 +62,6 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
 
   if (!isOpen) return null;
   
-  const handleEmployeeToggle = (employeeId: string) => {
-    setSelectedEmployeeIds(prev => prev.includes(employeeId) ? prev.filter(id => id !== employeeId) : [...prev, employeeId]);
-  };
-
-  const handleMonthToggle = (monthIndex: number) => {
-    setSelectedMonths(prev => prev.includes(monthIndex) ? prev.filter(m => m !== monthIndex) : [...prev, monthIndex]);
-  };
-
-  const handleSelectAllEmployees = (select: boolean) => {
-      setSelectedEmployeeIds(select ? employees.map(e => String(e.id)) : []);
-  };
-
-  const handleSelectAllMonths = (select: boolean) => {
-      setSelectedMonths(select ? months.map((_, i) => i) : []);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const employeesToExport = employees.filter(e => selectedEmployeeIds.includes(String(e.id)));
@@ -89,6 +81,25 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
     }, 300);
   };
 
+  const getEmployeeSelectorLabel = () => {
+      if (selectedEmployeeIds.length === 0) return 'Keine Mitarbeiter ausgewählt';
+      if (selectedEmployeeIds.length === employees.length) return 'Alle Mitarbeiter';
+      if (selectedEmployeeIds.length === 1) {
+          const emp = employees.find(e => String(e.id) === selectedEmployeeIds[0]);
+          return emp ? `${emp.firstName} ${emp.lastName}` : '1 Mitarbeiter';
+      }
+      return `${selectedEmployeeIds.length} Mitarbeiter ausgewählt`;
+  };
+
+  const getMonthSelectorLabel = () => {
+      if (selectedMonths.length === 0) return 'Keine Monate ausgewählt';
+      if (selectedMonths.length === 12) return 'Ganzes Jahr (12 Monate)';
+      if (selectedMonths.length === 1) return months[selectedMonths[0]];
+      
+      // Sort months to check for consecutive ranges could be added here, but count is sufficient
+      return `${selectedMonths.length} Monate ausgewählt`;
+  };
+
   return ReactDOM.createPortal(
     <div className={`fixed inset-0 bg-black flex items-center justify-center z-30 p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`} onClick={handleClose}>
       <Card className={`w-full max-w-lg relative ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
@@ -102,29 +113,15 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
           <div className="space-y-4">
             {!fixedEmployee && (
               <div>
-                <div className="flex justify-between items-center mb-1">
-                    <label className="block text-sm font-medium text-gray-700">Mitarbeiter</label>
-                    <button type="button" onClick={() => handleSelectAllEmployees(selectedEmployeeIds.length !== employees.length)} className="text-xs font-semibold text-blue-600 hover:underline">
-                        {selectedEmployeeIds.length !== employees.length ? 'Alle auswählen' : 'Alle abwählen'}
-                    </button>
-                </div>
-                <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1">
-                    {employees.map(emp => (
-                        <label key={emp.id} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                checked={selectedEmployeeIds.includes(String(emp.id))}
-                                onChange={() => handleEmployeeToggle(String(emp.id))}
-                            />
-                            <span>{emp.firstName} {emp.lastName}</span>
-                        </label>
-                    ))}
-                </div>
+                <SelectorButton 
+                    label="Mitarbeiter" 
+                    value={getEmployeeSelectorLabel()} 
+                    onClick={() => setIsEmployeeSelectOpen(true)} 
+                    placeholder="Mitarbeiter auswählen..."
+                />
               </div>
             )}
 
-            {/* ... Date selection & Format UI (same as before) ... */}
              <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Zeitraum</label>
               <div className="space-y-4">
@@ -134,20 +131,12 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
                     </Select>
                 </div>
                 <div>
-                  <div className="flex justify-between items-center mb-1">
-                      <label className="block text-sm font-medium text-gray-700">Monate</label>
-                       <button type="button" onClick={() => handleSelectAllMonths(selectedMonths.length !== 12)} className="text-xs font-semibold text-blue-600 hover:underline">
-                        {selectedMonths.length !== 12 ? 'Alle auswählen' : 'Alle abwählen'}
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 border rounded-md p-2">
-                    {months.map((month, index) => (
-                      <label key={index} className="flex items-center space-x-2 text-sm p-1 rounded hover:bg-gray-50 cursor-pointer">
-                        <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked={selectedMonths.includes(index)} onChange={() => handleMonthToggle(index)} />
-                        <span>{month}</span>
-                      </label>
-                    ))}
-                  </div>
+                    <SelectorButton 
+                        label="Monate" 
+                        value={getMonthSelectorLabel()} 
+                        onClick={() => setIsMonthSelectOpen(true)} 
+                        placeholder="Monate auswählen..."
+                    />
                 </div>
               </div>
             </div>
@@ -173,6 +162,31 @@ export const TimesheetExportModal: React.FC<TimesheetExportModalProps> = ({ isOp
           </div>
         </form>
       </Card>
+      
+      {!fixedEmployee && (
+          <EmployeeMultiSelectModal
+            isOpen={isEmployeeSelectOpen}
+            onClose={() => setIsEmployeeSelectOpen(false)}
+            onApply={(ids) => {
+                setSelectedEmployeeIds(ids.map(String));
+                setIsEmployeeSelectOpen(false);
+            }}
+            employees={employees}
+            selectedEmployeeIds={selectedEmployeeIds.map(Number)}
+          />
+      )}
+
+      <EmployeeMultiSelectModal
+        isOpen={isMonthSelectOpen}
+        onClose={() => setIsMonthSelectOpen(false)}
+        onApply={(ids) => {
+            setSelectedMonths(ids.map(id => Number(id)));
+            setIsMonthSelectOpen(false);
+        }}
+        items={monthItems}
+        selectedItemIds={selectedMonths}
+        title="Monate auswählen"
+      />
     </div>,
     document.body
   );

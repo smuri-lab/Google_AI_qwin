@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/Button';
 import { Textarea } from './ui/Textarea';
 import { TrashIcon } from './icons/TrashIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 import { PlusIcon } from './icons/PlusIcon';
+import { DocumentArrowDownIcon } from './icons/DocumentArrowDownIcon';
 
 interface FeedbackItem {
   id: number;
@@ -22,6 +23,8 @@ export const FeedbackSidebar: React.FC<FeedbackSidebarProps> = ({ currentContext
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [text, setText] = useState('');
   const [type, setType] = useState<'bug' | 'improvement'>('bug');
+  const [viewMode, setViewMode] = useState<'current' | 'all'>('all');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load from LocalStorage on mount
   useEffect(() => {
@@ -59,8 +62,57 @@ export const FeedbackSidebar: React.FC<FeedbackSidebarProps> = ({ currentContext
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
-  // Filter items for the current view
-  const currentItems = items.filter(i => i.context === currentContext);
+  const handleExport = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(items, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `feedback_export_${new Date().toLocaleDateString('de-DE').replace(/\./g, '-')}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = e.target?.result as string;
+        const parsedData = JSON.parse(json);
+        if (Array.isArray(parsedData)) {
+            // Merge strategy: Add items that don't exist yet (by ID)
+            setItems(prev => {
+                const existingIds = new Set(prev.map(i => i.id));
+                const newItems = parsedData.filter((i: FeedbackItem) => !existingIds.has(i.id));
+                return [...newItems, ...prev].sort((a, b) => b.timestamp - a.timestamp);
+            });
+            alert(`${parsedData.length} Einträge erfolgreich importiert/aktualisiert.`);
+        } else {
+            alert("Ungültiges Dateiformat.");
+        }
+      } catch (error) {
+        console.error("Import error", error);
+        alert("Fehler beim Importieren der Datei.");
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be selected again if needed
+    event.target.value = '';
+  };
+
+  // Filter items based on viewMode
+  const visibleItems = viewMode === 'all' 
+    ? items 
+    : items.filter(i => i.context === currentContext);
+    
+  // Sort by newest first
+  const sortedItems = [...visibleItems].sort((a, b) => b.timestamp - a.timestamp);
 
   return (
     <div className="flex flex-col h-full bg-gray-50 border-l border-gray-300 shadow-xl">
@@ -79,7 +131,7 @@ export const FeedbackSidebar: React.FC<FeedbackSidebarProps> = ({ currentContext
       <div className="p-4 flex-shrink-0 bg-white border-b border-gray-200">
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Typ</label>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Neuer Eintrag</label>
             <div className="flex bg-gray-100 p-1 rounded-lg">
               <button
                 onClick={() => setType('bug')}
@@ -91,13 +143,13 @@ export const FeedbackSidebar: React.FC<FeedbackSidebarProps> = ({ currentContext
                 onClick={() => setType('improvement')}
                 className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-all ${type === 'improvement' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
-                <PlusIcon className="h-3 w-3" /> Verbesserung
+                <PlusIcon className="h-3 w-3" /> Idee
               </button>
             </div>
           </div>
           
           <Textarea 
-            label="Beschreibung" 
+            label="" 
             value={text} 
             onChange={(e) => setText(e.target.value)} 
             rows={3} 
@@ -110,28 +162,48 @@ export const FeedbackSidebar: React.FC<FeedbackSidebarProps> = ({ currentContext
           </Button>
         </div>
       </div>
+      
+      <div className="px-4 pt-4 flex-shrink-0">
+        <div className="flex bg-gray-200 p-1 rounded-lg">
+            <button 
+                onClick={() => setViewMode('current')}
+                className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${viewMode === 'current' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                Aktuelle Seite
+            </button>
+            <button 
+                onClick={() => setViewMode('all')}
+                className={`flex-1 py-1 text-xs font-medium rounded-md transition-all ${viewMode === 'all' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                Alle ({items.length})
+            </button>
+        </div>
+      </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-          Einträge für diese Seite ({currentItems.length})
-        </h3>
-        
-        {currentItems.length === 0 ? (
+        {sortedItems.length === 0 ? (
           <div className="text-center py-8 text-gray-400 text-sm italic">
-            Noch keine Einträge für diese Seite.
+            Keine Einträge {viewMode === 'current' ? 'für diese Seite' : 'vorhanden'}.
           </div>
         ) : (
-          currentItems.map(item => (
+          sortedItems.map(item => (
             <div key={item.id} className={`p-3 rounded-lg border shadow-sm relative group bg-white ${item.type === 'bug' ? 'border-red-200' : 'border-blue-200'}`}>
-              <div className="flex justify-between items-start gap-2">
-                <div className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded ${item.type === 'bug' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+              <div className="flex justify-between items-start gap-2 mb-1">
+                <div className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${item.type === 'bug' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
                   {item.type === 'bug' ? 'Fehler' : 'Idee'}
                 </div>
-                <div className="text-[10px] text-gray-400">
+                <div className="text-[10px] text-gray-400 whitespace-nowrap">
                   {new Date(item.timestamp).toLocaleDateString('de-DE')} {new Date(item.timestamp).toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'})}
                 </div>
               </div>
-              <p className="text-sm text-gray-800 mt-2 whitespace-pre-wrap">{item.text}</p>
+              
+              {viewMode === 'all' && item.context !== currentContext && (
+                  <div className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block mb-1 truncate max-w-full">
+                      Seite: {item.context}
+                  </div>
+              )}
+
+              <p className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{item.text}</p>
               
               <button 
                 onClick={() => handleDelete(item.id)}
@@ -145,8 +217,33 @@ export const FeedbackSidebar: React.FC<FeedbackSidebarProps> = ({ currentContext
         )}
       </div>
       
-      <div className="p-3 bg-gray-100 border-t border-gray-200 text-[10px] text-center text-gray-500">
-        Daten werden nur lokal im Browser gespeichert.
+      <div className="p-3 bg-gray-100 border-t border-gray-200">
+        <div className="flex gap-2">
+            <button 
+                onClick={handleExport}
+                className="flex-1 flex items-center justify-center gap-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs py-1.5 rounded"
+                title="Daten als Datei herunterladen"
+            >
+                💾 Export
+            </button>
+            <button 
+                onClick={handleImportClick}
+                className="flex-1 flex items-center justify-center gap-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs py-1.5 rounded"
+                title="Daten aus Datei laden"
+            >
+                📂 Import
+            </button>
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept=".json" 
+                className="hidden" 
+            />
+        </div>
+        <div className="text-[9px] text-center text-gray-400 mt-2">
+            Daten lokal im Browser. Nutzen Sie Export/Import zum Teilen.
+        </div>
       </div>
     </div>
   );
