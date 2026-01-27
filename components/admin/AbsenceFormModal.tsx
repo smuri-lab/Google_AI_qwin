@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Employee, AbsenceRequest, TimeEntry, CompanySettings } from '../../types';
 import { AbsenceType } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Select } from '../ui/Select';
 import { XIcon } from '../icons/XIcon';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { TrashIcon } from '../icons/TrashIcon';
 import { DateSelectorButton } from '../ui/DateSelectorButton';
 import { CalendarModal } from '../ui/CalendarModal';
 import { InfoModal } from '../ui/InfoModal';
+import { SelectorButton } from '../ui/SelectorButton';
+import { SelectionModal } from '../ui/SelectionModal';
 
 export type AbsenceFormData = Partial<AbsenceRequest>;
 
@@ -36,10 +37,18 @@ const formatDate = (dateString: string | undefined) => {
     });
 };
 
+const absenceTypeOptions = [
+    { id: AbsenceType.Vacation, name: 'Urlaub' },
+    { id: AbsenceType.SickLeave, name: 'Krankmeldung' },
+    { id: AbsenceType.TimeOff, name: 'Freizeitausgleich' },
+];
+
 export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onClose, onSave, onDelete, employees, initialData, allAbsenceRequests, allTimeEntries, companySettings, isRotated = false }) => {
   const [formData, setFormData] = useState<Partial<AbsenceRequest>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
+  const [isEmployeeSelectOpen, setIsEmployeeSelectOpen] = useState(false);
+  const [isTypeSelectOpen, setIsTypeSelectOpen] = useState(false);
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: '', message: '' });
   const [isClosing, setIsClosing] = useState(false);
   
@@ -60,12 +69,6 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
     }
   }, [formData.dayPortion, formData.startDate]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    const isNumeric = ['employeeId'].includes(name);
-    setFormData(prev => ({ ...prev, [name]: isNumeric ? Number(value) : value }));
-  };
-  
   const handleClose = () => {
     setIsClosing(true);
     setTimeout(onClose, 300);
@@ -146,51 +149,48 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
       }
   };
 
+  const getEmployeeName = (id: number) => {
+      const emp = employees.find(e => e.id === id);
+      return emp ? `${emp.firstName} ${emp.lastName}` : '';
+  };
+
   if (!isOpen) return null;
 
   const containerClass = isRotated
-    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[250] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`
+    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[250] p-1 sm:p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`
     : `fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`;
+
+  // More compact card in rotated mode
+  const cardClasses = `w-full max-w-lg relative flex flex-col ${isRotated ? 'max-h-[98vh] !p-3' : 'max-h-[90vh]'} ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`;
 
   return ReactDOM.createPortal(
     <>
       <div className={containerClass} onClick={handleClose}>
-        <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={(e) => e.stopPropagation()}>
-          <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+        <Card className={cardClasses} onClick={(e) => e.stopPropagation()}>
+          <button onClick={handleClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 z-10">
             <XIcon className="h-6 w-6" />
           </button>
 
           <form onSubmit={handleSubmit} className="flex flex-col flex-grow min-h-0">
-            <h2 className="text-xl font-bold mb-4 flex-shrink-0">{isEditing ? 'Abwesenheit bearbeiten' : 'Abwesenheit eintragen'}</h2>
+            <h2 className={`text-xl font-bold ${isRotated ? 'mb-2' : 'mb-4'} flex-shrink-0`}>
+                {isEditing ? 'Abwesenheit bearbeiten' : 'Abwesenheit eintragen'}
+            </h2>
             
-            <div className="space-y-4 pt-4 border-t flex-grow overflow-y-auto px-1">
-              <Select
-                name="employeeId"
+            <div className={`space-y-4 ${isRotated ? 'pt-2' : 'pt-4'} border-t flex-grow overflow-y-auto px-1`}>
+              <SelectorButton
                 label="Mitarbeiter"
-                value={formData.employeeId ?? ''}
-                onChange={handleChange}
-                required
+                value={formData.employeeId !== undefined ? getEmployeeName(formData.employeeId) : ''}
+                placeholder="Auswählen..."
+                onClick={() => setIsEmployeeSelectOpen(true)}
                 disabled={isEditing}
-              >
-                <option value="" disabled>Mitarbeiter auswählen...</option>
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.firstName} {emp.lastName}
-                  </option>
-                ))}
-              </Select>
+              />
 
-              <Select
-                name="type"
+              <SelectorButton
                 label="Abwesenheitstyp"
-                value={formData.type || AbsenceType.Vacation}
-                onChange={handleChange}
-                required
-              >
-                <option value={AbsenceType.Vacation}>Urlaub</option>
-                <option value={AbsenceType.SickLeave}>Krankmeldung</option>
-                <option value={AbsenceType.TimeOff}>Freizeitausgleich</option>
-              </Select>
+                value={absenceTypeOptions.find(o => o.id === formData.type)?.name || ''}
+                placeholder="Auswählen..."
+                onClick={() => setIsTypeSelectOpen(true)}
+              />
 
               {formData.type === AbsenceType.Vacation && companySettings.allowHalfDayVacations && (
                 <div>
@@ -225,11 +225,11 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
                 label="Zeitraum"
                 value={formData.startDate && formData.endDate ? `${formatDate(formData.startDate)} - ${formatDate(formData.endDate)}` : ''}
                 onClick={() => setIsRangePickerOpen(true)}
-                placeholder="Zeitraum auswählen..."
+                placeholder="Auswählen..."
               />
             </div>
 
-            <div className="flex justify-between items-center pt-6 border-t mt-4 flex-shrink-0">
+            <div className={`flex justify-between items-center ${isRotated ? 'pt-3 mt-2' : 'pt-6 mt-4'} border-t flex-shrink-0`}>
                 <div>
                     {isEditing && onDelete && (
                         <Button type="button" onClick={handleDelete} className="bg-red-600 hover:bg-red-700 flex items-center gap-2" title="Löschen">
@@ -270,6 +270,24 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({ isOpen, onCl
         selectionMode={formData.type === AbsenceType.Vacation && formData.dayPortion !== 'full' ? 'single' : 'range'}
         initialStartDate={formData.startDate}
         initialEndDate={formData.endDate}
+        isRotated={isRotated}
+      />
+      <SelectionModal
+        isOpen={isEmployeeSelectOpen}
+        onClose={() => setIsEmployeeSelectOpen(false)}
+        onSelect={(item) => setFormData(prev => ({ ...prev, employeeId: Number(item.id) }))}
+        items={employees.map(e => ({ id: String(e.id), name: `${e.firstName} ${e.lastName}` }))}
+        title="Mitarbeiter auswählen"
+        selectedValue={String(formData.employeeId || '')}
+        isRotated={isRotated}
+      />
+      <SelectionModal
+        isOpen={isTypeSelectOpen}
+        onClose={() => setIsTypeSelectOpen(false)}
+        onSelect={(item) => setFormData(prev => ({ ...prev, type: item.id as AbsenceType }))}
+        items={absenceTypeOptions}
+        title="Abwesenheitstyp auswählen"
+        selectedValue={formData.type || ''}
         isRotated={isRotated}
       />
     </>,

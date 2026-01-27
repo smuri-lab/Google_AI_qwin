@@ -272,7 +272,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ timeEntries, customers
                                 label=""
                                 value={getViewEmployeesText()}
                                 onClick={() => setIsViewEmployeeModalOpen(true)}
-                                placeholder="Mitarbeiter auswählen..."
+                                placeholder="Auswählen..."
                             />
                         </div>
                         <div className="w-full sm:w-auto sm:max-w-xs">
@@ -280,7 +280,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ timeEntries, customers
                                 label=""
                                 value={getSecondaryCategoryFilterText()}
                                 onClick={() => setIsSecondaryCategoryModalOpen(true)}
-                                placeholder={`${primaryCategory === 'customer' ? activityLabel : customerLabel} auswählen...`}
+                                placeholder="Auswählen..."
                             />
                         </div>
                         <div className="w-full sm:w-auto sm:max-w-xs">
@@ -362,7 +362,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ timeEntries, customers
                 <h2 className="text-xl font-bold mb-4">Zeitauswertung</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                     <div className="lg:col-span-1"><DateSelectorButton label="Zeitraum" value={`${formatDate(startDate)} - ${formatDate(endDate)}`} onClick={() => setIsDatePickerOpen(true)} placeholder="Zeitraum..."/></div>
-                    <div className="lg:col-span-1"><SelectorButton label="Mitarbeiter laden" value={getSelectedEmployeesText()} onClick={() => setIsEmployeeModalOpen(true)} placeholder="Mitarbeiter auswählen..."/></div>
+                    <div className="lg:col-span-1"><SelectorButton label="Mitarbeiter laden" value={getSelectedEmployeesText()} onClick={() => setIsEmployeeModalOpen(true)} placeholder="Auswählen..."/></div>
                     <div className="lg:col-span-1">
                         <Select
                             label="Gruppieren nach"

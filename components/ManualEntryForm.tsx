@@ -193,7 +193,7 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
           label="Datum"
           value={formatDate(date)}
           onClick={() => setIsDatePickerOpen(true)}
-          placeholder="Datum auswählen..."
+          placeholder="Auswählen..."
       />
       
       <div className="grid grid-cols-2 gap-4">
@@ -219,13 +219,13 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({ addTimeEntry, 
       <SelectorButton
           label={customerLabel}
           value={selectedCustomerName}
-          placeholder={`${customerLabel} auswählen...`}
+          placeholder="Auswählen..."
           onClick={() => setIsCustomerModalOpen(true)}
       />
       <SelectorButton
           label={activityLabel}
           value={selectedActivityName}
-          placeholder={`${activityLabel} auswählen...`}
+          placeholder="Auswählen..."
           onClick={() => setIsActivityModalOpen(true)}
       />
       <Textarea

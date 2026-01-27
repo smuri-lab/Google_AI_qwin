@@ -547,7 +547,7 @@ export const PlannerView: React.FC<PlannerViewProps> = (props) => {
                     <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
                         <h3 className="text-xl font-bold">Antragsliste</h3>
                         <div className="w-full sm:w-auto sm:max-w-xs">
-                            <SelectorButton label="Mitarbeiter filtern" value={employeeOptions.find(opt => opt.id === selectedEmployeeId)?.name || ''} onClick={() => setIsEmployeeModalOpen(true)} placeholder="Mitarbeiter auswählen..." />
+                            <SelectorButton label="Mitarbeiter filtern" value={employeeOptions.find(opt => opt.id === selectedEmployeeId)?.name || ''} onClick={() => setIsEmployeeModalOpen(true)} placeholder="Auswählen..." />
                         </div>
                     </div>
 

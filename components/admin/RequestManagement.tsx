@@ -194,7 +194,7 @@ export const RequestManagement: React.FC<RequestManagementProps> = ({ absenceReq
              <SelectorButton
                 label="Mitarbeiter filtern"
                 value={selectedEmployeeName}
-                placeholder="Mitarbeiter auswählen..."
+                placeholder="Auswählen..."
                 onClick={() => setIsEmployeeModalOpen(true)}
             />
           </div>

@@ -57,19 +57,21 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({ isOpen, onClose,
   };
 
   const containerClass = isRotated
-    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[250] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`
-    : `fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`;
+    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[260] p-1 sm:p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`
+    : `fixed inset-0 bg-black flex items-center justify-center z-[260] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`;
+
+  const cardClasses = `w-full max-w-lg relative flex flex-col ${isRotated ? 'max-h-[98vh] !p-3' : 'max-h-[90vh]'} ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`;
 
   return (
     <div className={containerClass} onClick={handleClose}>
-      <Card className={`w-full max-w-lg relative max-h-[90vh] flex flex-col ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center pb-4 border-b">
+      <Card className={cardClasses} onClick={(e) => e.stopPropagation()}>
+        <div className={`flex justify-between items-center ${isRotated ? 'pb-2' : 'pb-4'} border-b`}>
           <h2 className="text-xl font-bold">{title}</h2>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
             <XIcon className="h-6 w-6" />
           </button>
         </div>
-        <div className="py-4">
+        <div className={isRotated ? 'py-2' : 'py-4'}>
           <Input
             label=""
             type="text"

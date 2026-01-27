@@ -471,7 +471,7 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
                               label="Erster Arbeitstag"
                               value={formatDate(formData.firstWorkDay)}
                               onClick={() => setOpenDatePicker('firstWorkDay')}
-                              placeholder="Datum auswählen..."
+                              placeholder="Auswählen..."
                           />
                           <Select name="employmentType" label="Anstellungsart" value={formData.employmentType || ''} onChange={handleChange}>
                               <option value={EmploymentType.FullTime}>Vollzeit</option>

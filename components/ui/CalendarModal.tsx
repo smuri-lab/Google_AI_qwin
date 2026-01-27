@@ -127,18 +127,20 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
   }
 
   const containerClass = isRotated
-    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[260] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`
+    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[260] p-1 sm:p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`
     : `fixed inset-0 bg-black flex items-center justify-center z-[260] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : (isVisible ? 'animate-modal-fade-in' : 'bg-transparent')}`;
+
+  const cardClasses = `w-full max-w-sm ${isRotated ? '!p-3' : ''} ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`;
 
   return (
     <div className={containerClass} onClick={handleClose}>
-      <Card className={`w-full max-w-sm ${isClosing ? 'animate-modal-slide-down' : (isVisible ? 'animate-modal-slide-up' : 'opacity-0 translate-y-4')}`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center pb-4 border-b">
+      <Card className={cardClasses} onClick={(e) => e.stopPropagation()}>
+        <div className={`flex justify-between items-center ${isRotated ? 'pb-2' : 'pb-4'} border-b`}>
           <h2 className="text-xl font-bold">{title}</h2>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600"><XIcon className="h-6 w-6" /></button>
         </div>
 
-        <div className="mt-4">
+        <div className={isRotated ? 'mt-2' : 'mt-4'}>
           <div className="flex justify-between items-center mb-2 px-2">
             <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronLeftIcon className="h-5 w-5" /></button>
             <h3 className="font-bold">{currentMonthDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</h3>
@@ -209,7 +211,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end gap-4 pt-6 border-t mt-4">
+        <div className={`flex justify-end gap-4 ${isRotated ? 'pt-3 mt-2' : 'pt-6 mt-4'} border-t`}>
           <Button onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
           <Button onClick={handleConfirm} className="bg-blue-600 hover:bg-blue-700" disabled={selectionMode === 'range' ? !(range.start && range.end) : !range.start}>OK</Button>
         </div>

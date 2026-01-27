@@ -295,7 +295,7 @@ export const AbsenceRequestModal: React.FC<AbsenceRequestModalProps> = ({ curren
                 label="Zeitraum"
                 value={startDate && endDate ? `${formatDate(startDate)} - ${formatDate(endDate)}` : ''}
                 onClick={() => setIsRangePickerOpen(true)}
-                placeholder="Zeitraum auswählen..."
+                placeholder="Auswählen..."
             />
             
             {type === AbsenceType.TimeOff && timeOffHours !== null && timeOffHours > 0 && (

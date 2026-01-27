@@ -112,13 +112,15 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({ is
   const getButtonClass = (preset: Preset) => `px-3 py-2 text-sm font-semibold rounded-md transition-colors ${activePreset === preset ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`;
 
   const containerClass = isRotated
-    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[250] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`
+    ? `fixed top-0 left-0 w-[100vh] h-[100vw] origin-top-left rotate-90 translate-x-[100vw] flex items-center justify-center z-[250] p-1 sm:p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`
     : `fixed inset-0 bg-black flex items-center justify-center z-[250] p-4 transition-colors duration-300 ${isClosing ? 'animate-modal-fade-out' : 'animate-modal-fade-in'}`;
+
+  const cardClasses = `w-full max-w-md ${isRotated ? '!p-3' : ''} ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`;
 
   return ReactDOM.createPortal(
     <div className={containerClass} onClick={handleClose}>
-      <Card className={`w-full max-w-md ${isClosing ? 'animate-modal-slide-down' : 'animate-modal-slide-up'}`} onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
+      <Card className={cardClasses} onClick={e => e.stopPropagation()}>
+        <div className={`flex justify-between items-center ${isRotated ? 'mb-2' : 'mb-4'}`}>
           <h2 className="text-xl font-bold">Zeitraum anpassen</h2>
           <button onClick={handleClose} className="p-1 rounded-full hover:bg-gray-100"><XIcon className="h-6 w-6" /></button>
         </div>
@@ -139,7 +141,7 @@ export const PlannerDateRangeModal: React.FC<PlannerDateRangeModalProps> = ({ is
           </div>
         </div>
 
-        <div className="flex justify-end gap-4 pt-6 mt-6 border-t">
+        <div className={`flex justify-end gap-4 ${isRotated ? 'pt-3 mt-2' : 'pt-6 mt-6'} border-t`}>
           <Button onClick={handleClose} className="bg-gray-500 hover:bg-gray-600">Abbrechen</Button>
           <Button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700">Anwenden</Button>
         </div>
