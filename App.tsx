@@ -19,6 +19,7 @@ import { ManualEntryFormModal } from './components/ManualEntryFormModal';
 import { UserCircleIcon } from './components/icons/UserCircleIcon';
 import { CogIcon } from './components/icons/CogIcon';
 import { OverviewView } from './components/OverviewView';
+import { FeedbackSidebar } from './components/FeedbackSidebar';
 
 const generateDemoData = () => {
     const timeEntries: TimeEntry[] = [];
@@ -655,6 +656,35 @@ const App: React.FC = () => {
     return breakdown.totalCredited;
   }, [currentUser, timeEntries, absenceRequests, timeBalanceAdjustments, holidaysByYear]);
 
+  // --- Context Logic for Feedback Sidebar ---
+  const currentViewContext = useMemo(() => {
+    if (!loggedInUser) {
+        if (authView === 'login') return 'Login';
+        return 'Registrierung';
+    }
+    if (isDisplayingAdminView) {
+        switch (adminActiveView) {
+            case AdminViewType.Planner: return 'Admin - Planer';
+            case AdminViewType.TimeTracking: return 'Admin - Zeiterfassung';
+            case AdminViewType.Reports: return 'Admin - Berichte';
+            case AdminViewType.Employees: return 'Admin - Mitarbeiter';
+            case AdminViewType.Customers: return 'Admin - Kunden';
+            case AdminViewType.Activities: return 'Admin - Tätigkeiten';
+            case AdminViewType.Settings: return 'Admin - Einstellungen';
+            case AdminViewType.Profile: return 'Admin - Profil';
+            default: return 'Admin - Dashboard';
+        }
+    } else {
+        switch (currentView) {
+            case View.Dashboard: return 'Mitarbeiter - Dashboard';
+            case View.Calendar: return 'Mitarbeiter - Kalender';
+            case View.Overview: return 'Mitarbeiter - Übersicht';
+            default: return 'Mitarbeiter - Dashboard';
+        }
+    }
+  }, [loggedInUser, isDisplayingAdminView, adminActiveView, currentView, authView]);
+
+
   const renderEmployeeView = () => {
     if (!currentUser) return null;
     const userTimeEntries = timeEntries.filter(entry => entry.employeeId === currentUser.id);
@@ -737,195 +767,201 @@ const App: React.FC = () => {
     }
   };
 
-  if (!loggedInUser) {
-    // Enable scrolling for login/register screens
-    return (
-        <div className="h-[100dvh] w-full overflow-y-auto bg-gray-100">
-            {authView === 'login' && employees.some(e => e.role === 'admin') ? (
-                <LoginScreen onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} employees={employees} />
-            ) : (
-                <RegistrationScreen onRegister={handleRegister} onSwitchToLogin={() => setAuthView('login')} />
-            )}
-        </div>
-    );
-  }
-
-  // APP LAYOUT with Fixed Positioning
+  // APP LAYOUT with Fixed Positioning AND Feedback Sidebar wrapper
   return (
-    <div className="fixed inset-0 w-full h-full bg-gray-50 text-gray-800 flex flex-col overflow-hidden">
-      {/* Header is fixed by flex layout, no sticky needed */}
-      <header className="flex-none bg-white shadow-md z-30 relative">
-        <div className={`${isDisplayingAdminView ? 'max-w-8xl' : 'max-w-7xl'} mx-auto px-4 py-4 flex justify-between items-center`}>
-          <h1 className="text-2xl font-bold text-gray-900 truncate pr-2">
-             {isDisplayingAdminView ? 'Admin-Dashboard' : `Hallo, ${loggedInUser.firstName}`}
-          </h1>
-          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-            {isDisplayingAdminView && (
-              <>
-                {/* Mobile-only buttons for Profile and Settings */}
-                <button
-                  onClick={() => setAdminActiveView(AdminViewType.Profile)}
-                  className="md:hidden flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  title="Profil"
-                >
-                  <UserCircleIcon className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => setAdminActiveView(AdminViewType.Settings)}
-                  className="md:hidden flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  title="Einstellungen"
-                >
-                  <CogIcon className="h-5 w-5" />
-                </button>
-              </>
-            )}
-            {isUserAdmin && (
-              <button
-                onClick={() => setAdminViewMode(prev => prev === 'admin' ? 'employee' : 'admin')}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
-                title={isDisplayingAdminView ? 'Zur Mitarbeiter-Ansicht wechseln' : 'Zur Admin-Ansicht wechseln'}
-              >
-                <SwitchHorizontalIcon className="h-5 w-5" />
-                <span className="hidden sm:inline">{isDisplayingAdminView ? 'Mitarbeiter' : 'Admin'}</span>
-              </button>
-            )}
-            <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-semibold bg-red-100 text-red-700 hover:bg-red-200">
-              <LogoutIcon className="h-5 w-5" />
-              <span className="hidden sm:inline">Abmelden</span>
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="fixed inset-0 w-full h-full flex flex-row overflow-hidden bg-gray-50">
+        <div className="flex-1 flex flex-col relative h-full w-full min-w-0">
+            {!loggedInUser ? (
+                <div className="h-[100dvh] w-full overflow-y-auto bg-gray-100">
+                    {authView === 'login' && employees.some(e => e.role === 'admin') ? (
+                        <LoginScreen onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} employees={employees} />
+                    ) : (
+                        <RegistrationScreen onRegister={handleRegister} onSwitchToLogin={() => setAuthView('login')} />
+                    )}
+                </div>
+            ) : (
+                <>
+                    {/* Header is fixed by flex layout, no sticky needed */}
+                    <header className="flex-none bg-white shadow-md z-30 relative">
+                        <div className={`${isDisplayingAdminView ? 'max-w-8xl' : 'max-w-7xl'} mx-auto px-4 py-4 flex justify-between items-center`}>
+                        <h1 className="text-2xl font-bold text-gray-900 truncate pr-2">
+                            {isDisplayingAdminView ? 'Admin-Dashboard' : `Hallo, ${loggedInUser.firstName}`}
+                        </h1>
+                        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                            {isDisplayingAdminView && (
+                            <>
+                                {/* Mobile-only buttons for Profile and Settings */}
+                                <button
+                                onClick={() => setAdminActiveView(AdminViewType.Profile)}
+                                className="md:hidden flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                title="Profil"
+                                >
+                                <UserCircleIcon className="h-5 w-5" />
+                                </button>
+                                <button
+                                onClick={() => setAdminActiveView(AdminViewType.Settings)}
+                                className="md:hidden flex items-center gap-2 p-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                title="Einstellungen"
+                                >
+                                <CogIcon className="h-5 w-5" />
+                                </button>
+                            </>
+                            )}
+                            {isUserAdmin && (
+                            <button
+                                onClick={() => setAdminViewMode(prev => prev === 'admin' ? 'employee' : 'admin')}
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                title={isDisplayingAdminView ? 'Zur Mitarbeiter-Ansicht wechseln' : 'Zur Admin-Ansicht wechseln'}
+                            >
+                                <SwitchHorizontalIcon className="h-5 w-5" />
+                                <span className="hidden sm:inline">{isDisplayingAdminView ? 'Mitarbeiter' : 'Admin'}</span>
+                            </button>
+                            )}
+                            <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-semibold bg-red-100 text-red-700 hover:bg-red-200">
+                            <LogoutIcon className="h-5 w-5" />
+                            <span className="hidden sm:inline">Abmelden</span>
+                            </button>
+                        </div>
+                        </div>
+                    </header>
 
-      {/* Main Scrollable Area */}
-      <main 
-        ref={mainScrollRef}
-        className={`flex-1 overflow-y-auto overflow-x-hidden scroll-container w-full ${isDisplayingAdminView ? '' : 'max-w-7xl mx-auto'} p-4 ${!isDisplayingAdminView ? 'pb-24' : ''} isolate`}
-        style={{ WebkitOverflowScrolling: 'touch' }}
-      >
-        {isDisplayingAdminView ? (
-          <AdminView 
-            loggedInUser={loggedInUser}
-            activeView={adminActiveView}
-            setActiveView={setAdminActiveView}
-            absenceRequests={absenceRequests} 
-            onUpdateRequestStatus={updateAbsenceRequestStatus}
-            onUpdateAbsenceRequest={updateAbsenceRequest}
-            onDeleteAbsenceRequest={deleteAbsenceRequest}
-            timeEntries={timeEntries}
-            onAddTimeEntry={adminAddTimeEntry}
-            onUpdateTimeEntry={updateTimeEntry}
-            onDeleteTimeEntry={deleteTimeEntry}
-            employees={employees}
-            onAddEmployee={addEmployee}
-            onUpdateEmployee={updateEmployee}
-            onDeleteEmployee={deleteEmployee}
-            customers={customers}
-            onAddCustomer={addCustomer}
-            onUpdateCustomer={updateCustomer}
-            onDeleteCustomer={deleteCustomer}
-            activities={activities}
-            onAddActivity={addActivity}
-            onUpdateActivity={updateActivity}
-            onDeleteActivity={deleteActivity}
-            selectedState={selectedState}
-            onStateChange={(state) => setSelectedState(state as GermanState)}
-            timeTrackingMethod={timeTrackingMethod}
-            onTimeTrackingMethodChange={(method) => setTimeTrackingMethod(method)}
-            holidaysByYear={holidaysByYear}
-            onEnsureHolidaysForYear={ensureHolidaysForYear}
-            addAbsenceRequest={addAbsenceRequest}
-            companySettings={companySettings}
-            onUpdateCompanySettings={setCompanySettings}
-            timeBalanceAdjustments={timeBalanceAdjustments}
-            addTimeBalanceAdjustment={addTimeBalanceAdjustment}
-            onUpdateTimeBalanceAdjustment={updateTimeBalanceAdjustment}
-            onDeleteTimeBalanceAdjustment={deleteTimeBalanceAdjustment}
-          />
-        ) : (
-          renderEmployeeView()
-        )}
-      </main>
+                    {/* Main Scrollable Area */}
+                    <main 
+                        ref={mainScrollRef}
+                        className={`flex-1 overflow-y-auto overflow-x-hidden scroll-container w-full ${isDisplayingAdminView ? '' : 'max-w-7xl mx-auto'} p-4 ${!isDisplayingAdminView ? 'pb-24' : ''} isolate`}
+                        style={{ WebkitOverflowScrolling: 'touch' }}
+                    >
+                        {isDisplayingAdminView ? (
+                        <AdminView 
+                            loggedInUser={loggedInUser}
+                            activeView={adminActiveView}
+                            setActiveView={setAdminActiveView}
+                            absenceRequests={absenceRequests} 
+                            onUpdateRequestStatus={updateAbsenceRequestStatus}
+                            onUpdateAbsenceRequest={updateAbsenceRequest}
+                            onDeleteAbsenceRequest={deleteAbsenceRequest}
+                            timeEntries={timeEntries}
+                            onAddTimeEntry={adminAddTimeEntry}
+                            onUpdateTimeEntry={updateTimeEntry}
+                            onDeleteTimeEntry={deleteTimeEntry}
+                            employees={employees}
+                            onAddEmployee={addEmployee}
+                            onUpdateEmployee={updateEmployee}
+                            onDeleteEmployee={deleteEmployee}
+                            customers={customers}
+                            onAddCustomer={addCustomer}
+                            onUpdateCustomer={updateCustomer}
+                            onDeleteCustomer={deleteCustomer}
+                            activities={activities}
+                            onAddActivity={addActivity}
+                            onUpdateActivity={updateActivity}
+                            onDeleteActivity={deleteActivity}
+                            selectedState={selectedState}
+                            onStateChange={(state) => setSelectedState(state as GermanState)}
+                            timeTrackingMethod={timeTrackingMethod}
+                            onTimeTrackingMethodChange={(method) => setTimeTrackingMethod(method)}
+                            holidaysByYear={holidaysByYear}
+                            onEnsureHolidaysForYear={ensureHolidaysForYear}
+                            addAbsenceRequest={addAbsenceRequest}
+                            companySettings={companySettings}
+                            onUpdateCompanySettings={setCompanySettings}
+                            timeBalanceAdjustments={timeBalanceAdjustments}
+                            addTimeBalanceAdjustment={addTimeBalanceAdjustment}
+                            onUpdateTimeBalanceAdjustment={updateTimeBalanceAdjustment}
+                            onDeleteTimeBalanceAdjustment={deleteTimeBalanceAdjustment}
+                        />
+                        ) : (
+                        renderEmployeeView()
+                        )}
+                    </main>
 
-      {!isDisplayingAdminView && loggedInUser && (
-        <BottomNav 
-          currentView={currentView} 
-          setCurrentView={handleSetCurrentView} 
-          onAddClick={handleAddClick}
-          timeTrackingMethod={timeTrackingMethod}
-        />
-      )}
-      {isActionSheetOpen && (
-          <ActionSheet 
-            onClose={() => setIsActionSheetOpen(false)}
-            onSelect={(action) => {
-                setIsActionSheetOpen(false);
-                if (action === 'manualTime') {
-                    if (timeTrackingMethod === 'all') {
-                        setIsManualEntryModalOpen(true);
-                    }
-                } else if (action === 'absence') {
-                    setIsAbsenceRequestModalOpen(true);
-                }
-            }}
-          />
-      )}
-      {isAbsenceRequestModalOpen && currentUser && (
-          <AbsenceRequestModal
-            isOpen={isAbsenceRequestModalOpen}
-            onClose={() => setIsAbsenceRequestModalOpen(false)}
-            onSubmit={addAbsenceRequest}
-            currentUser={currentUser}
-            existingAbsences={absenceRequests.filter(r => r.employeeId === currentUser.id)}
-            timeEntries={timeEntries.filter(entry => entry.employeeId === currentUser.id)}
-            companySettings={companySettings}
-            holidaysByYear={holidaysByYear}
-            onEnsureHolidaysForYear={ensureHolidaysForYear}
-            vacationDaysLeft={vacationInfo.vacationDaysLeft}
-            timeBalanceHours={timeBalanceHours}
-          />
-      )}
-      {isManualEntryModalOpen && currentUser && (
-          <ManualEntryFormModal
-            isOpen={isManualEntryModalOpen}
-            onClose={() => setIsManualEntryModalOpen(false)}
-            addTimeEntry={addTimeEntry}
-            onSuccess={() => setShowTimeEntrySuccess(true)}
-            timeEntries={timeEntries.filter(entry => entry.employeeId === currentUser.id)}
-            customers={customers}
-            activities={activities}
-            companySettings={companySettings}
-            absenceRequests={absenceRequests.filter(r => r.employeeId === currentUser.id)}
-          />
-      )}
-      
-      {showAbsenceSuccess && (
-        <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-green-100 text-green-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
-           <CheckCircleIcon className="h-6 w-6 text-green-500 flex-shrink-0" />
-           <div>
-              <p className="font-semibold">Antrag eingereicht</p>
-              <p className="text-sm">Ihr Antrag wurde erfolgreich zur Prüfung übermittelt.</p>
-           </div>
+                    {!isDisplayingAdminView && loggedInUser && (
+                        <BottomNav 
+                        currentView={currentView} 
+                        setCurrentView={handleSetCurrentView} 
+                        onAddClick={handleAddClick}
+                        timeTrackingMethod={timeTrackingMethod}
+                        />
+                    )}
+                    {isActionSheetOpen && (
+                        <ActionSheet 
+                            onClose={() => setIsActionSheetOpen(false)}
+                            onSelect={(action) => {
+                                setIsActionSheetOpen(false);
+                                if (action === 'manualTime') {
+                                    if (timeTrackingMethod === 'all') {
+                                        setIsManualEntryModalOpen(true);
+                                    }
+                                } else if (action === 'absence') {
+                                    setIsAbsenceRequestModalOpen(true);
+                                }
+                            }}
+                        />
+                    )}
+                    {isAbsenceRequestModalOpen && currentUser && (
+                        <AbsenceRequestModal
+                            isOpen={isAbsenceRequestModalOpen}
+                            onClose={() => setIsAbsenceRequestModalOpen(false)}
+                            onSubmit={addAbsenceRequest}
+                            currentUser={currentUser}
+                            existingAbsences={absenceRequests.filter(r => r.employeeId === currentUser.id)}
+                            timeEntries={timeEntries.filter(entry => entry.employeeId === currentUser.id)}
+                            companySettings={companySettings}
+                            holidaysByYear={holidaysByYear}
+                            onEnsureHolidaysForYear={ensureHolidaysForYear}
+                            vacationDaysLeft={vacationInfo.vacationDaysLeft}
+                            timeBalanceHours={timeBalanceHours}
+                        />
+                    )}
+                    {isManualEntryModalOpen && currentUser && (
+                        <ManualEntryFormModal
+                            isOpen={isManualEntryModalOpen}
+                            onClose={() => setIsManualEntryModalOpen(false)}
+                            addTimeEntry={addTimeEntry}
+                            onSuccess={() => setShowTimeEntrySuccess(true)}
+                            timeEntries={timeEntries.filter(entry => entry.employeeId === currentUser.id)}
+                            customers={customers}
+                            activities={activities}
+                            companySettings={companySettings}
+                            absenceRequests={absenceRequests.filter(r => r.employeeId === currentUser.id)}
+                        />
+                    )}
+                    
+                    {showAbsenceSuccess && (
+                        <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-green-100 text-green-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
+                        <CheckCircleIcon className="h-6 w-6 text-green-500 flex-shrink-0" />
+                        <div>
+                            <p className="font-semibold">Antrag eingereicht</p>
+                            <p className="text-sm">Ihr Antrag wurde erfolgreich zur Prüfung übermittelt.</p>
+                        </div>
+                        </div>
+                    )}
+                    {showTimeEntrySuccess && (
+                        <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-green-100 text-green-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
+                        <CheckCircleIcon className="h-6 w-6 text-green-500 flex-shrink-0" />
+                        <div>
+                            <p className="font-semibold">Arbeitszeit gespeichert</p>
+                            <p className="text-sm">Der Eintrag wurde erfolgreich hinzugefügt.</p>
+                        </div>
+                        </div>
+                    )}
+                    {showNfcSuccess && (
+                        <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-blue-100 text-blue-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
+                        <CheckCircleIcon className="h-6 w-6 text-blue-500 flex-shrink-0" />
+                        <div>
+                            <p className="font-semibold">NFC-Scan erfolgreich</p>
+                            <p className="text-sm">{nfcSuccessMessage}</p>
+                        </div>
+                        </div>
+                    )}
+                </>
+            )}
         </div>
-      )}
-      {showTimeEntrySuccess && (
-        <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-green-100 text-green-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
-           <CheckCircleIcon className="h-6 w-6 text-green-500 flex-shrink-0" />
-           <div>
-              <p className="font-semibold">Arbeitszeit gespeichert</p>
-              <p className="text-sm">Der Eintrag wurde erfolgreich hinzugefügt.</p>
-           </div>
+        
+        {/* Feedback Sidebar - Only Visible on Desktop (lg+) */}
+        <div className="hidden lg:block w-[300px] xl:w-[350px] flex-shrink-0 bg-white z-[40] h-full relative border-l border-gray-200 shadow-xl">
+            <FeedbackSidebar currentContext={currentViewContext} />
         </div>
-      )}
-      {showNfcSuccess && (
-        <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-blue-100 text-blue-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
-           <CheckCircleIcon className="h-6 w-6 text-blue-500 flex-shrink-0" />
-           <div>
-              <p className="font-semibold">NFC-Scan erfolgreich</p>
-              <p className="text-sm">{nfcSuccessMessage}</p>
-           </div>
-        </div>
-      )}
     </div>
   );
 };
