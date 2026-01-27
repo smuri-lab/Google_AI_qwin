@@ -59,6 +59,11 @@
       input::-webkit-search-results-decoration {
         display: none;
       }
+
+      /* Hide time picker indicator (clock icon) on desktop to prevent dropdown */
+      input[type="time"]::-webkit-calendar-picker-indicator {
+        display: none;
+      }
       
       /* Animation for general content fade-in */
       @keyframes fadeIn {
