@@ -20,7 +20,6 @@ import { ManualEntryFormModal } from './components/ManualEntryFormModal';
 import { UserCircleIcon } from './components/icons/UserCircleIcon';
 import { CogIcon } from './components/icons/CogIcon';
 import { OverviewView } from './components/OverviewView';
-import { FeedbackSidebar } from './components/FeedbackSidebar';
 
 const generateDemoData = () => {
     const timeEntries: TimeEntry[] = [];
@@ -707,36 +706,6 @@ const App: React.FC = () => {
     return breakdown.totalCredited;
   }, [currentUser, timeEntries, absenceRequests, timeBalanceAdjustments, holidaysByYear]);
 
-  // --- Context Logic for Feedback Sidebar ---
-  const currentViewContext = useMemo(() => {
-    if (!loggedInUser) {
-        if (authView === 'login') return 'Login';
-        return 'Registrierung';
-    }
-    if (isDisplayingAdminView) {
-        switch (adminActiveView) {
-            case AdminViewType.Planner: return 'Admin - Planer';
-            case AdminViewType.ShiftPlanner: return 'Admin - Schichtplan';
-            case AdminViewType.TimeTracking: return 'Admin - Zeiterfassung';
-            case AdminViewType.Reports: return 'Admin - Berichte';
-            case AdminViewType.Employees: return 'Admin - Mitarbeiter';
-            case AdminViewType.Customers: return 'Admin - Kunden';
-            case AdminViewType.Activities: return 'Admin - Tätigkeiten';
-            case AdminViewType.Settings: return 'Admin - Einstellungen';
-            case AdminViewType.Profile: return 'Admin - Profil';
-            default: return 'Admin - Dashboard';
-        }
-    } else {
-        switch (currentView) {
-            case View.Dashboard: return 'Mitarbeiter - Dashboard';
-            case View.Calendar: return 'Mitarbeiter - Kalender';
-            case View.Overview: return 'Mitarbeiter - Übersicht';
-            default: return 'Mitarbeiter - Dashboard';
-        }
-    }
-  }, [loggedInUser, isDisplayingAdminView, adminActiveView, currentView, authView]);
-
-
   const renderEmployeeView = () => {
     if (!currentUser) return null;
     const userTimeEntries = timeEntries.filter(entry => entry.employeeId === currentUser.id);
@@ -1021,11 +990,6 @@ const App: React.FC = () => {
                     )}
                 </>
             )}
-        </div>
-        
-        {/* Feedback Sidebar - Only Visible on Desktop (lg+) */}
-        <div className="hidden lg:block w-[300px] xl:w-[350px] flex-shrink-0 bg-white z-[40] h-full relative border-l border-gray-200 shadow-xl">
-            <FeedbackSidebar currentContext={currentViewContext} />
         </div>
     </div>
   );
