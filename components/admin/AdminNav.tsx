@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { AdminViewType, type CompanySettings, type AbsenceRequest } from '../../types';
 import { ClockIcon } from '../icons/ClockIcon';
@@ -9,6 +10,7 @@ import { ChevronDoubleLeftIcon } from '../icons/ChevronDoubleLeftIcon';
 import { ChevronDoubleRightIcon } from '../icons/ChevronDoubleRightIcon';
 import { UserCircleIcon } from '../icons/UserCircleIcon';
 import { CogIcon } from '../icons/CogIcon';
+import { CalendarDaysIcon } from '../icons/CalendarDaysIcon';
 
 interface AdminNavProps {
   activeView: AdminViewType;
@@ -68,6 +70,7 @@ export const AdminNav: React.FC<AdminNavProps> = ({ activeView, setActiveView, c
 
   const mainNavItems: NavItemData[] = [
       { label: "Planer", view: AdminViewType.Planner, icon: SunIcon, badge: pendingRequestsCount },
+      { label: "Schichtplan", view: AdminViewType.ShiftPlanner, icon: CalendarDaysIcon },
       { label: "Zeiterfassung", view: AdminViewType.TimeTracking, icon: ClockIcon },
       { label: "Zeitauswertung", view: AdminViewType.Reports, icon: ChartBarIcon },
       { label: "Mitarbeiter", view: AdminViewType.Employees, icon: UsersIcon },

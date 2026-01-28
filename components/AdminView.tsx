@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import type { AbsenceRequest, TimeEntry, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear } from '../types';
+import type { AbsenceRequest, TimeEntry, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear, Shift } from '../types';
 import { AdminViewType } from '../types';
 import { AdminNav } from './admin/AdminNav';
 import { SettingsView } from './admin/SettingsView';
@@ -9,6 +10,7 @@ import { ReportsView } from './admin/ReportsView';
 import { PlannerView } from './admin/PlannerView';
 import { EmployeeSection } from './admin/EmployeeSection';
 import { VerwaltungView } from './admin/VerwaltungView';
+import { ShiftPlannerView } from './admin/ShiftPlannerView';
 import { AdminBottomNav } from './admin/AdminBottomNav';
 
 interface AdminViewProps {
@@ -48,6 +50,11 @@ interface AdminViewProps {
   onUpdateCompanySettings: (settings: CompanySettings) => void;
   onUpdateTimeBalanceAdjustment: (adjustment: TimeBalanceAdjustment) => void;
   onDeleteTimeBalanceAdjustment: (id: number) => void;
+  // Shifts
+  shifts: Shift[];
+  addShift: (shift: Omit<Shift, 'id'>) => void;
+  updateShift: (shift: Shift) => void;
+  deleteShift: (id: string) => void;
 }
 
 export const AdminView: React.FC<AdminViewProps> = (props) => {
@@ -64,6 +71,17 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
     switch (activeView) {
       case AdminViewType.Planner:
         return <PlannerView {...props} />;
+      case AdminViewType.ShiftPlanner:
+        return <ShiftPlannerView 
+                  employees={props.employees} 
+                  shifts={props.shifts} 
+                  addShift={props.addShift} 
+                  updateShift={props.updateShift} 
+                  deleteShift={props.deleteShift}
+                  customers={props.customers}
+                  activities={props.activities}
+                  companySettings={props.companySettings}
+               />;
       case AdminViewType.TimeTracking:
         return <TimeTrackingManagement {...props} />;
       case AdminViewType.Reports:

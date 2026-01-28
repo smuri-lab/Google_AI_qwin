@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { CompanySettings } from '../../types';
 import { Card } from '../ui/Card';
@@ -47,6 +48,8 @@ const editabilityOptions = [
     { value: 'sameDay', label: 'Bearbeitbar nur am selben Tag' },
 ];
 
+const hoursOptions = Array.from({ length: 25 }, (_, i) => ({ value: i, label: `${i}:00 Uhr` }));
+
 export const SettingsView: React.FC<SettingsViewProps> = ({
     selectedState,
     onStateChange,
@@ -87,8 +90,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const handleAllowHalfDayVacationsToggle = (checked: boolean) => {
         setLocalSettings(prev => ({ ...prev, allowHalfDayVacations: checked }));
     };
+    
+    const handleShiftPlannerHourChange = (key: 'shiftPlannerStartHour' | 'shiftPlannerEndHour', value: string) => {
+        const numValue = parseInt(value, 10);
+        setLocalSettings(prev => ({ ...prev, [key]: numValue }));
+    };
 
     const handleSave = () => {
+        if ((localSettings.shiftPlannerStartHour ?? 0) >= (localSettings.shiftPlannerEndHour ?? 24)) {
+            alert('Die Startzeit des Schichtplaners muss vor der Endzeit liegen.');
+            return;
+        }
+
         onStateChange(localSelectedState);
         onTimeTrackingMethodChange(localTimeTrackingMethod);
         onUpdateCompanySettings({
@@ -181,6 +194,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         onChange={(value) => handleTimeFormatChange('employeeTimeFormat', value)}
                                     />
                                 </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-8 border-t">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-1">Schichtplaner Zeitraster</h3>
+                            <p className="text-sm text-gray-500 mb-4">Definieren Sie den sichtbaren Zeitbereich im Schichtplaner.</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <Select
+                                    label="Startzeit"
+                                    value={localSettings.shiftPlannerStartHour ?? 0}
+                                    onChange={(e) => handleShiftPlannerHourChange('shiftPlannerStartHour', e.target.value)}
+                                >
+                                    {hoursOptions.filter(h => h.value < 24).map(h => (
+                                        <option key={h.value} value={h.value}>{h.label}</option>
+                                    ))}
+                                </Select>
+                                <Select
+                                    label="Endzeit"
+                                    value={localSettings.shiftPlannerEndHour ?? 24}
+                                    onChange={(e) => handleShiftPlannerHourChange('shiftPlannerEndHour', e.target.value)}
+                                >
+                                    {hoursOptions.filter(h => h.value > 0).map(h => (
+                                        <option key={h.value} value={h.value}>{h.label}</option>
+                                    ))}
+                                </Select>
                             </div>
                         </div>
                     </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { TimeEntry, Customer, Activity, CompanySettings, AbsenceRequest } from '../types';
 import { Button } from './ui/Button';
@@ -8,6 +9,8 @@ import { PlayIcon } from './icons/PlayIcon';
 import { StopIcon } from './icons/StopIcon';
 import { Textarea } from './ui/Textarea';
 import { InfoModal } from './ui/InfoModal';
+import { getDistanceFromLatLonInMeters } from './utils';
+import { MapPinIcon } from './icons/MapPinIcon';
 
 interface StopwatchProps {
   addTimeEntry: (entry: Omit<TimeEntry, 'id' | 'employeeId'>) => void;
@@ -62,6 +65,8 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: '', message: '' });
+  const [isLocating, setIsLocating] = useState(false);
+  const [capturedGps, setCapturedGps] = useState<{lat: number, lng: number} | undefined>(undefined);
 
   const customerLabel = companySettings.customerLabel || 'Zeitkategorie 1';
   const activityLabel = companySettings.activityLabel || 'Zeitkategorie 2';
@@ -89,7 +94,9 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
       activityId,
       breakDurationMinutes,
       type: 'stopwatch',
-      comment: comment || undefined
+      comment: comment || undefined,
+      startGpsLat: capturedGps?.lat,
+      startGpsLng: capturedGps?.lng,
     });
     
     onSuccess?.();
@@ -97,6 +104,7 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
     setElapsedTime(0);
     setStartTime(null);
     setStopTime(null);
+    setCapturedGps(undefined);
     setCustomerId('');
     setActivityId('');
     setComment('');
@@ -105,10 +113,12 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
 
   const handleToggle = () => {
     if (isRunning) {
+      // STOPPING
       setStopTime(new Date());
       setIsRunning(false);
       setIsBreakModalOpen(true);
     } else {
+      // STARTING
       const todayStr = new Date().toLocaleDateString('sv-SE');
       const todaysAbsence = absenceRequests.find(req => 
           req.status !== 'rejected' &&
@@ -125,10 +135,76 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
         setInfoModal({ isOpen: true, title: 'Auswahl erforderlich', message: `Bitte wählen Sie zuerst ${customerLabel} und ${activityLabel} aus.` });
         return;
       }
-      setElapsedTime(0);
-      setStartTime(new Date());
-      setStopTime(null);
-      setIsRunning(true);
+
+      const selectedCustomer = customers.find(c => c.id === customerId);
+      
+      // GPS CHECK LOGIC
+      if (selectedCustomer?.gpsLat && selectedCustomer?.gpsLng) {
+          setIsLocating(true);
+          if (!navigator.geolocation) {
+              setIsLocating(false);
+              setInfoModal({ isOpen: true, title: 'GPS Fehler', message: 'Ihr Browser unterstützt keine Standortbestimmung.' });
+              return;
+          }
+
+          navigator.geolocation.getCurrentPosition(
+              (position) => {
+                  const currentLat = position.coords.latitude;
+                  const currentLng = position.coords.longitude;
+                  
+                  // Always capture if available
+                  setCapturedGps({ lat: currentLat, lng: currentLng });
+
+                  if (selectedCustomer.enforceGeofencing) {
+                      const dist = getDistanceFromLatLonInMeters(
+                          currentLat, 
+                          currentLng, 
+                          selectedCustomer.gpsLat!, 
+                          selectedCustomer.gpsLng!
+                      );
+                      
+                      const radius = selectedCustomer.gpsRadius || 200;
+                      
+                      if (dist > radius) {
+                          setIsLocating(false);
+                          setInfoModal({ 
+                              isOpen: true, 
+                              title: 'Außerhalb des Bereichs', 
+                              message: `Sie befinden sich ${Math.round(dist)}m entfernt vom Standort. Erlaubt sind max. ${radius}m.` 
+                          });
+                          return;
+                      }
+                  }
+                  
+                  // Success - Start Timer
+                  setIsLocating(false);
+                  setElapsedTime(0);
+                  setStartTime(new Date());
+                  setStopTime(null);
+                  setIsRunning(true);
+              },
+              (error) => {
+                  setIsLocating(false);
+                  console.error("GPS Error", error);
+                  if (selectedCustomer.enforceGeofencing) {
+                      setInfoModal({ isOpen: true, title: 'Standort erforderlich', message: 'Der Standort konnte nicht ermittelt werden. Für diesen Kunden ist eine Standorterfassung zwingend erforderlich.' });
+                  } else {
+                      // Allow start without GPS if not enforced, but maybe warn? For now just start.
+                      setElapsedTime(0);
+                      setStartTime(new Date());
+                      setStopTime(null);
+                      setIsRunning(true);
+                  }
+              },
+              { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          );
+      } else {
+          // No GPS required
+          setElapsedTime(0);
+          setStartTime(new Date());
+          setStopTime(null);
+          setIsRunning(true);
+      }
     }
   };
 
@@ -156,20 +232,20 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
               value={selectedCustomerName}
               placeholder="Auswählen..."
               onClick={() => setIsCustomerModalOpen(true)}
-              disabled={isRunning}
+              disabled={isRunning || isLocating}
             />
           <SelectorButton
               label={activityLabel}
               value={selectedActivityName}
               placeholder="Auswählen..."
               onClick={() => setIsActivityModalOpen(true)}
-              disabled={isRunning}
+              disabled={isRunning || isLocating}
             />
           <Textarea
               label="Kommentar (optional)"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              disabled={isRunning}
+              disabled={isRunning || isLocating}
               rows={2}
           />
         </div>
@@ -177,12 +253,18 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
         <Button
           onClick={handleToggle}
           className={`h-16 w-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 ${
-            isRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+            isLocating ? 'bg-blue-400 cursor-wait' : (isRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600')
           }`}
           aria-label={isRunning ? 'Zeiterfassung stoppen' : 'Zeiterfassung starten'}
+          disabled={isLocating}
         >
-          {isRunning ? <StopIcon className="h-7 w-7 text-white" /> : <PlayIcon className="h-7 w-7 text-white ml-0.5" />}
+          {isLocating ? (
+              <MapPinIcon className="h-7 w-7 text-white animate-bounce" />
+          ) : (
+              isRunning ? <StopIcon className="h-7 w-7 text-white" /> : <PlayIcon className="h-7 w-7 text-white ml-0.5" />
+          )}
         </Button>
+        {isLocating && <p className="text-sm text-gray-500 animate-pulse">Standort wird ermittelt...</p>}
       </div>
 
       {isBreakModalOpen && (

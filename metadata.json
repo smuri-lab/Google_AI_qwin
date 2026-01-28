@@ -2,6 +2,7 @@
   "name": "TimePro",
   "description": "Ein modernes Zeiterfassungssystem für Mitarbeiter zur Verfolgung von Arbeitszeiten, Pausen und Abwesenheiten, inspiriert von Crewmeister.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "geolocation"
   ]
 }

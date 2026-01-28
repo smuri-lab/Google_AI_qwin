@@ -1,17 +1,22 @@
+
 import React, { useState, useEffect } from 'react';
-import type { AbsenceRequest, TimeEntry, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear } from '../../types';
+import type { AbsenceRequest, TimeEntry, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear, Shift } from '../../types';
 import { AdminViewType } from '../../types';
-import { AdminNav } from './admin/AdminNav';
-import { SettingsView } from './admin/SettingsView';
-import { TimeTrackingManagement } from './admin/TimeTrackingManagement';
-import { ProfileSettings } from './admin/ProfileSettings';
-import { ReportsView } from './admin/ReportsView';
-import { PlannerView } from './admin/PlannerView';
-import { EmployeeSection } from './admin/EmployeeSection';
-import { VerwaltungView } from './admin/VerwaltungView';
+import { AdminNav } from './AdminNav';
+import { SettingsView } from './SettingsView';
+import { TimeTrackingManagement } from './TimeTrackingManagement';
+import { ProfileSettings } from './ProfileSettings';
+import { ReportsView } from './ReportsView';
+import { PlannerView } from './PlannerView';
+import { EmployeeSection } from './EmployeeSection';
+import { VerwaltungView } from './VerwaltungView';
+import { ShiftPlannerView } from './ShiftPlannerView';
+import { AdminBottomNav } from './AdminBottomNav';
 
 interface AdminViewProps {
   loggedInUser: Employee;
+  activeView: AdminViewType;
+  setActiveView: (view: AdminViewType) => void;
   absenceRequests: AbsenceRequest[];
   timeEntries: TimeEntry[];
   employees: Employee[];
@@ -45,10 +50,15 @@ interface AdminViewProps {
   onUpdateCompanySettings: (settings: CompanySettings) => void;
   onUpdateTimeBalanceAdjustment: (adjustment: TimeBalanceAdjustment) => void;
   onDeleteTimeBalanceAdjustment: (id: number) => void;
+  // Shifts
+  shifts: Shift[];
+  addShift: (shift: Omit<Shift, 'id'>) => void;
+  updateShift: (shift: Shift) => void;
+  deleteShift: (id: string) => void;
 }
 
 export const AdminView: React.FC<AdminViewProps> = (props) => {
-  const [activeView, setActiveView] = useState<AdminViewType>(AdminViewType.Planner);
+  const { activeView, setActiveView } = props;
 
   useEffect(() => {
     window.scrollTo({
@@ -61,6 +71,17 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
     switch (activeView) {
       case AdminViewType.Planner:
         return <PlannerView {...props} />;
+      case AdminViewType.ShiftPlanner:
+        return <ShiftPlannerView 
+                  employees={props.employees} 
+                  shifts={props.shifts} 
+                  addShift={props.addShift} 
+                  updateShift={props.updateShift} 
+                  deleteShift={props.deleteShift}
+                  customers={props.customers}
+                  activities={props.activities}
+                  companySettings={props.companySettings}
+               />;
       case AdminViewType.TimeTracking:
         return <TimeTrackingManagement {...props} />;
       case AdminViewType.Reports:
@@ -111,16 +132,23 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
   return (
     <div className="max-w-8xl mx-auto w-full">
         <div className="flex flex-col md:flex-row gap-6 items-start">
-            <AdminNav 
-                activeView={activeView} 
-                setActiveView={setActiveView} 
-                companySettings={props.companySettings} 
-                absenceRequests={props.absenceRequests}
-            />
-            <div className="flex-grow w-full overflow-x-auto mt-6 md:mt-0">
-                {renderActiveView()}
+            <div className="md:pt-6">
+              <AdminNav 
+                  activeView={activeView} 
+                  setActiveView={setActiveView} 
+                  companySettings={props.companySettings} 
+                  absenceRequests={props.absenceRequests}
+              />
             </div>
+            <main className="flex-grow w-full overflow-x-auto pb-16 md:pb-0 md:pt-6">
+                {renderActiveView()}
+            </main>
         </div>
+        <AdminBottomNav
+            activeView={activeView}
+            setActiveView={setActiveView}
+            absenceRequests={props.absenceRequests}
+        />
     </div>
   );
 };

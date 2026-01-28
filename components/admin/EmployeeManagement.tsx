@@ -1,12 +1,11 @@
+
 import React, { useState } from 'react';
 import type { Employee, CompanySettings } from '../../types';
 import { EmploymentType } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { EmployeeFormModal } from './EmployeeFormModal';
-import { ConfirmModal } from '../ui/ConfirmModal';
 import { PlusIcon } from '../icons/PlusIcon';
-import { TrashIcon } from '../icons/TrashIcon';
 import { ToggleSwitch } from '../ui/ToggleSwitch';
 import { getContractDetailsForDate, formatHoursAndMinutes } from '../utils';
 import { CheckCircleIcon } from '../icons/CheckCircleIcon';
@@ -25,7 +24,6 @@ interface EmployeeManagementProps {
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ loggedInUser, employees, onAdd, onUpdate, onDelete, companySettings }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
-  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
 
   const timeFormat = companySettings.adminTimeFormat || 'hoursMinutes';
 
@@ -46,17 +44,6 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ loggedIn
       onAdd(employeeData);
     }
     handleCloseModal();
-  };
-
-  const handleDeleteClick = (employee: Employee) => {
-    setEmployeeToDelete(employee);
-  };
-
-  const handleConfirmDelete = () => {
-    if (employeeToDelete) {
-      onDelete(employeeToDelete.id);
-      setEmployeeToDelete(null);
-    }
   };
 
   const handleDashboardTypeChange = (employee: Employee, dashboardType: 'standard' | 'simplified') => {
@@ -101,7 +88,6 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ loggedIn
                 </th>
                 <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Autom. Pause</th>
                 <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -156,23 +142,12 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ loggedIn
                               disabled={isSuperAdmin}
                           />
                       </td>
-                      <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex gap-2 justify-end">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(emp); }} 
-                            className="p-2 text-gray-500 hover:text-red-600 disabled:opacity-50" 
-                            disabled={isSuperAdmin}
-                           >
-                            <TrashIcon className="h-5 w-5"/>
-                           </button>
-                        </div>
-                      </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={9} className="text-center py-10 text-gray-500">
+                  <td colSpan={8} className="text-center py-10 text-gray-500">
                     Keine Mitarbeiter angelegt.
                   </td>
                 </tr>
@@ -187,20 +162,12 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ loggedIn
           isOpen={isModalOpen}
           onClose={handleCloseModal}
           onSave={handleSave}
+          onDelete={onDelete}
           initialData={employeeToEdit}
           loggedInUser={loggedInUser}
           companySettings={companySettings}
         />
       )}
-      
-      <ConfirmModal
-        isOpen={!!employeeToDelete}
-        onClose={() => setEmployeeToDelete(null)}
-        onConfirm={handleConfirmDelete}
-        title="Mitarbeiter löschen"
-        message={`Möchten Sie ${employeeToDelete?.firstName} ${employeeToDelete?.lastName} wirklich löschen?`}
-        confirmText="Ja, löschen"
-      />
     </>
   );
 };

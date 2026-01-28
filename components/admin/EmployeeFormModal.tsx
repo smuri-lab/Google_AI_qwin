@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import type { Employee, ContractDetails, WeeklySchedule, CompanySettings } from '../../types';
@@ -14,11 +15,14 @@ import { DateSelectorButton } from '../ui/DateSelectorButton';
 import { FlexibleTimeInput } from '../ui/FlexibleTimeInput';
 import { FlexibleTimeInputCompact } from '../ui/FlexibleTimeInputCompact';
 import { RadioGroup } from '../ui/RadioGroup';
+import { TrashIcon } from '../icons/TrashIcon';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 interface EmployeeFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (employee: Omit<Employee, 'id'> | Employee) => void;
+  onDelete: (id: number) => void;
   initialData: Employee | null;
   loggedInUser: Employee;
   companySettings: CompanySettings;
@@ -69,7 +73,7 @@ const formatDate = (dateString?: string) => {
     });
 };
 
-export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, onClose, onSave, initialData, loggedInUser, companySettings }) => {
+export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, onClose, onSave, onDelete, initialData, loggedInUser, companySettings }) => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Partial<FormData>>(() => ({
     ...defaultState,
@@ -86,6 +90,7 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
   
   const [openDatePicker, setOpenDatePicker] = useState<'firstWorkDay' | 'changesValidFrom' | null>(null);
   const [isClosing, setIsClosing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const timeFormat = companySettings.adminTimeFormat || 'hoursMinutes';
 
   // Determine the reference year for vacation display
@@ -101,6 +106,7 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
   useEffect(() => {
     if (isOpen) {
         setIsClosing(false);
+        setShowDeleteConfirm(false);
         setStep(1); // Reset to step 1 (or Tab 1)
         if (initialData) {
           const changesDate = new Date();
@@ -227,6 +233,22 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
 
   const handleBack = () => {
       setStep(prev => prev - 1);
+  };
+
+  const handleDelete = () => {
+      if (initialData?.id) {
+          setShowDeleteConfirm(true);
+      }
+  };
+
+  const handleConfirmDelete = () => {
+      if (initialData?.id) {
+          setIsClosing(true);
+          setTimeout(() => {
+              onDelete(initialData.id);
+          }, 300);
+          setShowDeleteConfirm(false);
+      }
   };
 
   // Helper for Tabs in Edit Mode
@@ -596,14 +618,25 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
             </div>
 
             <div className="flex justify-between items-center pt-4 border-t">
-              <Button type="button" onClick={handleClose} className="bg-gray-200 hover:bg-gray-300 text-gray-800">Abbrechen</Button>
+              <div>
+                  {initialData && (initialData.id !== 0 && initialData.id !== loggedInUser.id) && (
+                      <Button type="button" onClick={handleDelete} className="bg-red-600 hover:bg-red-700 flex items-center gap-2">
+                          <TrashIcon className="h-5 w-5" />
+                          <span className="hidden sm:inline">Löschen</span>
+                      </Button>
+                  )}
+              </div>
               
               {initialData ? (
                   // EDIT MODE: Single Save Button
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Speichern</Button>
+                  <div className="flex gap-4">
+                      <Button type="button" onClick={handleClose} className="bg-gray-200 hover:bg-gray-300 text-gray-800">Abbrechen</Button>
+                      <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Speichern</Button>
+                  </div>
               ) : (
                   // CREATE MODE: Wizard Buttons
                   <div className="flex gap-4">
+                    <Button type="button" onClick={handleClose} className="bg-gray-200 hover:bg-gray-300 text-gray-800">Abbrechen</Button>
                     {step > 1 && (
                         <Button type="button" onClick={handleBack} className="bg-gray-500 hover:bg-gray-600">Zurück</Button>
                     )}
@@ -629,6 +662,15 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, on
             selectionMode="single"
         />
       )}
+      
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Mitarbeiter löschen"
+        message={`Möchten Sie den Mitarbeiter ${initialData?.firstName} ${initialData?.lastName} wirklich endgültig löschen?`}
+        confirmText="Ja, löschen"
+      />
     </>,
     document.body
   );

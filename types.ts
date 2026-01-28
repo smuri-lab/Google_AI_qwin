@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   name: string; // Display name for time tracking
@@ -10,6 +11,11 @@ export interface Customer {
   email?: string;
   phone?: string;
   nfcTagId?: string;
+  // Geofencing fields
+  gpsLat?: number;
+  gpsLng?: number;
+  gpsRadius?: number; // meters
+  enforceGeofencing?: boolean;
 }
 
 export interface Activity {
@@ -27,6 +33,20 @@ export interface TimeEntry {
   breakDurationMinutes: number;
   type: 'stopwatch' | 'manual';
   comment?: string;
+  // Captured GPS Data
+  startGpsLat?: number;
+  startGpsLng?: number;
+}
+
+export interface Shift {
+  id: string;
+  employeeId: number;
+  start: string; // ISO String containing date and time
+  end: string;   // ISO String containing date and time
+  label?: string; // Optional title e.g. "Frühschicht"
+  color?: string; // Hex code for UI
+  customerId?: string;
+  activityId?: string;
 }
 
 export enum AbsenceType {
@@ -133,6 +153,7 @@ export enum View {
 
 export enum AdminViewType {
     Planner = 'planner',
+    ShiftPlanner = 'shift_planner', // New View
     TimeTracking = 'time_tracking',
     Reports = 'reports',
     Employees = 'employees',
@@ -163,4 +184,7 @@ export interface CompanySettings {
   activityLabel?: string;
   adminTimeFormat?: 'decimal' | 'hoursMinutes';
   employeeTimeFormat?: 'decimal' | 'hoursMinutes';
+  // Shift Planner Settings
+  shiftPlannerStartHour?: number;
+  shiftPlannerEndHour?: number;
 }

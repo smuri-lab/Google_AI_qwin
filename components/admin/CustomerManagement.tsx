@@ -1,10 +1,10 @@
+
 import React, { useState } from 'react';
 import type { Customer, CompanySettings } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { CustomerFormModal } from './CustomerFormModal';
 import { PlusIcon } from '../icons/PlusIcon';
-import { PencilIcon } from '../icons/PencilIcon';
 
 interface CustomerManagementProps {
   customers: Customer[];
@@ -58,7 +58,6 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({ customer
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beschreibung (Zeiterfassung)</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Firma</th>
                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ansprechpartner</th>
-                <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aktion</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -74,17 +73,11 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({ customer
                     </td>
                     <td className="py-4 px-4 whitespace-nowrap">{c.companyName}</td>
                     <td className="py-4 px-4 whitespace-nowrap">{c.contactPerson || '-'}</td>
-                    <td className="py-4 px-4 whitespace-nowrap text-right text-sm font-medium">
-                      {/* FIX: Moved title attribute to parent div to resolve TS error. */}
-                      <div className="flex gap-2 justify-end" title="Bearbeiten">
-                        <PencilIcon className="h-5 w-5 text-gray-400"/>
-                      </div>
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-gray-500">
+                  <td colSpan={4} className="text-center py-10 text-gray-500">
                     Keine Einträge angelegt.
                   </td>
                 </tr>

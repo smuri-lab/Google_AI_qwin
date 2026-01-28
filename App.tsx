@@ -1,9 +1,10 @@
+
 import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { CalendarView } from './components/CalendarView';
 import { AdminView } from './components/AdminView';
 import { BottomNav } from './components/BottomNav';
-import type { TimeEntry, AbsenceRequest, UserAccount, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear, WeeklySchedule } from './types';
+import type { TimeEntry, AbsenceRequest, UserAccount, Employee, Customer, Activity, Holiday, CompanySettings, TimeBalanceAdjustment, HolidaysByYear, WeeklySchedule, Shift } from './types';
 import { View, EmploymentType, AbsenceType, TargetHoursModel, AdminViewType } from './types';
 import { INITIAL_CUSTOMERS, INITIAL_ACTIVITIES, INITIAL_USER_ACCOUNT, INITIAL_EMPLOYEES, getHolidays, GermanState } from './constants';
 import { LoginScreen } from './components/LoginScreen';
@@ -24,11 +25,40 @@ import { FeedbackSidebar } from './components/FeedbackSidebar';
 const generateDemoData = () => {
     const timeEntries: TimeEntry[] = [];
     const absenceRequests: AbsenceRequest[] = [];
+    const shifts: Shift[] = [];
     let entryIdCounter = 1000;
 
     // --- Jan Demo 2025 ---
     const janEmployeeId = 1;
     const janYear = 2025;
+    
+    // Shifts for Jan (Current Week + Next Week)
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+    
+    for (let i = 0; i < 14; i++) {
+        const d = new Date(startOfWeek);
+        d.setDate(d.getDate() + i);
+        const day = d.getDay();
+        
+        if (day >= 1 && day <= 5) { // Mon-Fri
+            const start = new Date(d);
+            start.setHours(8, 0, 0, 0);
+            const end = new Date(d);
+            end.setHours(16, 30, 0, 0);
+            
+            shifts.push({
+                id: `shift-${entryIdCounter++}`,
+                employeeId: janEmployeeId,
+                start: start.toISOString(),
+                end: end.toISOString(),
+                label: 'Frühschicht',
+                color: '#3b82f6' // Blue
+            });
+        }
+    }
+
     absenceRequests.push({
         id: entryIdCounter++,
         employeeId: janEmployeeId,
@@ -134,7 +164,7 @@ const generateDemoData = () => {
         currentDateAdmin.setDate(currentDateAdmin.getDate() + 1);
     }
 
-    return { timeEntries, absenceRequests };
+    return { timeEntries, absenceRequests, shifts };
 };
 
 const applyAutomaticBreaks = (entryData: Omit<TimeEntry, 'id' | 'employeeId'> | TimeEntry, employee: Employee): Omit<TimeEntry, 'id' | 'employeeId'> | TimeEntry => {
@@ -168,6 +198,7 @@ const App: React.FC = () => {
   const [adminActiveView, setAdminActiveView] = useState<AdminViewType>(AdminViewType.Planner);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(DEMO_DATA.timeEntries);
   const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>(DEMO_DATA.absenceRequests);
+  const [shifts, setShifts] = useState<Shift[]>(DEMO_DATA.shifts);
   const [timeBalanceAdjustments, setTimeBalanceAdjustments] = useState<TimeBalanceAdjustment[]>([]);
   const [userAccount, setUserAccount] = useState<UserAccount>(INITIAL_USER_ACCOUNT);
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
@@ -187,6 +218,8 @@ const App: React.FC = () => {
     activityLabel: 'Zeitkategorie 2',
     adminTimeFormat: 'hoursMinutes',
     employeeTimeFormat: 'hoursMinutes',
+    shiftPlannerStartHour: 0,
+    shiftPlannerEndHour: 24,
   });
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
@@ -223,6 +256,7 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
   }, [loggedInUser, currentView, adminViewMode]);
 
+  // ... (Effects for timeouts remain the same) ...
   useEffect(() => {
     if (showAbsenceSuccess) {
       const timer = setTimeout(() => setShowAbsenceSuccess(false), 3000);
@@ -279,7 +313,7 @@ const App: React.FC = () => {
 
   const isDisplayingAdminView = loggedInUser?.role === 'admin' && adminViewMode === 'admin';
 
-  // NFC Reader Logic
+  // NFC Reader Logic (remains the same) ...
   useEffect(() => {
     // @ts-ignore
     if (!('NDEFReader' in window)) {
@@ -370,6 +404,7 @@ const App: React.FC = () => {
       });
       timeEntries.forEach(t => requiredYears.add(new Date(t.start).getFullYear()));
       absenceRequests.forEach(a => requiredYears.add(new Date(a.startDate).getFullYear()));
+      shifts.forEach(s => requiredYears.add(new Date(s.start).getFullYear()));
 
       for (const year of Array.from(requiredYears)) {
         ensureHolidaysForYear(year);
@@ -377,7 +412,7 @@ const App: React.FC = () => {
     };
 
     loadMissingHolidays();
-  }, [employees, timeEntries, absenceRequests, ensureHolidaysForYear]);
+  }, [employees, timeEntries, absenceRequests, shifts, ensureHolidaysForYear]);
   
   const isUserAdmin = loggedInUser?.role === 'admin';
   const currentUser = isDisplayingAdminView ? null : loggedInUser;
@@ -438,6 +473,8 @@ const App: React.FC = () => {
         ...companyData,
         adminTimeFormat: 'hoursMinutes',
         employeeTimeFormat: 'hoursMinutes',
+        shiftPlannerStartHour: 0,
+        shiftPlannerEndHour: 24,
       });
       setLoggedInUser(newAdmin);
   }, []);
@@ -519,6 +556,18 @@ const App: React.FC = () => {
     setTimeBalanceAdjustments(prev => prev.filter(adj => adj.id !== id));
   }, []);
 
+  const addShift = useCallback((shift: Omit<Shift, 'id'>) => {
+      setShifts(prev => [...prev, { ...shift, id: `shift-${Date.now()}` }]);
+  }, []);
+
+  const updateShift = useCallback((updatedShift: Shift) => {
+      setShifts(prev => prev.map(s => s.id === updatedShift.id ? updatedShift : s));
+  }, []);
+
+  const deleteShift = useCallback((id: string) => {
+      setShifts(prev => prev.filter(s => s.id !== id));
+  }, []);
+
   const addEmployee = useCallback((employee: Omit<Employee, 'id'>) => {
     setEmployees(prev => [...prev, { ...employee, id: Date.now() }]);
   }, []);
@@ -559,6 +608,7 @@ const App: React.FC = () => {
   }, []);
   
   useEffect(() => {
+      // ... (Carryover logic remains same)
       const calculateAndSetCarryoverForAll = () => {
           const currentYear = MOCK_CURRENT_YEAR;
           const previousYear = currentYear - 1;
@@ -598,13 +648,14 @@ const App: React.FC = () => {
   }, [employees, absenceRequests, holidaysByYear]);
 
   const vacationInfo = useMemo(() => {
+    // ... (Vacation info logic remains same)
     if (!currentUser) return { vacationDaysLeft: 0, annualEntitlement: 0, carryover: 0 };
     
     const currentYear = MOCK_CURRENT_YEAR;
     const previousYear = currentYear - 1;
     const holidaysForCurrentYear = holidaysByYear[currentYear] || [];
     
-    const dateInCurrentYear = new Date(currentYear, 6, 1); // Mid-year for safety
+    const dateInCurrentYear = new Date(currentYear, 6, 1); 
     const contract = getContractDetailsForDate(currentUser, dateInCurrentYear);
     const annualEntitlement = contract.vacationDays;
     
@@ -665,6 +716,7 @@ const App: React.FC = () => {
     if (isDisplayingAdminView) {
         switch (adminActiveView) {
             case AdminViewType.Planner: return 'Admin - Planer';
+            case AdminViewType.ShiftPlanner: return 'Admin - Schichtplan';
             case AdminViewType.TimeTracking: return 'Admin - Zeiterfassung';
             case AdminViewType.Reports: return 'Admin - Berichte';
             case AdminViewType.Employees: return 'Admin - Mitarbeiter';
@@ -690,6 +742,9 @@ const App: React.FC = () => {
     const userTimeEntries = timeEntries.filter(entry => entry.employeeId === currentUser.id);
     const holidaysForCurrentYear = holidaysByYear[MOCK_CURRENT_YEAR] || [];
     
+    // Check if user is late for a shift
+    const shiftsForUser = shifts.filter(s => s.employeeId === currentUser.id);
+    
     const dashboardProps = {
         currentUser: currentUser,
         addTimeEntry: addTimeEntry,
@@ -711,6 +766,8 @@ const App: React.FC = () => {
         selectedState: selectedState,
         companySettings: companySettings,
         mockCurrentYear: MOCK_CURRENT_YEAR,
+        // Shifts data
+        shifts: shiftsForUser,
         // Stopwatch props
         isRunning: isRunning,
         startTime: startTime,
@@ -767,11 +824,12 @@ const App: React.FC = () => {
     }
   };
 
-  // APP LAYOUT with Fixed Positioning AND Feedback Sidebar wrapper
+  // ... (App Layout return remains largely same, just updating AdminView props)
   return (
     <div className="fixed inset-0 w-full h-full flex flex-row overflow-hidden bg-gray-50">
         <div className="flex-1 flex flex-col relative h-full w-full min-w-0">
             {!loggedInUser ? (
+                // ... (Login/Reg screens)
                 <div className="h-[100dvh] w-full overflow-y-auto bg-gray-100">
                     {authView === 'login' && employees.some(e => e.role === 'admin') ? (
                         <LoginScreen onLogin={handleLogin} onSwitchToRegister={() => setAuthView('register')} employees={employees} />
@@ -781,8 +839,9 @@ const App: React.FC = () => {
                 </div>
             ) : (
                 <>
-                    {/* Header is fixed by flex layout, no sticky needed */}
+                    {/* Header */}
                     <header className="flex-none bg-white shadow-md z-30 relative">
+                        {/* ... (Header content same) ... */}
                         <div className={`${isDisplayingAdminView ? 'max-w-8xl' : 'max-w-7xl'} mx-auto px-4 py-4 flex justify-between items-center`}>
                         <h1 className="text-2xl font-bold text-gray-900 truncate pr-2">
                             {isDisplayingAdminView ? 'Admin-Dashboard' : `Hallo, ${loggedInUser.firstName}`}
@@ -869,12 +928,18 @@ const App: React.FC = () => {
                             addTimeBalanceAdjustment={addTimeBalanceAdjustment}
                             onUpdateTimeBalanceAdjustment={updateTimeBalanceAdjustment}
                             onDeleteTimeBalanceAdjustment={deleteTimeBalanceAdjustment}
+                            // Shifts
+                            shifts={shifts}
+                            addShift={addShift}
+                            updateShift={updateShift}
+                            deleteShift={deleteShift}
                         />
                         ) : (
                         renderEmployeeView()
                         )}
                     </main>
 
+                    {/* Bottom Nav & Modals (same) */}
                     {!isDisplayingAdminView && loggedInUser && (
                         <BottomNav 
                         currentView={currentView} 
@@ -926,7 +991,7 @@ const App: React.FC = () => {
                             absenceRequests={absenceRequests.filter(r => r.employeeId === currentUser.id)}
                         />
                     )}
-                    
+                    {/* Toasts */}
                     {showAbsenceSuccess && (
                         <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md sm:w-auto p-4 bg-green-100 text-green-800 rounded-lg flex items-center gap-3 shadow-lg z-50 animate-toast-in">
                         <CheckCircleIcon className="h-6 w-6 text-green-500 flex-shrink-0" />

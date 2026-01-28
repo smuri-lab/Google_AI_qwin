@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import type { Customer, CompanySettings } from '../../types';
@@ -7,6 +8,8 @@ import { Input } from '../ui/Input';
 import { XIcon } from '../icons/XIcon';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { TrashIcon } from '../icons/TrashIcon';
+import { MapPinIcon } from '../icons/MapPinIcon';
+import { ToggleSwitch } from '../ui/ToggleSwitch';
 
 interface CustomerFormModalProps {
   isOpen: boolean;
@@ -27,19 +30,24 @@ const defaultState: Omit<Customer, 'id'> = {
   city: '',
   email: '',
   phone: '',
+  gpsLat: undefined,
+  gpsLng: undefined,
+  gpsRadius: 200,
+  enforceGeofencing: false,
 };
 
 export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, onClose, onSave, onDelete, initialData, companySettings }) => {
   const [formData, setFormData] = useState<Omit<Customer, 'id'>>(defaultState);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   const customerLabel = companySettings.customerLabel || 'Kunde';
 
   useEffect(() => {
     if (isOpen) {
         if (initialData) {
-            setFormData(initialData);
+            setFormData({ ...defaultState, ...initialData }); // spread default to ensure new fields exist
         } else {
             setFormData(defaultState);
         }
@@ -57,6 +65,12 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      const numVal = parseFloat(value);
+      setFormData(prev => ({ ...prev, [name]: isNaN(numVal) ? undefined : numVal }));
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsClosing(true);
@@ -77,6 +91,30 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
         }, 300);
         setShowDeleteConfirm(false);
     }
+  };
+  
+  const handleGetCurrentPosition = () => {
+      if (!navigator.geolocation) {
+          alert('Geolokalisierung wird von diesem Browser nicht unterstützt.');
+          return;
+      }
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+          (position) => {
+              setFormData(prev => ({
+                  ...prev,
+                  gpsLat: position.coords.latitude,
+                  gpsLng: position.coords.longitude
+              }));
+              setIsLocating(false);
+          },
+          (error) => {
+              console.error(error);
+              alert('Fehler beim Abrufen des Standorts. Bitte prüfen Sie die Berechtigungen.');
+              setIsLocating(false);
+          },
+          { enableHighAccuracy: true }
+      );
   };
 
   if (!isOpen) return null;
@@ -99,6 +137,33 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, on
                   <Input name="companyName" label="Firma" value={formData.companyName} onChange={handleChange} />
                   <Input name="contactPerson" label="Ansprechpartner" value={formData.contactPerson || ''} onChange={handleChange} />
                   <Input name="nfcTagId" label="NFC-Tag ID (Optional)" value={formData.nfcTagId || ''} onChange={handleChange} placeholder="z.B. kunde-001-standort-a" />
+              </fieldset>
+
+              <fieldset className="space-y-4 p-4 border rounded-lg">
+                  <div className="flex justify-between items-center">
+                      <legend className="text-lg font-semibold px-2 flex items-center gap-2">
+                          <MapPinIcon className="h-5 w-5 text-gray-500" />
+                          Standort & Geofencing
+                      </legend>
+                      <Button type="button" onClick={handleGetCurrentPosition} className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs py-1 px-3 flex items-center gap-1" disabled={isLocating}>
+                          <MapPinIcon className="h-3 w-3" />
+                          {isLocating ? 'Suche...' : 'Aktuellen Standort übernehmen'}
+                      </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                      <Input name="gpsLat" label="Breitengrad (Lat)" type="number" step="any" value={formData.gpsLat ?? ''} onChange={handleNumberChange} placeholder="z.B. 52.5200" />
+                      <Input name="gpsLng" label="Längengrad (Lng)" type="number" step="any" value={formData.gpsLng ?? ''} onChange={handleNumberChange} placeholder="z.B. 13.4050" />
+                  </div>
+                  <Input name="gpsRadius" label="Radius (Meter)" type="number" value={formData.gpsRadius ?? ''} onChange={handleNumberChange} placeholder="Standard: 200" />
+                  
+                  <div className="flex items-center justify-between p-3 border rounded-md bg-gray-50">
+                      <div className="mr-4">
+                          <label className="text-sm font-medium text-gray-700 block">Geofencing erzwingen</label>
+                          <span className="text-xs text-gray-500">Stempeln nur innerhalb des Radius erlauben</span>
+                      </div>
+                      <ToggleSwitch checked={formData.enforceGeofencing || false} onChange={(checked) => setFormData(prev => ({ ...prev, enforceGeofencing: checked }))} />
+                  </div>
               </fieldset>
 
               <fieldset className="space-y-4 p-4 border rounded-lg">
